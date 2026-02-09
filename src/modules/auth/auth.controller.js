@@ -164,7 +164,7 @@ router.post("/change-password", auth, authService.changePassword);
 router.post("/logout", authService.logout);
 /**
  * @swagger
- * /roles:
+ * /auth/roles:
  *   get:
  *     summary: Get all roles
  *     tags: [Auth]
