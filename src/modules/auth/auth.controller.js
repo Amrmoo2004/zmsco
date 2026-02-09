@@ -167,7 +167,7 @@ router.post("/logout", authService.logout);
  * /api/roles:
  *   get:
  *     summary: Get all roles
- *     tags: [Roles]
+ *     tags: [Auth]
  *     description: Get all active roles for creating users
  *     security:
  *       - bearerAuth: []
