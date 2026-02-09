@@ -1,7 +1,7 @@
 import express from "express";
 import * as authService from "./auth.services.js";
 import { auth } from "../../middlewares/auth.js";
-import { permission } from "../../middlewares/premission.js";
+import { permission } from "../../middlewares/permission.js";
 
 const router = express.Router();
 
@@ -54,7 +54,7 @@ router.post("/login", authService.login);
  *               - name
  *               - email
  *               - password
- *               - role
+ *               - phone
  *             properties:
  *               name:
  *                 type: string
@@ -62,7 +62,9 @@ router.post("/login", authService.login);
  *                 type: string
  *               password:
  *                 type: string
- *               role:
+ *               phone:
+ *                 type: string
+ *               roleId:
  *                 type: string
  *     responses:
  *       201:
@@ -109,13 +111,16 @@ router.post("/forgot-password", authService.sendForgotPassword);
  *             required:
  *               - email
  *               - otp
- *               - newPassword
+ *               - password
+ *               - confirmPassword
  *             properties:
  *               email:
  *                 type: string
  *               otp:
  *                 type: string
- *               newPassword:
+ *               password:
+ *                 type: string
+ *               confirmPassword:
  *                 type: string
  *     responses:
  *       200:
@@ -136,11 +141,11 @@ router.post('/new-password', authService.verifyPassword);
  *           schema:
  *             type: object
  *             required:
- *               - oldPassword
+ *               - currentPassword
  *               - newPassword
  *               - confirmNewPassword
  *             properties:
- *               oldPassword:
+ *               currentPassword:
  *                 type: string
  *               newPassword:
  *                 type: string
