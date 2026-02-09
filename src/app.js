@@ -13,14 +13,13 @@ import procurementRoutes from "./modules/procurement/procurement.controller.js";
 import { globalErrorHandler } from "./middlewares/error.js";
 import dashboardRoutes from "./modules/dashboard/dashboard.controller.js"; 
 const app = express();
-app.use(cors());
 app.use(express.json());
 app.use(morgan("dev"));
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 const corsOptions = {
   origin: '*', // Allow all origins or specify your frontend URL
   methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
-  credentials: false, // Required for cookies/sessions
+  credentials: true, // Required for cookies/sessions
   optionsSuccessStatus: 204
 };
 app.use(cors(corsOptions));
