@@ -164,34 +164,35 @@ router.post("/change-password", auth, authService.changePassword);
 router.post("/logout", authService.logout);
 /**
  * @swagger
- * /api/roles:
+ * /roles:
  *   get:
- *     summary: Get all roles
+ *     summary: Get all system roles
  *     tags: [Roles]
- *     description: Get all active roles for creating users
- *     security:
- *       - bearerAuth: []
  *     responses:
  *       200:
- *         description: Roles fetched successfully
+ *         description: List of roles
  *         content:
  *           application/json:
  *             schema:
- *               type: array
- *               items:
- *                 type: object
- *                 properties:
- *                   _id:
- *                     type: string
- *                     example: 65f1c3e9a2b4d0e91f77c123
- *                   name:
- *                     type: string
- *                     example: Admin
- *       401:
- *         description: Unauthorized
- *       403:
- *         description: Forbidden
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       _id:
+ *                         type: string
+ *                       name:
+ *                         type: string
+ *                       permissions:
+ *                         type: array
+ *                         items:
+ *                           type: string
  */
+
 router.get("/roles", auth,permission("*"), authService.get_roles);
 
 export default router;  

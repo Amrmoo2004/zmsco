@@ -11,7 +11,7 @@ import projectRoutes from "./modules/projects/project.controller.js";
 import stockRoutes from "./modules/stock/stock.controller.js";
 import procurementRoutes from "./modules/procurement/procurement.controller.js";
 import { globalErrorHandler } from "./middlewares/error.js";
-import dashboardRoutes from "./modules/dashboard/dashboard.controller.js"; 
+import dashboardRoutes from "./modules/dashboard/dashboard.controller.js";
 const app = express();
 app.use(express.json());
 app.use(morgan("dev"));
@@ -34,7 +34,10 @@ export const bootstrap = async () => {
   app.use('/api/projects', projectRoutes);
   app.use('/api/stock', stockRoutes);
   app.use('/api/procurement', procurementRoutes);
-  app.use('/api/dashboard', dashboardRoutes); // New Dashboard API
+
+  // ... existing imports ...
+
+  app.use("/api/dashboard", dashboardRoutes);
 
   app.use(globalErrorHandler);
 
