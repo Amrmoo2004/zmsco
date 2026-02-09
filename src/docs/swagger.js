@@ -11,8 +11,11 @@ const options = {
     servers: [
       {
         url: "http://localhost:3000/api",
-        url: "https://zmsco.onrender.com/api",   
         description: "Local server"
+      },
+      {
+        url: "https://zmsco.onrender.com/api",
+        description: "Production server"
       }
     ],
     components: {

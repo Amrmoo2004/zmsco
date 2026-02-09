@@ -8,6 +8,9 @@ import { connectDB } from "./db/db.connection.js";
 import authRoutes from "./modules/auth/auth.controller.js";
 import userRoutes from "./modules/users/user.controller.js";
 import projectRoutes from "./modules/projects/project.controller.js";
+import dashboardRoutes from "./modules/dashboard/dashboard.controller.js";
+import materialRoutes from "./modules/metrial/metrials.controllers.js";
+import procurementRoutes from "./modules/procurement/procurement.controller.js";
 import { globalErrorHandler } from "./middlewares/error.js";
 const app = express();
 app.use(cors());
@@ -27,10 +30,12 @@ export const bootstrap = async () => {
   app.get('/', (req, res) => {
     res.send('API is working!');
   });
-  app.use('/auth', authRoutes);
-  app.use('/users', userRoutes);
-  app.use('/projects', projectRoutes);
-
+  app.use('/api/auth', authRoutes);
+  app.use('/api/users', userRoutes);
+  app.use('/api/projects', projectRoutes);
+  app.use('/api/dashboard', dashboardRoutes);
+  app.use('/api/materials', materialRoutes);
+  app.use('/api/procurement', procurementRoutes);
   app.use(globalErrorHandler);
 
   await connectDB();
