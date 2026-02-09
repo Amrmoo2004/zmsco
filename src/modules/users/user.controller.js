@@ -28,8 +28,14 @@ router.get("/me", auth, userservrice.getProfile);
  * @swagger
  * /users/all:
  *   get:
- *     summary: Get all users
+ *     summary: Get all users (optional filter by role)
  *     tags: [Users]
+ *     parameters:
+ *       - in: query
+ *         name: role
+ *         schema:
+ *           type: string
+ *         description: Filter users by role name (e.g. Engineer, Manager)
  *     responses:
  *       200:
  *         description: List of users

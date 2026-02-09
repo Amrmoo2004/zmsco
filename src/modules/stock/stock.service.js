@@ -102,3 +102,19 @@ export const getInventory = asynchandler(async (req, res, next) => {
         data: stock
     });
 });
+
+/**
+ * GET TRANSACTIONS
+ */
+export const getTransactions = asynchandler(async (req, res, next) => {
+    const transactions = await MaterialTransaction.find()
+        .populate("project", "name")
+        .populate("material", "name unit")
+        .populate("createdBy", "username")
+        .sort({ transactionDate: -1 });
+
+    return res.status(200).json({
+        success: true,
+        data: transactions
+    });
+});

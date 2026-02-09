@@ -91,4 +91,21 @@ router.get(
     stockService.getInventory
 );
 
+/**
+ * @swagger
+ * /stock/transactions:
+ *   get:
+ *     summary: Get all material transactions (history)
+ *     tags: [Stock]
+ *     responses:
+ *       200:
+ *         description: List of transactions
+ */
+router.get(
+    "/transactions",
+    auth,
+    permission(PERMISSIONS.VIEW_INVENTORY),
+    stockService.getTransactions
+);
+
 export default router;
