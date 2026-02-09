@@ -19,30 +19,37 @@ import BlacklistToken from "../../db/models/blacklist.model.js";
 
 
 export const register = asynchandler(async (req, res, next) => {
-  const { name, email, password, phone } = req.body;
+ const { name, email, password, phone, roleId } = req.body;
+
   const existingUser = await User.findOne({ email });
   if (existingUser) {
     throw new AppError("User already exists", 409);
   }
-  const defaultRole = await Role.findOne({
-    isDefault: true,
-    isActive: true
-  });
 
-  if (!defaultRole) {
-    throw new Error("No default role configured");
+  const role =
+    roleId
+      ? await Role.findById(roleId)
+      : await Role.findOne({ isDefault: true, isActive: true });
+
+  if (!role) {
+    throw new AppError("Role not found", 404);
   }
+
   const user = await User.create({
     name,
     email,
-    password: await generatehash({ plaintext: password, saltround: process.env.SALTROUNDS }),
+    password: await generatehash({
+      plaintext: password,
+      saltround: process.env.SALTROUNDS,
+    }),
     phone: await encrypt(phone, process.env.encryption_key),
-    role: defaultRole._id
-
+    role: role._id,
+    createdBy: req.user._id, // مين اللي أنشأه
   });
+
   return successResponse(res, {
-    message: "signup successful",
-    userId: user._id
+    message: "User created by admin",
+    userId: user._id,
   }, 201);
 });
 
@@ -206,4 +213,9 @@ export const logout = asynchandler(async (req, res, next) => {
     success: true,
     message: "Logged out successfully"
   });
+});
+ 
+export const  get_roles = asynchandler(async (req, res, next) => {
+  const roles = await Role.find({ isActive: true }).select("name description");
+  return res.status(200).json({ success: true, data: roles });
 });
