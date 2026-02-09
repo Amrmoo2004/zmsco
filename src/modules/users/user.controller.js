@@ -23,23 +23,6 @@ const router = express.Router();
  *         description: Profile data
  */
 router.get("/me", auth, userservrice.getProfile);
-
-/**
- * @swagger
- * /users/all:
- *   get:
- *     summary: Get all users (optional filter by role)
- *     tags: [Users]
- *     parameters:
- *       - in: query
- *         name: role
- *         schema:
- *           type: string
- *         description: Filter users by role name (e.g. Engineer, Manager)
- *     responses:
- *       200:
- *         description: List of users
- */
 router.get("/all", auth, permission("VIEW_USERS"), userservrice.get_users);
 
 /**
@@ -71,62 +54,8 @@ router.get("/all", auth, permission("VIEW_USERS"), userservrice.get_users);
  *         description: User details
  */
 router.delete("/:id", auth, permission("DELETE_USER"), userservrice.deleteuser);
-
-/**
- * @swagger
- * /users/{id}/role:
- *   patch:
- *     summary: Assign a system role to a user
- *     tags: [Users]
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - roleId
- *             properties:
- *               roleId:
- *                 type: string
- *     responses:
- *       200:
- *         description: Role updated
- */
 router.patch("/:id/role", auth, permission("ASSIGN_ROLE"), userservrice.update_userrole);
-
-/**
- * @swagger
- * /users/updatepassword:
- *   post:
- *     summary: Update password (Authenticated)
- *     tags: [Users]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - oldPassword
- *               - newPassword
- *             properties:
- *               oldPassword:
- *                 type: string
- *               newPassword:
- *                 type: string
- *     responses:
- *       200:
- *         description: Password updated
- */
 router.post('/updatepassword', auth, userservrice.updatepassword);
-
 router.get('/count', auth, permission("VIEW_USERS"), userservrice.get_usercount);
 router.get('/:id', auth, permission("VIEW_USERS"), userservrice.get_member_profile);
 export default router;  

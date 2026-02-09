@@ -8,18 +8,16 @@ import { connectDB } from "./db/db.connection.js";
 import authRoutes from "./modules/auth/auth.controller.js";
 import userRoutes from "./modules/users/user.controller.js";
 import projectRoutes from "./modules/projects/project.controller.js";
-import stockRoutes from "./modules/stock/stock.controller.js";
-import procurementRoutes from "./modules/procurement/procurement.controller.js";
 import { globalErrorHandler } from "./middlewares/error.js";
-import dashboardRoutes from "./modules/dashboard/dashboard.controller.js";
 const app = express();
+app.use(cors());
 app.use(express.json());
 app.use(morgan("dev"));
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 const corsOptions = {
   origin: '*', // Allow all origins or specify your frontend URL
   methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
-  credentials: true, // Required for cookies/sessions
+  credentials: false, // Required for cookies/sessions
   optionsSuccessStatus: 204
 };
 app.use(cors(corsOptions));
@@ -29,15 +27,9 @@ export const bootstrap = async () => {
   app.get('/', (req, res) => {
     res.send('API is working!');
   });
-  app.use('/api/auth', authRoutes);
-  app.use('/api/users', userRoutes);
-  app.use('/api/projects', projectRoutes);
-  app.use('/api/stock', stockRoutes);
-  app.use('/api/procurement', procurementRoutes);
-
-  // ... existing imports ...
-
-  app.use("/api/dashboard", dashboardRoutes);
+  app.use('/auth', authRoutes);
+  app.use('/users', userRoutes);
+  app.use('/projects', projectRoutes);
 
   app.use(globalErrorHandler);
 

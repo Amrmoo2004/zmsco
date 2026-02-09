@@ -164,7 +164,7 @@ router.post("/change-password", auth, authService.changePassword);
 router.post("/logout", authService.logout);
 /**
  * @swagger
- * /roles:
+ * /auth/roles:
  *   get:
  *     summary: Get all system roles
  *     tags: [Roles]
@@ -187,12 +187,10 @@ router.post("/logout", authService.logout);
  *                         type: string
  *                       name:
  *                         type: string
- *                       permissions:
- *                         type: array
- *                         items:
- *                           type: string
+ *                       description:
+ *                         type: string
  */
 
-router.get("/roles", auth,permission("*"), authService.get_roles);
+router.get("/roles", auth, permission("*"), authService.get_roles);
 
 export default router;  

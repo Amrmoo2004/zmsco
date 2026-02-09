@@ -38,22 +38,7 @@ export const update_userrole = asynchandler(async (req, res, next) => {
   });
 });
 export const get_users = asynchandler(async (req, res, next) => {
-  const { role } = req.query;
-  const query = {};
-
-  if (role) {
-    // Find role ID first
-    const roleDoc = await RoleModel.findOne({ name: { $regex: new RegExp(role, "i") } });
-    if (roleDoc) {
-      query.role = roleDoc._id;
-    } else {
-      // If role name not found, return empty or handle as valid but empty result
-      // For now, let's return empty if role doesn't exist
-      return res.status(200).json({ success: true, data: [] });
-    }
-  }
-
-  const users = await UserModel.find(query).lean().populate("role", "name");
+  const users = await UserModel.find().lean().populate("role", "name");
 
   if (!users || users.length === 0) {
     return next(new Error('Users not found', { cause: 404 }));
