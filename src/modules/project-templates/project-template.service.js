@@ -3,6 +3,7 @@ import Project from "../../db/models/projects/project.js";
 import ProjectPhase from "../../db/models/projects/project.phase.js";
 import { AppError } from "../../utils/appError.js";
 import { asynchandler } from "../../utils/response/response.js";
+import { autoSetupProject } from "../../auto/project-auto-setup.service.js";
 
 /**
  * Get all templates
@@ -113,7 +114,7 @@ export const deleteTemplate = asynchandler(async (req, res, next) => {
  */
 export const applyTemplate = asynchandler(async (req, res, next) => {
     const { id } = req.params;
-    const { projectName, startDate } = req.body;
+    const { projectName, startDate, type, manager } = req.body;
 
     const template = await ProjectTemplate.findById(id);
 
@@ -125,23 +126,15 @@ export const applyTemplate = asynchandler(async (req, res, next) => {
     const project = await Project.create({
         name: projectName,
         description: template.description,
+        type: type || template.type,
         startDate: startDate || new Date(),
+        manager: manager || req.user._id,
         createdBy: req.user._id,
         status: "PLANNING"
     });
 
-    // Create phases from template
-    if (template.phases && template.phases.length > 0) {
-        const phases = template.phases.map(phase => ({
-            project: project._id,
-            name: phase.name,
-            description: phase.description,
-            startDate: startDate || new Date(),
-            status: "PENDING"
-        }));
-
-        await ProjectPhase.insertMany(phases);
-    }
+    // Auto setup project (phases, materials, equipment, documents, members)
+    await autoSetupProject(project);
 
     return res.status(201).json({
         success: true,
