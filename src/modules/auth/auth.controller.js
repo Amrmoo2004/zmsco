@@ -167,7 +167,7 @@ router.post("/logout", authService.logout);
  * /auth/roles:
  *   get:
  *     summary: Get all system roles
- *     tags: [Roles]
+ *     tags: [Auth]
  *     responses:
  *       200:
  *         description: List of roles
