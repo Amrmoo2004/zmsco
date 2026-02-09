@@ -1,7 +1,7 @@
 import express from "express";
 import * as authService from "./auth.services.js";
 import { auth } from "../../middlewares/auth.js";
-import { permission } from "../../middlewares/permission.js";
+import { permission } from "../../middlewares/premission.js";
 
 const router = express.Router();
 
