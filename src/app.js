@@ -20,7 +20,7 @@ app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 const corsOptions = {
   origin: '*', // Allow all origins or specify your frontend URL
   methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
-  credentials: false, // Required for cookies/sessions
+  credentials: true, // Required for cookies/sessions
   optionsSuccessStatus: 204
 };
 app.use(cors(corsOptions));
