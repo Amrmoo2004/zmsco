@@ -11,6 +11,7 @@ import projectRoutes from "./modules/projects/project.controller.js";
 import stockRoutes from "./modules/stock/stock.controller.js";
 import procurementRoutes from "./modules/procurement/procurement.controller.js";
 import { globalErrorHandler } from "./middlewares/error.js";
+import dashboardRoutes from "./modules/dashboard/dashboard.controller.js"; 
 const app = express();
 app.use(cors());
 app.use(express.json());
