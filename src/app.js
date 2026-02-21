@@ -23,23 +23,29 @@ import projectDocumentRoutes from "./modules/project-documents/project-document.
 import projectEquipmentRoutes from "./modules/project-equipment/project-equipment.controller.js";
 import projectTemplateRoutes from "./modules/project-templates/project-template.controller.js";
 import roleRoutes from "./modules/roles/role.controller.js";
+import notificationRoutes from "./modules/notifications/notification.controller.js";
+import attachmentRoutes from "./modules/attachments/attachment.controller.js";
+
 const app = express();
+
 app.use(express.json());
 app.use(morgan("dev"));
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+
 const corsOptions = {
-  origin: '*', // Allow all origins or specify your frontend URL
+  origin: '*',
   methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
-  credentials: true, // Required for cookies/sessions
-  optionsSuccessStatus: 204
+  credentials: true,
+  optionsSuccessStatus: 204,
 };
 app.use(cors(corsOptions));
 app.use(cookieParser());
-const port = process.env.PORT
+
 export const bootstrap = async () => {
   app.get('/', (req, res) => {
     res.send('API is working!');
   });
+
   app.use('/api/auth', authRoutes);
   app.use('/api/users', userRoutes);
   app.use('/api/projects', projectRoutes);
@@ -68,20 +74,16 @@ export const bootstrap = async () => {
   // Roles & Permissions APIs
   app.use('/api/roles', roleRoutes);
 
+  // Real-time Notifications API
+  app.use('/api/notifications', notificationRoutes);
+
+  // File Upload API (Cloudinary)
+  app.use('/api/upload', attachmentRoutes);
+
   app.use(globalErrorHandler);
 
   await connectDB();
 
-
-  app.use(express.json());
-  app.use((req, res, next) => {
-    req.socket.on('error', (err) => {
-      console.error('Request socket error:', err);
-    });
-    next();
-  });
-  return app.listen(port, () => {
-    console.log(`🚀 Server is running at http://localhost:${port}`);
-  });
+  // Return the app so index.js can attach Socket.IO and start the HTTP server
+  return app;
 };
-

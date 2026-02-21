@@ -2,6 +2,7 @@ import { Router } from "express";
 import * as projectDocumentService from "./project-document.service.js";
 import { auth } from "../../middlewares/auth.js";
 import { permission } from "../../middlewares/premission.js";
+import { uploadSingle } from "../../middlewares/upload.js";
 
 const router = Router();
 
@@ -51,7 +52,7 @@ const router = Router();
  *       201: { description: Document uploaded }
  */
 router.get("/:projectId/documents", auth, permission("VIEW_REPORTS"), projectDocumentService.getProjectDocuments);
-router.post("/:projectId/documents", auth, permission("UPDATE_PROJECT"), projectDocumentService.uploadProjectDocument);
+router.post("/:projectId/documents", auth, permission("UPDATE_PROJECT"), uploadSingle("file"), projectDocumentService.uploadProjectDocument);
 
 /**
  * @swagger

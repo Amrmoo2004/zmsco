@@ -87,7 +87,7 @@ export const updateTemplate = asynchandler(async (req, res, next) => {
         message: "Template updated successfully",
         data: template
     });
-});
+    });
 
 /**
  * Delete template
