@@ -118,20 +118,25 @@ const router = Router();
  *       201: { description: Equipment assigned }
  */
 
-// Equipment Fleet CRUD
-router.get("/", auth, equipmentService.getAllEquipment);
-router.post("/", auth, permission("CREATE_PROJECT"), equipmentService.createEquipment);
-router.get("/:id", auth, equipmentService.getEquipmentById);
-router.put("/:id", auth, permission("UPDATE_PROJECT"), equipmentService.updateEquipment);
-router.delete("/:id", auth, permission("DELETE_PROJECT"), equipmentService.deleteEquipment);
-
-// Maintenance Logs
-router.get("/:id/maintenance", auth, equipmentService.getMaintenanceLogs);
-router.post("/:id/maintenance", auth, permission("UPDATE_PROJECT"), equipmentService.addMaintenanceLog);
-
 // Assignments
 router.get("/assignments", auth, equipmentService.getAssignments);
 router.post("/assignments", auth, permission("UPDATE_PROJECT"), equipmentService.assignEquipment);
 router.put("/assignments/:assignmentId", auth, permission("UPDATE_PROJECT"), equipmentService.updateAssignment);
+
+// Equipment Fleet Base
+router.get("/", auth, equipmentService.getAllEquipment);
+router.post("/", auth, permission("CREATE_PROJECT"), equipmentService.createEquipment);
+
+
+
+
+// Maintenance Logs (Put these before pure /:id just to be safe)
+router.get("/:id/maintenance", auth, equipmentService.getMaintenanceLogs);
+router.post("/:id/maintenance", auth, permission("UPDATE_PROJECT"), equipmentService.addMaintenanceLog);
+
+// Equipment Fleet CRUD by ID
+router.get("/:id", auth, equipmentService.getEquipmentById);
+router.put("/:id", auth, permission("UPDATE_PROJECT"), equipmentService.updateEquipment);
+router.delete("/:id", auth, permission("DELETE_PROJECT"), equipmentService.deleteEquipment);
 
 export default router;
