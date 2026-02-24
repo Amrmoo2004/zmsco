@@ -64,11 +64,18 @@ router.post("/login", authService.login);
  *                 type: string
  *               phone:
  *                 type: string
- *               roleId:
- *                 type: string
  *     responses:
  *       201:
  *         description: User registered
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 userId:
+ *                   type: string
  */
 router.post("/register", authService.register);
 
@@ -197,6 +204,6 @@ router.post("/logout", authService.logout);
  *       403:
  *         description: Forbidden
  */
-router.get("/roles", auth,permission("*"), authService.get_roles);
+router.get("/roles", auth, permission("*"), authService.get_roles);
 
 export default router;  

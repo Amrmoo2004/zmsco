@@ -19,17 +19,15 @@ import BlacklistToken from "../../db/models/blacklist.model.js";
 
 
 export const register = asynchandler(async (req, res, next) => {
- const { name, email, password, phone, roleId } = req.body;
+  const { name, email, password, phone } = req.body;
 
   const existingUser = await User.findOne({ email });
   if (existingUser) {
     throw new AppError("User already exists", 409);
   }
 
-  const role =
-    roleId
-      ? await Role.findById(roleId)
-      : await Role.findOne({ isDefault: true, isActive: true });
+  // Always assign the default user role during registration
+  const role = await Role.findOne({ isDefault: true, isActive: true });
 
   if (!role) {
     throw new AppError("Role not found", 404);
@@ -44,11 +42,11 @@ export const register = asynchandler(async (req, res, next) => {
     }),
     phone: await encrypt(phone, process.env.encryption_key),
     role: role._id,
-    createdBy: req.user._id, // مين اللي أنشأه
+    createdBy: req.user ? req.user._id : undefined, // مين اللي أنشأه
   });
 
   return successResponse(res, {
-    message: "User created by admin",
+    message: "User registered successfully",
     userId: user._id,
   }, 201);
 });
@@ -214,8 +212,8 @@ export const logout = asynchandler(async (req, res, next) => {
     message: "Logged out successfully"
   });
 });
- 
-export const  get_roles = asynchandler(async (req, res, next) => {
+
+export const get_roles = asynchandler(async (req, res, next) => {
   const roles = await Role.find({ isActive: true }).select("name description");
   return res.status(200).json({ success: true, data: roles });
 });
