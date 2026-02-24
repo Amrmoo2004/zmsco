@@ -28,6 +28,18 @@ const materialTransactionSchema = new mongoose.Schema(
       ref: "MaterialRequest"
     },
 
+    // ─── Added Context Fields ─────────────────────────────────────────────
+    warehouse: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Warehouse"
+    },
+
+    phase: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "ProjectPhase"
+    },
+    // ───────────────────────────────────────────────────────────────────────
+
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User"

@@ -26,6 +26,30 @@ import roleRoutes from "./modules/roles/role.controller.js";
 import notificationRoutes from "./modules/notifications/notification.controller.js";
 import attachmentRoutes from "./modules/attachments/attachment.controller.js";
 
+// Phase 1: Settings & HR Foundation
+import departmentRoutes from "./modules/departments/department.controller.js";
+import jobTitleRoutes from "./modules/job-titles/jobTitle.controller.js";
+import systemConfigRoutes from "./modules/system-configuration/systemConfig.controller.js";
+import workflowRoutes from "./modules/workflows/workflow.controller.js";
+import projectTypeRoutes from "./modules/project-types/projectType.controller.js";
+
+// Phase 2: Project Core Upgrades
+import taskRoutes from "./modules/tasks/task.controller.js";
+import phaseApprovalRoutes from "./modules/phase-approvals/phaseApproval.controller.js";
+
+// Phase 3: HR, Equipment & Resources
+import hrRoutes from "./modules/hr/hr.controller.js";
+import equipmentRoutes from "./modules/equipment/equipment.controller.js";
+
+// Phase 4: Procurement & Inventory
+import quoteRoutes from "./modules/quotes/quote.controller.js";
+import goodsReceiptRoutes from "./modules/goods-receipts/goodsReceipt.controller.js";
+
+// Phase 5: Ticketing & Project Closure
+import ticketRoutes from "./modules/tickets/ticket.controller.js";
+import projectClosureRoutes from "./modules/project-closure/projectClosure.controller.js";
+
+
 const app = express();
 
 app.use(express.json());
@@ -80,7 +104,31 @@ export const bootstrap = async () => {
   // File Upload API (Cloudinary)
   app.use('/api/upload', attachmentRoutes);
 
+  // Phase 1: Settings & Foundation APIs
+  app.use('/api/departments', departmentRoutes);
+  app.use('/api/job-titles', jobTitleRoutes);
+  app.use('/api/system-config', systemConfigRoutes);
+  app.use('/api/workflows', workflowRoutes);
+  app.use('/api/project-types', projectTypeRoutes);
+
+  // Phase 2: Project Core Upgrades
+  app.use('/api/projects/:projectId/phases/:phaseId/tasks', taskRoutes);
+  app.use('/api/projects/:projectId/phases/:phaseId/approvals', phaseApprovalRoutes);
+
+  // Phase 3: HR, Equipment & Resources APIs
+  app.use('/api/hr', hrRoutes);
+  app.use('/api/equipment', equipmentRoutes);
+
+  // Phase 4: Procurement & Inventory APIs
+  app.use('/api/rfqs/:rfqId/quotes', quoteRoutes);
+  app.use('/api/purchase-orders/:poId/receipts', goodsReceiptRoutes);
+
+  // Phase 5: Ticketing & Project Closure APIs
+  app.use('/api/tickets', ticketRoutes);
+  app.use('/api/projects/:projectId/closure', projectClosureRoutes);
+
   app.use(globalErrorHandler);
+
 
   await connectDB();
 

@@ -28,9 +28,29 @@ const purchaseOrderSchema = new mongoose.Schema(
 
         status: {
             type: String,
-            enum: ["PENDING", "APPROVED", "SENT", "RECEIVED"],
+            enum: ["PENDING", "APPROVED", "SENT", "PARTIALLY_RECEIVED", "RECEIVED"],
             default: "PENDING"
         },
+
+        // ─── Additional Context ─────────────────────────────────────────────────
+        quote: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "Quote"
+        },
+
+        project: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "Project"
+        },
+
+        warehouse: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "Warehouse"
+        },
+
+        deliveryDate: Date,
+        paymentTerms: String,
+        // ───────────────────────────────────────────────────────────────────────
 
         createdBy: {
             type: mongoose.Schema.Types.ObjectId,

@@ -38,7 +38,21 @@ const materialRequestSchema = new mongoose.Schema(
     issuedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User"
-    }
+    },
+
+    // ─── Added Context Fields ─────────────────────────────────────────────
+    warehouse: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Warehouse"
+    },
+
+    phase: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "ProjectPhase"
+    },
+
+    notes: String
+    // ───────────────────────────────────────────────────────────────────────
   },
   { timestamps: true }
 );

@@ -24,6 +24,28 @@ const rfqSchema = new mongoose.Schema(
 
         deadline: Date,
 
+        // ─── Multi-Vendor & Project Context ────────────────────────────────────
+        suppliers: [{
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "Supplier"
+        }],
+
+        project: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "Project"
+        },
+
+        phase: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "ProjectPhase"
+        },
+
+        warehouse: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "Warehouse"
+        },
+        // ───────────────────────────────────────────────────────────────────────
+
         createdBy: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "User"

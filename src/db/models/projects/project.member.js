@@ -30,7 +30,26 @@ const projectMemberSchema = new mongoose.Schema(
       type: String,
       enum: ["VACANT", "FILLED"],
       default: "VACANT"
-    }
+    },
+
+    // ─── Resource Allocation Details ──────────────────────────────────────────
+    phase: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "ProjectPhase"
+    },
+
+    startDate: Date,
+    endDate: Date,
+
+    allocationPercentage: {
+      type: Number,
+      min: 0,
+      max: 100,
+      default: 100
+    },
+
+    notes: String
+    // ─────────────────────────────────────────────────────────────────────────
   },
   { timestamps: true }
 );

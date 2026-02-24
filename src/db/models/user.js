@@ -32,18 +32,51 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: true
     },
-    forgotPasswordOtp:{
+    forgotPasswordOtp: {
       type: String,
-default:null
+      default: null
 
-  },
-        
+    },
+
     tokenVersion: {
-    type: Number,
-    default: 0,
-    required: true
-  },
-    
+      type: Number,
+      default: 0,
+      required: true
+    },
+
+    // --- New HR / Resource Allocation Fields ---
+    jobTitle: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "JobTitle"
+    },
+
+    hourlyRate: {
+      type: Number,
+      default: 0
+    },
+
+    status: {
+      type: String,
+      enum: ["AVAILABLE", "BUSY", "ON_LEAVE"],
+      default: "AVAILABLE"
+    },
+
+    skills: [{
+      type: String
+    }],
+
+    joinDate: {
+      type: Date
+    },
+
+    performanceRating: {
+      type: Number,
+      min: 0,
+      max: 5,
+      default: 0
+    },
+    // ------------------------------------------
+
     otp: String,
     otpExpires: Date
   },
