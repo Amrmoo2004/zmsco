@@ -9,13 +9,15 @@ export async function sendemails({
     cc = "",
     bcc = "",
     text = "",
-    html = "",    
+    html = "",
     subject = "ZMSCO",
     attachments = []
 } = {}) {
-    
+
     const transporter = nodemailer.createTransport({
-        service: "gmail",
+        host: "smtp.gmail.com",
+        port: 465,
+        secure: true,
         auth: {
             user: process.env.app_email,
             pass: process.env.app_password,
@@ -27,7 +29,7 @@ export async function sendemails({
             from: `"ZMSCO" <${process.env.app_email}>`,
             to, cc, bcc, text, html, subject, attachments
         });
-      
+
         return info;
     } catch (error) {
         console.error("Error sending email:", error);
