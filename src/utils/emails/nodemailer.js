@@ -15,9 +15,15 @@ export async function sendemails({
 } = {}) {
 
     const transporter = nodemailer.createTransport({
+        service: "gmail",
         host: "smtp.gmail.com",
         port: 587,
         secure: false, // true for 465, false for other ports
+        pool: true, // Use pooled connections
+        tls: {
+            ciphers: "SSLv3",
+            rejectUnauthorized: false
+        },
         auth: {
             user: process.env.app_email,
             pass: process.env.app_password,
