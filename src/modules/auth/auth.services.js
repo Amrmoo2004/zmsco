@@ -128,11 +128,9 @@ export const sendForgotPassword = asynchandler(async (req, res, next) => {
     }
   });
 });
-
-
-export const verifyPassword = asynchandler(async (req, res, next) => {
+export const verifyOtp = asynchandler(async (req, res, next) => {
   const email = req.body.email?.trim().toLowerCase();
-  const { otp, password, confirmPassword } = req.body;
+  const { otp } = req.body;
 
   const user = await User.findOne({ email });
 
@@ -157,6 +155,37 @@ export const verifyPassword = asynchandler(async (req, res, next) => {
     return next(new Error("Invalid OTP", { cause: 400 }));
   }
 
+  user.isOtpVerified = true;
+  await user.save();
+
+  return res.status(200).json({
+    success: true,
+    message: "OTP is valid"
+  });
+});
+
+export const verifyPassword = asynchandler(async (req, res, next) => {
+  const email = req.body.email?.trim().toLowerCase();
+  const { password, confirmPassword } = req.body;
+
+  const user = await User.findOne({ email });
+
+  if (!user) {
+    return next(new Error("No account found with this email", { cause: 404 }));
+  }
+
+  if (!user.isOtpVerified) {
+    return next(new Error("Please verify OTP first", { cause: 400 }));
+  }
+
+  if (!user.otpExpires || user.otpExpires < new Date()) {
+    user.isOtpVerified = false;
+    await user.save();
+    return next(
+      new Error("Password reset session has expired. Please request a new OTP", { cause: 400 })
+    );
+  }
+
   if (password !== confirmPassword) {
     return next(new Error("Passwords do not match", { cause: 400 }));
   }
@@ -164,6 +193,7 @@ export const verifyPassword = asynchandler(async (req, res, next) => {
   user.password = await generatehash({ plaintext: password });
   user.forgotPasswordOtp = undefined;
   user.otpExpires = undefined;
+  user.isOtpVerified = false;
 
   await user.save();
 

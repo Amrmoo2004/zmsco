@@ -35,7 +35,10 @@ const userSchema = new mongoose.Schema(
     forgotPasswordOtp: {
       type: String,
       default: null
-
+    },
+    isOtpVerified: {
+      type: Boolean,
+      default: false
     },
 
     tokenVersion: {

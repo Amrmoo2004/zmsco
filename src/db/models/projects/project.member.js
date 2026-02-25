@@ -14,16 +14,12 @@ const projectMemberSchema = new mongoose.Schema(
       required: true // "Backend Dev", "Designer"
     },
 
-    // صلاحيات السيستم
-    systemRole: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Role",
-      required: true
-    },
+    // No systemRole anymore, just the job description.
 
-    assignedUser: {
+    user: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "User"
+      ref: "User",
+      required: true
     },
 
     status: {

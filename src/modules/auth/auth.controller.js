@@ -101,13 +101,11 @@ router.post("/register", authService.register);
  *         description: Reset code sent
  */
 router.post("/forgot-password", authService.sendForgotPassword);
-
-
 /**
  * @swagger
- * /auth/new-password:
+ * /auth/verify-otp:
  *   post:
- *     summary: Reset password using OTP
+ *     summary: Verify OTP before resetting password
  *     tags: [Auth]
  *     requestBody:
  *       required: true
@@ -118,12 +116,35 @@ router.post("/forgot-password", authService.sendForgotPassword);
  *             required:
  *               - email
  *               - otp
- *               - password
- *               - confirmPassword
  *             properties:
  *               email:
  *                 type: string
  *               otp:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: OTP verified successfully
+ */
+router.post('/verify-otp', authService.verifyOtp);
+
+/**
+ * @swagger
+ * /auth/new-password:
+ *   post:
+ *     summary: Reset password after verifying OTP
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - password
+ *               - confirmPassword
+ *             properties:
+ *               email:
  *                 type: string
  *               password:
  *                 type: string
