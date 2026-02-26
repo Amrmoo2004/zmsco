@@ -8,11 +8,18 @@ const options = {
       version: "1.0.0",
       description: "System for managing sewer infrastructure projects"
     },
-    servers: [
+   servers: [
       {
         url: "http://localhost:3000/api",
-        url: "https://zmsco.onrender.com/api",   
-        description: "Local server"
+        description: "Local Development Server"
+      },
+      {
+        url: "http://13.51.146.205:3000/api",
+        description: "AWS EC2 Server"
+      },
+      {
+        url: "https://zmsco.onrender.com/api",
+        description: "Render Server"
       }
     ],
     components: {
