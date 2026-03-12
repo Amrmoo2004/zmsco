@@ -163,4 +163,50 @@ router.post(
   projectService.assign_member
 );
 
+/**
+ * @swagger
+ * /projects/{id}/summary:
+ *   get:
+ *     summary: Get full project summary (for review screen)
+ *     tags: [Projects]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Full project data including phases, members, materials, equipment, documents
+ */
+router.get(
+  "/:id/summary",
+  auth,
+  permission("VIEW_PROJECT"),
+  projectService.get_project_summary
+);
+
+/**
+ * @swagger
+ * /projects/{id}/activate:
+ *   post:
+ *     summary: Activate a draft project (Final submit)
+ *     tags: [Projects]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Project activated and moved from DRAFT to PLANNING
+ */
+router.post(
+  "/:id/activate",
+  auth,
+  permission("EDIT_PROJECT"),
+  projectService.activate_project
+);
+
 export default router;

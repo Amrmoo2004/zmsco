@@ -21,8 +21,7 @@ const projectSchema = new mongoose.Schema(
         "TECHNOLOGY",
         "MAINTENANCE",
         "TRANSFORMATION"
-      ],
-      required: true
+      ]
     },
 
     priority: {
@@ -34,13 +33,14 @@ const projectSchema = new mongoose.Schema(
     status: {
       type: String,
       enum: [
+        "DRAFT",
         "PLANNING",
         "EXECUTION",
         "ON_HOLD",
         "COMPLETED",
         "CANCELLED"
       ],
-      default: "PLANNING"
+      default: "DRAFT"
     },
 
     startDate: Date,
@@ -60,8 +60,7 @@ const projectSchema = new mongoose.Schema(
 
     manager: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-      required: true
+      ref: "User"
     },
 
     // Warehouse Configuration

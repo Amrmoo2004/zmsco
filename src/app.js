@@ -49,6 +49,9 @@ import goodsReceiptRoutes from "./modules/goods-receipts/goodsReceipt.controller
 import ticketRoutes from "./modules/tickets/ticket.controller.js";
 import projectClosureRoutes from "./modules/project-closure/projectClosure.controller.js";
 
+// Cron Jobs
+import { startDraftCleanupJob } from "./auto/draft-cleanup.cron.js";
+
 
 const app = express();
 
@@ -81,7 +84,7 @@ export const bootstrap = async () => {
   app.use('/api/materials', materialRoutes);
   app.use('/api/material-requests', materialRequestRoutes);
   app.use('/api/material-transactions', materialTransactionRoutes);
-
+ 
   // Warehouse Management APIs
   app.use('/api/warehouses', warehouseRoutes);
 
@@ -129,8 +132,10 @@ export const bootstrap = async () => {
 
   app.use(globalErrorHandler);
 
-
   await connectDB();
+
+  // Start scheduled jobs
+  startDraftCleanupJob();
 
   // Return the app so index.js can attach Socket.IO and start the HTTP server
   return app;
