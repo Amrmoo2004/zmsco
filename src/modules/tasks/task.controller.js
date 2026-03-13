@@ -107,13 +107,13 @@ const router = Router({ mergeParams: true }); // mergeParams to access :projectI
 
 // Task CRUD
 router.get("/", auth, taskService.getTasksByPhase);
-router.post("/", auth, permission("UPDATE_PROJECT"), taskService.createTask);
-router.put("/:taskId", auth, permission("UPDATE_PROJECT"), taskService.updateTask);
+router.post("/", auth, permission("EDIT_PROJECT"), taskService.createTask);
+router.put("/:taskId", auth, permission("EDIT_PROJECT"), taskService.updateTask);
 router.delete("/:taskId", auth, permission("DELETE_PROJECT"), taskService.deleteTask);
 
 // Phase Gating Actions
 router.post("/submit-attachment", auth, taskService.submitPhaseAttachment);
-router.put("/review-attachment/:attachmentSlotId", auth, permission("UPDATE_PROJECT"), taskService.reviewPhaseAttachment);
+router.put("/review-attachment/:attachmentSlotId", auth, permission("EDIT_PROJECT"), taskService.reviewPhaseAttachment);
 router.put("/sign-off", auth, taskService.signOffPhase);
 
 export default router;

@@ -39,8 +39,8 @@ const router = Router();
  *     responses:
  *       201: { description: Template created }
  */
-router.get("/", auth, permission("VIEW_REPORTS"), projectTemplateService.getAllTemplates);
-router.post("/", auth, permission("CREATE_PROJECT"), projectTemplateService.createTemplate);
+router.get("/", auth, permission("MANAGE_SETTINGS"), projectTemplateService.getAllTemplates);
+router.post("/", auth, permission("MANAGE_SETTINGS"), projectTemplateService.createTemplate);
 
 /**
  * @swagger
@@ -76,9 +76,9 @@ router.post("/", auth, permission("CREATE_PROJECT"), projectTemplateService.crea
  *     responses:
  *       200: { description: Template deleted }
  */
-router.get("/:id", auth, permission("VIEW_REPORTS"), projectTemplateService.getTemplateById);
-router.put("/:id", auth, permission("UPDATE_PROJECT"), projectTemplateService.updateTemplate);
-router.delete("/:id", auth, permission("DELETE_PROJECT"), projectTemplateService.deleteTemplate);
+router.get("/:id", auth, permission("MANAGE_SETTINGS"), projectTemplateService.getTemplateById);
+router.put("/:id", auth, permission("MANAGE_SETTINGS"), projectTemplateService.updateTemplate);
+router.delete("/:id", auth, permission("MANAGE_SETTINGS"), projectTemplateService.deleteTemplate);
 
 /**
  * @swagger

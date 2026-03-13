@@ -63,9 +63,9 @@ const router = Router();
  */
 
 router.get("/", auth, jobTitleService.getAllJobTitles);
-router.post("/", auth, permission("CREATE_PROJECT"), jobTitleService.createJobTitle);
+router.post("/", auth, permission("MANAGE_HR"), jobTitleService.createJobTitle);
 router.get("/:id", auth, jobTitleService.getJobTitleById);
-router.put("/:id", auth, permission("UPDATE_PROJECT"), jobTitleService.updateJobTitle);
-router.delete("/:id", auth, permission("DELETE_PROJECT"), jobTitleService.deleteJobTitle);
+router.put("/:id", auth, permission("MANAGE_HR"), jobTitleService.updateJobTitle);
+router.delete("/:id", auth, permission("MANAGE_HR"), jobTitleService.deleteJobTitle);
 
 export default router;

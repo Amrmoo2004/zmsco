@@ -69,9 +69,9 @@ const router = Router();
  */
 
 router.get("/", auth, projectTypeService.getAllProjectTypes);
-router.post("/", auth, permission("CREATE_PROJECT"), projectTypeService.createProjectType);
+router.post("/", auth, permission("MANAGE_SETTINGS"), projectTypeService.createProjectType);
 router.get("/:id", auth, projectTypeService.getProjectTypeById);
-router.put("/:id", auth, permission("UPDATE_PROJECT"), projectTypeService.updateProjectType);
-router.delete("/:id", auth, permission("DELETE_PROJECT"), projectTypeService.deleteProjectType);
+router.put("/:id", auth, permission("MANAGE_SETTINGS"), projectTypeService.updateProjectType);
+router.delete("/:id", auth, permission("MANAGE_SETTINGS"), projectTypeService.deleteProjectType);
 
 export default router;

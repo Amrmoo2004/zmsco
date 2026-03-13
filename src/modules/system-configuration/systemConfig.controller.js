@@ -40,6 +40,6 @@ const router = Router();
  */
 
 router.get("/", auth, systemConfigService.getConfig);
-router.put("/", auth, permission("CREATE_PROJECT"), systemConfigService.updateConfig);
+router.put("/", auth, permission("MANAGE_SETTINGS"), systemConfigService.updateConfig);
 
 export default router;

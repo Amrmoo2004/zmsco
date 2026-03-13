@@ -39,8 +39,8 @@ const router = Router();
  *     responses:
  *       201: { description: Role created }
  */
-router.get("/", auth, permission("VIEW_REPORTS"), roleService.getAllRoles);
-router.post("/", auth, permission("CREATE_PROJECT"), roleService.createRole);
+router.get("/", auth, permission("MANAGE_ROLES"), roleService.getAllRoles);
+router.post("/", auth, permission("MANAGE_ROLES"), roleService.createRole);
 
 /**
  * @swagger
@@ -86,8 +86,8 @@ router.post("/", auth, permission("CREATE_PROJECT"), roleService.createRole);
  *     responses:
  *       200: { description: Role deleted }
  */
-router.get("/:id", auth, permission("VIEW_REPORTS"), roleService.getRoleById);
-router.put("/:id", auth, permission("UPDATE_PROJECT"), roleService.updateRole);
-router.delete("/:id", auth, permission("DELETE_PROJECT"), roleService.deleteRole);
+router.get("/:id", auth, permission("MANAGE_ROLES"), roleService.getRoleById);
+router.put("/:id", auth, permission("MANAGE_ROLES"), roleService.updateRole);
+router.delete("/:id", auth, permission("MANAGE_ROLES"), roleService.deleteRole);
 
 export default router;

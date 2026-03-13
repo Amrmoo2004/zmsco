@@ -114,6 +114,6 @@ router.delete("/work-logs/:id", auth, hrService.deleteWorkLog);
 // HR Requests
 router.get("/requests", auth, hrService.getHrRequests);
 router.post("/requests", auth, hrService.createHrRequest);
-router.put("/requests/:id/process", auth, permission("UPDATE_PROJECT"), hrService.processHrRequest);
+router.put("/requests/:id/process", auth, permission("MANAGE_HR"), hrService.processHrRequest);
 
 export default router;

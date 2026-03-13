@@ -40,8 +40,8 @@ const router = Router();
  *     responses:
  *       201: { description: Warehouse created }
  */
-router.get("/", auth, permission("VIEW_REPORTS"), warehouseService.getAllWarehouses);
-router.post("/", auth, permission("CREATE_PROJECT"), warehouseService.createWarehouse);
+router.get("/", auth, permission("VIEW_INVENTORY"), warehouseService.getAllWarehouses);
+router.post("/", auth, permission("MANAGE_INVENTORY"), warehouseService.createWarehouse);
 
 /**
  * @swagger
@@ -88,9 +88,9 @@ router.post("/", auth, permission("CREATE_PROJECT"), warehouseService.createWare
  *     responses:
  *       200: { description: Warehouse deleted }
  */
-router.get("/:id", auth, permission("VIEW_REPORTS"), warehouseService.getWarehouseById);
-router.put("/:id", auth, permission("UPDATE_PROJECT"), warehouseService.updateWarehouse);
-router.delete("/:id", auth, permission("DELETE_PROJECT"), warehouseService.deleteWarehouse);
+router.get("/:id", auth, permission("VIEW_INVENTORY"), warehouseService.getWarehouseById);
+router.put("/:id", auth, permission("MANAGE_INVENTORY"), warehouseService.updateWarehouse);
+router.delete("/:id", auth, permission("MANAGE_INVENTORY"), warehouseService.deleteWarehouse);
 
 /**
  * @swagger
@@ -106,22 +106,9 @@ router.delete("/:id", auth, permission("DELETE_PROJECT"), warehouseService.delet
  *     responses:
  *       200: { description: Warehouse inventory }
  */
-router.get("/:id/inventory", auth, permission("VIEW_REPORTS"), warehouseService.getWarehouseInventory);
+router.get("/:id/inventory", auth, permission("VIEW_INVENTORY"), warehouseService.getWarehouseInventory);
 
-/**
- * @swagger
- * /warehouses/{id}/transactions:
- *   get:
- *     summary: Get warehouse transactions
- *     tags: [Warehouses]
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema: { type: string }
- *     responses:
- *       200: { description: Warehouse transactions }
- */
-router.get("/:id/transactions", auth, permission("VIEW_REPORTS"), warehouseService.getWarehouseTransactions);
+// ...
+router.get("/:id/transactions", auth, permission("VIEW_INVENTORY"), warehouseService.getWarehouseTransactions);
 
 export default router;

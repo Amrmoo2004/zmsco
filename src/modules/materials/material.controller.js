@@ -51,8 +51,8 @@ const router = Router();
  *     responses:
  *       201: { description: Material created }
  */
-router.get("/", auth, permission("VIEW_REPORTS"), materialService.getAllMaterials);
-router.post("/", auth, permission("CREATE_PROJECT"), materialService.createMaterial);
+router.get("/", auth, permission("VIEW_INVENTORY"), materialService.getAllMaterials);
+router.post("/", auth, permission("MANAGE_INVENTORY"), materialService.createMaterial);
 
 /**
  * @swagger
@@ -68,7 +68,7 @@ router.post("/", auth, permission("CREATE_PROJECT"), materialService.createMater
  *     responses:
  *       200: { description: Search results }
  */
-router.get("/search", auth, permission("VIEW_REPORTS"), materialService.searchMaterials);
+router.get("/search", auth, permission("VIEW_INVENTORY"), materialService.searchMaterials);
 
 /**
  * @swagger
@@ -116,8 +116,8 @@ router.get("/search", auth, permission("VIEW_REPORTS"), materialService.searchMa
  *     responses:
  *       200: { description: Material deleted }
  */
-router.get("/:id", auth, permission("VIEW_REPORTS"), materialService.getMaterialById);
-router.put("/:id", auth, permission("UPDATE_PROJECT"), materialService.updateMaterial);
-router.delete("/:id", auth, permission("DELETE_PROJECT"), materialService.deleteMaterial);
+router.get("/:id", auth, permission("VIEW_INVENTORY"), materialService.getMaterialById);
+router.put("/:id", auth, permission("MANAGE_INVENTORY"), materialService.updateMaterial);
+router.delete("/:id", auth, permission("MANAGE_INVENTORY"), materialService.deleteMaterial);
 
 export default router;

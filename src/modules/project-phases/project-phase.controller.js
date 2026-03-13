@@ -86,7 +86,7 @@ router.post("/:projectId/phases", auth, permission("UPDATE_PROJECT"), projectPha
  *     responses:
  *       200: { description: Phase deleted }
  */
-router.put("/:projectId/phases/:id", auth, permission("UPDATE_PROJECT"), projectPhaseService.updateProjectPhase);
-router.delete("/:projectId/phases/:id", auth, permission("UPDATE_PROJECT"), projectPhaseService.deleteProjectPhase);
+router.put("/:projectId/phases/:id", auth, permission("EDIT_PROJECT"), projectPhaseService.updateProjectPhase);
+router.delete("/:projectId/phases/:id", auth, permission("EDIT_PROJECT"), projectPhaseService.deleteProjectPhase);
 
 export default router;

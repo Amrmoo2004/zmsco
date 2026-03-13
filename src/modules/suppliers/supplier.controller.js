@@ -47,8 +47,8 @@ const router = Router();
  *     responses:
  *       201: { description: Supplier created }
  */
-router.get("/", auth, permission("VIEW_REPORTS"), supplierService.getAllSuppliers);
-router.post("/", auth, permission("CREATE_PROJECT"), supplierService.createSupplier);
+router.get("/", auth, permission("VIEW_SUPPLIERS"), supplierService.getAllSuppliers);
+router.post("/", auth, permission("MANAGE_SUPPLIERS"), supplierService.createSupplier);
 
 /**
  * @swagger
@@ -97,24 +97,11 @@ router.post("/", auth, permission("CREATE_PROJECT"), supplierService.createSuppl
  *     responses:
  *       200: { description: Supplier deleted }
  */
-router.get("/:id", auth, permission("VIEW_REPORTS"), supplierService.getSupplierById);
-router.put("/:id", auth, permission("UPDATE_PROJECT"), supplierService.updateSupplier);
-router.delete("/:id", auth, permission("DELETE_PROJECT"), supplierService.deleteSupplier);
+router.get("/:id", auth, permission("VIEW_SUPPLIERS"), supplierService.getSupplierById);
+router.put("/:id", auth, permission("MANAGE_SUPPLIERS"), supplierService.updateSupplier);
+router.delete("/:id", auth, permission("MANAGE_SUPPLIERS"), supplierService.deleteSupplier);
 
-/**
- * @swagger
- * /suppliers/{id}/orders:
- *   get:
- *     summary: Get supplier purchase orders
- *     tags: [Suppliers]
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema: { type: string }
- *     responses:
- *       200: { description: Supplier orders }
- */
-router.get("/:id/orders", auth, permission("VIEW_REPORTS"), supplierService.getSupplierOrders);
+// ...
+router.get("/:id/orders", auth, permission("VIEW_SUPPLIERS"), supplierService.getSupplierOrders);
 
 export default router;

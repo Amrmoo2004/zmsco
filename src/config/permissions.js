@@ -1,26 +1,44 @@
 export const PERMISSIONS = {
-  // Users
-  VIEW_USERS: "VIEW_USERS",
-  ASSIGN_ROLE: "ASSIGN_ROLE",
-  EDIT_USER: "EDIT_USER",
+  // ─── Users ─────────────────────────────────────────────────────────────────
+  VIEW_USERS:       "VIEW_USERS",
+  EDIT_USER:        "EDIT_USER",
+  DELETE_USER:      "DELETE_USER",
+  ASSIGN_ROLE:      "ASSIGN_ROLE",
 
-  // Projects
-  CREATE_PROJECT: "CREATE_PROJECT",
-  EDIT_PROJECT: "EDIT_PROJECT",
-  VIEW_PROJECT: "VIEW_PROJECT",
-  VIEW_PROJECT_COST: "VIEW_PROJECT_COST",
-  DELETE_PROJECT: "DELETE_PROJECT",
+  // ─── Roles ─────────────────────────────────────────────────────────────────
+  MANAGE_ROLES:     "MANAGE_ROLES",   // create / update / delete roles
 
-  // Inventory
-  VIEW_INVENTORY: "VIEW_INVENTORY",
+  // ─── Projects ──────────────────────────────────────────────────────────────
+  VIEW_PROJECT:     "VIEW_PROJECT",
+  CREATE_PROJECT:   "CREATE_PROJECT",
+  EDIT_PROJECT:     "EDIT_PROJECT",
+  DELETE_PROJECT:   "DELETE_PROJECT",
+  VIEW_PROJECT_COST:"VIEW_PROJECT_COST",
+
+  // ─── Inventory / Materials ─────────────────────────────────────────────────
+  VIEW_INVENTORY:   "VIEW_INVENTORY",
+  MANAGE_INVENTORY: "MANAGE_INVENTORY", // create / update / delete materials & warehouses
   REQUEST_MATERIAL: "REQUEST_MATERIAL",
   APPROVE_MATERIAL: "APPROVE_MATERIAL",
 
-  // Reports
-  VIEW_REPORTS: "VIEW_REPORTS",
+  // ─── Suppliers ─────────────────────────────────────────────────────────────
+  VIEW_SUPPLIERS:   "VIEW_SUPPLIERS",
+  MANAGE_SUPPLIERS: "MANAGE_SUPPLIERS", // create / update / delete suppliers
 
-  // Procurement
-  CREATE_RFQ: "CREATE_RFQ",
-  CREATE_PO: "CREATE_PO",
-  RECEIVE_GOODS: "RECEIVE_GOODS"
+  // ─── Procurement ───────────────────────────────────────────────────────────
+  CREATE_RFQ:       "CREATE_RFQ",
+  CREATE_PO:        "CREATE_PO",
+  RECEIVE_GOODS:    "RECEIVE_GOODS",
+
+  // ─── Reports ───────────────────────────────────────────────────────────────
+  VIEW_REPORTS:     "VIEW_REPORTS",
+
+  // ─── System Settings ───────────────────────────────────────────────────────
+  MANAGE_SETTINGS:  "MANAGE_SETTINGS", // system config / workflows / templates
+
+  // ─── HR ────────────────────────────────────────────────────────────────────────
+  MANAGE_HR:        "MANAGE_HR",       // job titles, hr requests processing
+
+  // ─── Equipment ─────────────────────────────────────────────────────────────────
+  MANAGE_EQUIPMENT: "MANAGE_EQUIPMENT", // create / update / delete / assign equipment
 };

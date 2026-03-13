@@ -71,9 +71,9 @@ const router = Router();
  */
 
 router.get("/", auth, workflowService.getAllWorkflows);
-router.post("/", auth, permission("CREATE_PROJECT"), workflowService.createWorkflow);
+router.post("/", auth, permission("MANAGE_SETTINGS"), workflowService.createWorkflow);
 router.get("/:id", auth, workflowService.getWorkflowById);
-router.put("/:id", auth, permission("UPDATE_PROJECT"), workflowService.updateWorkflow);
-router.delete("/:id", auth, permission("DELETE_PROJECT"), workflowService.deleteWorkflow);
+router.put("/:id", auth, permission("MANAGE_SETTINGS"), workflowService.updateWorkflow);
+router.delete("/:id", auth, permission("MANAGE_SETTINGS"), workflowService.deleteWorkflow);
 
 export default router;
