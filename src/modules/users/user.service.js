@@ -15,7 +15,7 @@ export const update_userrole = asynchandler(async (req, res, next) => {
   }
 
   const user = await UserModel.findById(req.params.id);
-  ;
+
   if (!user) {
     return next(new Error("User not found", { cause: 404 }));
   }
@@ -32,7 +32,7 @@ export const update_userrole = asynchandler(async (req, res, next) => {
   user.role = roleDoc._id;
   await user.save();
 
-  return res.status(200).json({
+  res.status(200).json({
     success: true,
     message: "User role updated successfully"
   });
