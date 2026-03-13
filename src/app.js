@@ -21,7 +21,6 @@ import projectMemberRoutes from "./modules/project-members/project-member.contro
 import projectPhaseRoutes from "./modules/project-phases/project-phase.controller.js";
 import projectDocumentRoutes from "./modules/project-documents/project-document.controller.js";
 import projectEquipmentRoutes from "./modules/project-equipment/project-equipment.controller.js";
-import projectTemplateRoutes from "./modules/project-templates/project-template.controller.js";
 import roleRoutes from "./modules/roles/role.controller.js";
 import notificationRoutes from "./modules/notifications/notification.controller.js";
 import attachmentRoutes from "./modules/attachments/attachment.controller.js";
@@ -96,7 +95,6 @@ export const bootstrap = async () => {
   app.use('/api/projects', projectPhaseRoutes);
   app.use('/api/projects', projectDocumentRoutes);
   app.use('/api/projects', projectEquipmentRoutes);
-  app.use('/api/project-templates', projectTemplateRoutes);
 
   // Roles & Permissions APIs
   app.use('/api/roles', roleRoutes);
