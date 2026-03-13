@@ -41,6 +41,28 @@ const router = Router();
  *                     order: { type: integer }
  *                     expectedDays: { type: integer }
  *                     isRequired: { type: boolean }
+ *                     fields:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                     attachments:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                     approvals:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *               materials:
+ *                 type: array
+ *               equipments:
+ *                 type: array
+ *               employees:
+ *                 type: array
+ *               attachments:
+ *                 type: array
+ *               rules:
+ *                 type: object
  *     responses:
  *       201: { description: Project type created }
  *

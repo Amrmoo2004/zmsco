@@ -14,10 +14,10 @@ export const getProjectTypeById = asynchandler(async (req, res, next) => {
 });
 
 export const createProjectType = asynchandler(async (req, res, next) => {
-    const { name, description, phases } = req.body;
+    const { name, description, phases, materials, equipments, employees, attachments, rules } = req.body;
     const existing = await ProjectType.findOne({ name });
     if (existing) return next(new AppError("Project Type with this name already exists", 400));
-    const pt = await ProjectType.create({ name, description, phases });
+    const pt = await ProjectType.create({ name, description, phases, materials, equipments, employees, attachments, rules });
     return res.status(201).json({ success: true, message: "Project Type created successfully", data: pt });
 });
 

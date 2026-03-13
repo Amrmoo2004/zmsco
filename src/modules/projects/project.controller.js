@@ -63,6 +63,16 @@ const router = express.Router();
  *                 type: string
  *                 enum: [SHARED, DEDICATED]
  *                 default: SHARED
+ *               phases:
+ *                 type: array
+ *               materials:
+ *                 type: array
+ *               equipments:
+ *                 type: array
+ *               documents:
+ *                 type: array
+ *               members:
+ *                 type: array
  *     responses:
  *       201:
  *         description: Project created successfully

@@ -1,6 +1,6 @@
 import ProjectModel from "../../db/models/projects/project.js";
 import { asynchandler } from "../../utils/response/response.js";
-import { autoSetupProject } from './../../auto/project-auto-setup.service.js';
+
 import { AppError } from "../../utils/appError.js";
 import ProjectMember from "../../db/models/projects/project.member.js";
 import User from "../../db/models/user.js";
@@ -25,10 +25,15 @@ export const create_project = asynchandler(async (req, res, next) => {
     department,
     client,
     description,
-    warehouseType // 'SHARED' or 'DEDICATED'
+    warehouseType, // 'SHARED' or 'DEDICATED'
+    phases = [],
+    materials = [],
+    equipments = [],
+    documents = [],
+    members = []
   } = req.body;
 
-  if (!name || !type || !manager) {
+  if (!name ||  !manager) {
     return next(new Error("Missing required fields", { cause: 400 }));
   }
 
@@ -52,8 +57,27 @@ export const create_project = asynchandler(async (req, res, next) => {
     createdBy: req.user.id
   });
 
-  // 2. Run Auto Setup (Phases, Materials, Equipment, Documents from Template)
-  await autoSetupProject(project);
+  // 2. Create Nested Entities (Frontend-driven Blueprint)
+  if (phases?.length > 0) {
+    await ProjectPhase.insertMany(phases.map(p => ({ ...p, project: project._id })));
+  }
+  if (materials?.length > 0) {
+    // Some frontend schemas might use material._id vs material
+    await ProjectMaterial.insertMany(materials.map(m => ({
+      ...m,
+      project: project._id,
+      material: m.material || m._id || m.materialId
+    })));
+  }
+  if (equipments?.length > 0) {
+    await ProjectEquipment.insertMany(equipments.map(e => ({ ...e, project: project._id })));
+  }
+  if (documents?.length > 0) {
+    await ProjectDocument.insertMany(documents.map(d => ({ ...d, project: project._id, status: "PENDING" })));
+  }
+  if (members?.length > 0) {
+    await ProjectMember.insertMany(members.map(m => ({ ...m, project: project._id, status: "VACANT" })));
+  }
 
   return res.status(201).json({
     success: true,
