@@ -8,33 +8,44 @@ import { encrypt } from "../../utils/enc.js";
 import fs from 'fs';
 
 export const update_userrole = asynchandler(async (req, res, next) => {
-  const { role } = req.body;
+  const { roleId, role } = req.body; // accept either roleId (ObjectId) or role (name)
 
-  if (!role) {
-    return next(new Error("Role is required", { cause: 400 }));
+  if (!roleId && !role) {
+    return next(new Error("roleId or role name is required", { cause: 400 }));
   }
 
-  const user = await UserModel.findById(req.params.id);
+  // Find the role document
+  let roleDoc;
+  if (roleId) {
+    roleDoc = await RoleModel.findById(roleId);
+  } else {
+    roleDoc = await RoleModel.findOne({ name: role, isActive: true });
+  }
+
+  if (!roleDoc) {
+    return next(new Error("Role not found or inactive", { cause: 404 }));
+  }
+
+  // Update directly to avoid validation issues on unrelated required fields
+  const user = await UserModel.findByIdAndUpdate(
+    req.params.id,
+    { role: roleDoc._id },
+    { new: true, runValidators: false }
+  ).populate("role", "name");
 
   if (!user) {
     return next(new Error("User not found", { cause: 404 }));
   }
 
-  const roleDoc = await RoleModel.findOne({
-    name: role,
-    isActive: true
-  });
-
-  if (!roleDoc) {
-    return next(new Error("Invalid role name", { cause: 400 }));
-  }
-
-  user.role = roleDoc._id;
-  await user.save();
-
   res.status(200).json({
     success: true,
-    message: "User role updated successfully"
+    message: "User role updated successfully",
+    data: {
+      userId: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role.name
+    }
   });
 });
 export const get_users = asynchandler(async (req, res, next) => {
