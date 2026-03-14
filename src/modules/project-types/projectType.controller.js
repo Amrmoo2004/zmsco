@@ -88,11 +88,21 @@ const router = Router();
  *     parameters: [{ in: path, name: id, required: true, schema: { type: string } }]
  *     responses:
  *       200: { description: Project type deleted }
+ *
+ * /project-types/{id}/instantiate-phases:
+ *   get:
+ *     summary: Get phases formatted for project creation
+ *     tags: [Project Types]
+ *     security: [{ bearerAuth: [] }]
+ *     parameters: [{ in: path, name: id, required: true, schema: { type: string } }]
+ *     responses:
+ *       200: { description: List of mapped phases ready for Project instantiation }
  */
 
 router.get("/", auth, projectTypeService.getAllProjectTypes);
 router.post("/", auth, permission("MANAGE_SETTINGS"), projectTypeService.createProjectType);
 router.get("/:id", auth, projectTypeService.getProjectTypeById);
+router.get("/:id/instantiate-phases", auth, projectTypeService.instantiatePhases);
 router.put("/:id", auth, permission("MANAGE_SETTINGS"), projectTypeService.updateProjectType);
 router.delete("/:id", auth, permission("MANAGE_SETTINGS"), projectTypeService.deleteProjectType);
 

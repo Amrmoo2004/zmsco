@@ -32,3 +32,52 @@ export const deleteProjectType = asynchandler(async (req, res, next) => {
     if (!pt) return next(new AppError("Project Type not found", 404));
     return res.status(200).json({ success: true, message: "Project Type deleted successfully" });
 });
+
+export const instantiatePhases = asynchandler(async (req, res, next) => {
+    const pt = await ProjectType.findById(req.params.id);
+    if (!pt) return next(new AppError("Project Type not found", 404));
+
+    const instantiatedPhases = pt.phases.map(phase => {
+        // Prepare customFields based on the blueprint fields
+        const customFields = {};
+        if (phase.fields && phase.fields.length > 0) {
+            phase.fields.forEach(f => {
+                customFields[f.name] = ""; // Empty value for frontend to fill
+            });
+        }
+
+        // Map attachments
+        const requiredAttachments = [];
+        if (phase.attachments && phase.attachments.length > 0) {
+            phase.attachments.forEach(att => {
+                requiredAttachments.push({
+                    documentType: att.name,
+                    isMandatory: att.isRequired
+                });
+            });
+        }
+
+        // Map approvals
+        const requiredApprovals = [];
+        if (phase.approvals && phase.approvals.length > 0) {
+            phase.approvals.forEach(app => {
+                requiredApprovals.push({
+                    role: app.entity,
+                    isMandatory: app.isRequired
+                });
+            });
+        }
+
+        return {
+            name: phase.name,
+            order: phase.order,
+            expectedDays: phase.expectedDays,
+            isRequired: phase.isRequired,
+            customFields,
+            requiredAttachments,
+            requiredApprovals
+        };
+    });
+
+    return res.status(200).json({ success: true, data: instantiatedPhases });
+});
