@@ -75,6 +75,9 @@ const router = express.Router();
  *                     requiredAttachments:
  *                       type: array
  *                       items: { type: object }
+ *                     requiredPermits:
+ *                       type: array
+ *                       items: { type: object }
  *                     requiredApprovals:
  *                       type: array
  *                       items: { type: object }

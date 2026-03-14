@@ -57,6 +57,17 @@ export const instantiatePhases = asynchandler(async (req, res, next) => {
             });
         }
 
+        // Map permits
+        const requiredPermits = [];
+        if (phase.permits && phase.permits.length > 0) {
+            phase.permits.forEach(permit => {
+                requiredPermits.push({
+                    name: permit.name,
+                    isMandatory: permit.isRequired
+                });
+            });
+        }
+
         // Map approvals
         const requiredApprovals = [];
         if (phase.approvals && phase.approvals.length > 0) {
@@ -75,6 +86,7 @@ export const instantiatePhases = asynchandler(async (req, res, next) => {
             isRequired: phase.isRequired,
             customFields,
             requiredAttachments,
+            requiredPermits,
             requiredApprovals
         };
     });

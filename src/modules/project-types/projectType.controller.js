@@ -49,6 +49,10 @@ const router = Router();
  *                       type: array
  *                       items:
  *                         type: object
+ *                     permits:
+ *                       type: array
+ *                       items:
+ *                         type: object
  *                     approvals:
  *                       type: array
  *                       items:

@@ -65,6 +65,21 @@ const projectPhaseSchema = new mongoose.Schema(
       }
     ],
 
+    // ─── Phase Gating: Required Permits ──────────────────────────────────────
+    requiredPermits: [
+      {
+        name: { type: String, required: true }, // e.g. "Building Permit"
+        attachmentId: { type: mongoose.Schema.Types.ObjectId, ref: "Attachment" },
+        reviewStatus: {
+          type: String,
+          enum: ["PENDING", "APPROVED", "REJECTED"],
+          default: "PENDING"
+        },
+        rejectionReason: String,
+        isMandatory: { type: Boolean, default: true }
+      }
+    ],
+
     // ─── Phase Custom Data ────────────────────────────────────────────────────
     customFields: {
       type: mongoose.Schema.Types.Mixed,

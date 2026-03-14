@@ -18,6 +18,14 @@ const phaseAttachmentSchema = new mongoose.Schema(
     { _id: false }
 );
 
+const phasePermitSchema = new mongoose.Schema(
+    {
+        name: { type: String, required: true },
+        isRequired: { type: Boolean, default: false }
+    },
+    { _id: false }
+);
+
 const phaseApprovalSchema = new mongoose.Schema(
     {
         entity: { type: mongoose.Schema.Types.ObjectId, ref: "Role", required: true },
@@ -43,6 +51,7 @@ const phaseTemplateSchema = new mongoose.Schema(
         },
         fields: [phaseFieldSchema],
         attachments: [phaseAttachmentSchema],
+        permits: [phasePermitSchema],
         approvals: [phaseApprovalSchema]
     },
     { _id: false, timestamps: true }
