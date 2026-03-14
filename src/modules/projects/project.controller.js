@@ -65,14 +65,35 @@ const router = express.Router();
  *                 default: SHARED
  *               phases:
  *                 type: array
+ *                 items:
+ *                   type: object
+ *                   properties:
+ *                     name: { type: string }
+ *                     order: { type: integer }
+ *                     expectedDays: { type: integer }
+ *                     customFields: { type: object }
+ *                     requiredAttachments:
+ *                       type: array
+ *                       items: { type: object }
+ *                     requiredApprovals:
+ *                       type: array
+ *                       items: { type: object }
  *               materials:
  *                 type: array
+ *                 items:
+ *                   type: object
  *               equipments:
  *                 type: array
+ *                 items:
+ *                   type: object
  *               documents:
  *                 type: array
+ *                 items:
+ *                   type: object
  *               members:
  *                 type: array
+ *                 items:
+ *                   type: object
  *     responses:
  *       201:
  *         description: Project created successfully
