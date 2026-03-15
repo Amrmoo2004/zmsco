@@ -109,7 +109,7 @@ export const get_project = asynchandler(async (req, res, next) => {
   }
 
   const members = await ProjectMember.find({ project: req.params.id })
-    .populate("assignedUser", "name email"); // Optional: populate assigned user details
+    .populate("user", "name email"); // Optional: populate assigned user details
 
   return res.status(200).json({
     success: true,
