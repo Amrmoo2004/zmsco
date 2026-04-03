@@ -14,7 +14,7 @@ const options = {
         description: "Local Development Server"
       },
       {
-        url: "http://13.51.146.205:3000/api",
+          url: "http://100.53.112.217:3000/api",
         description: "AWS EC2 Server"
       },
       {
