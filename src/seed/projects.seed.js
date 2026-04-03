@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 import dotenv from "dotenv";
-import ProjectTemplate from "../db/models/projects/project.template.js";
+import ProjectType from "../db/models/settings/projectType.model.js";
 import Material from "../db/models/metrials/metrials.js";
 
 dotenv.config();
@@ -20,13 +20,13 @@ for (const mat of materials) {
     console.log(`✅ Material '${mat.name}' seeded.`);
 }
 
-// 2. Seed Project Template
+// 2. Seed Project Type
 import Role from "../db/models/roles.js";
 const siteManagerRole = await Role.findOne({ name: "SITE_ENGINEER" }); // Assuming we map Site Manager -> SITE_ENGINEER
 
-const template = {
+const typeData = {
     name: "Standard Infrastructure",
-    type: "INFRASTRUCTURE",
+    description: "Standard templates for infrastructure projects.",
     phases: [
         { name: "Planning", order: 1 },
         { name: "Execution", order: 2 }
@@ -46,11 +46,11 @@ const template = {
     isActive: true
 };
 
-await ProjectTemplate.updateOne(
-    { name: template.name },
-    { $set: template },
+await ProjectType.updateOne(
+    { name: typeData.name },
+    { $set: typeData },
     { upsert: true }
 );
 
-console.log("✅ Project Template seeded successfully");
+console.log("✅ Project Type seeded successfully");
 process.exit();

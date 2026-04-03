@@ -28,7 +28,9 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "start:dev": "node --watch ./src/index.js"
+    "start:dev": "node --watch ./src/index.js",
+    "seed": "node src/seed/roles.seed.js && node src/seed/projects.seed.js && node src/seed/inventory.seed.js && node src/seed/suppliers.seed.js"
+
   },
   "keywords": [],
   "author": "",
