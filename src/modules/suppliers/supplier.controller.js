@@ -101,7 +101,22 @@ router.get("/:id", auth, permission("VIEW_SUPPLIERS"), supplierService.getSuppli
 router.put("/:id", auth, permission("MANAGE_SUPPLIERS"), supplierService.updateSupplier);
 router.delete("/:id", auth, permission("MANAGE_SUPPLIERS"), supplierService.deleteSupplier);
 
-// ...
+/**
+ * @swagger
+ * /suppliers/{id}/orders:
+ *   get:
+ *     summary: Get all purchase orders for a specific supplier
+ *     tags: [Suppliers]
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200: { description: List of purchase orders linked to the supplier }
+ *       404: { description: Supplier not found }
+ */
 router.get("/:id/orders", auth, permission("VIEW_SUPPLIERS"), supplierService.getSupplierOrders);
 
 export default router;

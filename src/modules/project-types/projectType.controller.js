@@ -8,19 +8,19 @@ const router = Router();
 /**
  * @swagger
  * tags:
- *   name: Project Types
- *   description: Project Blueprint Template Management
+ *   name: Settings
+ *   description: System Settings - Departments, Job Titles, Workflows, Project Types, Roles & Configurations
  *
  * /project-types:
  *   get:
  *     summary: Get all project types (blueprints)
- *     tags: [Project Types]
+ *     tags: [Settings]
  *     security: [{ bearerAuth: [] }]
  *     responses:
  *       200: { description: List of project types }
  *   post:
  *     summary: Create a new project type
- *     tags: [Project Types]
+ *     tags: [Settings]
  *     security: [{ bearerAuth: [] }]
  *     requestBody:
  *       required: true
@@ -73,21 +73,21 @@ const router = Router();
  * /project-types/{id}:
  *   get:
  *     summary: Get project type by ID
- *     tags: [Project Types]
+ *     tags: [Settings]
  *     security: [{ bearerAuth: [] }]
  *     parameters: [{ in: path, name: id, required: true, schema: { type: string } }]
  *     responses:
  *       200: { description: Project type details }
  *   put:
  *     summary: Update project type
- *     tags: [Project Types]
+ *     tags: [Settings]
  *     security: [{ bearerAuth: [] }]
  *     parameters: [{ in: path, name: id, required: true, schema: { type: string } }]
  *     responses:
  *       200: { description: Project type updated }
  *   delete:
  *     summary: Delete project type
- *     tags: [Project Types]
+ *     tags: [Settings]
  *     security: [{ bearerAuth: [] }]
  *     parameters: [{ in: path, name: id, required: true, schema: { type: string } }]
  *     responses:
@@ -96,7 +96,7 @@ const router = Router();
  * /project-types/{id}/instantiate-phases:
  *   get:
  *     summary: Get phases formatted for project creation
- *     tags: [Project Types]
+ *     tags: [Settings]
  *     security: [{ bearerAuth: [] }]
  *     parameters: [{ in: path, name: id, required: true, schema: { type: string } }]
  *     responses:

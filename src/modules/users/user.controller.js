@@ -127,6 +127,33 @@ router.patch("/:id/role", auth, permission("ASSIGN_ROLE"), userservrice.update_u
  */
 router.post('/updatepassword', auth, userservrice.updatepassword);
 
+/**
+ * @swagger
+ * /users/count:
+ *   get:
+ *     summary: Get total user count
+ *     tags: [Users]
+ *     security: [{ bearerAuth: [] }]
+ *     responses:
+ *       200: { description: Total number of users in the system }
+ */
 router.get('/count', auth, permission("VIEW_USERS"), userservrice.get_usercount);
+
+/**
+ * @swagger
+ * /users/{id}:
+ *   get:
+ *     summary: Get a user's full profile by ID
+ *     tags: [Users]
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200: { description: Full user profile including role, department, and job title }
+ *       404: { description: User not found }
+ */
 router.get('/:id', auth, permission("VIEW_USERS"), userservrice.get_member_profile);
 export default router;  

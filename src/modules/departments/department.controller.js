@@ -8,20 +8,20 @@ const router = Router();
 /**
  * @swagger
  * tags:
- *   name: Departments
- *   description: Department Management APIs
+ *   name: Settings
+ *   description: System Settings - Departments, Job Titles, Workflows, Project Types, Roles & Configurations
  *
  * /departments:
  *   get:
  *     summary: Get all departments
- *     tags: [Departments]
+ *     tags: [Settings]
  *     security: [{ bearerAuth: [] }]
  *     responses:
  *       200:
  *         description: List of departments
  *   post:
  *     summary: Create a new department
- *     tags: [Departments]
+ *     tags: [Settings]
  *     security: [{ bearerAuth: [] }]
  *     requestBody:
  *       required: true
@@ -41,7 +41,7 @@ const router = Router();
  * /departments/{id}:
  *   get:
  *     summary: Get department by ID
- *     tags: [Departments]
+ *     tags: [Settings]
  *     security: [{ bearerAuth: [] }]
  *     parameters:
  *       - in: path
@@ -53,7 +53,7 @@ const router = Router();
  *         description: Department details
  *   put:
  *     summary: Update department
- *     tags: [Departments]
+ *     tags: [Settings]
  *     security: [{ bearerAuth: [] }]
  *     parameters:
  *       - in: path
@@ -74,7 +74,7 @@ const router = Router();
  *         description: Department updated
  *   delete:
  *     summary: Delete department
- *     tags: [Departments]
+ *     tags: [Settings]
  *     security: [{ bearerAuth: [] }]
  *     parameters:
  *       - in: path

@@ -113,6 +113,35 @@ router.delete("/:taskId", auth, permission("DELETE_PROJECT"), taskService.delete
 
 // Phase Gating Actions
 router.post("/submit-attachment", auth, taskService.submitPhaseAttachment);
+
+/**
+ * @swagger
+ * /projects/{projectId}/phases/{phaseId}/tasks/review-attachment/{attachmentSlotId}:
+ *   put:
+ *     summary: Review (approve/reject) a submitted phase attachment
+ *     tags: [Phase Tasks]
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - { in: path, name: projectId, required: true, schema: { type: string } }
+ *       - { in: path, name: phaseId, required: true, schema: { type: string } }
+ *       - { in: path, name: attachmentSlotId, required: true, schema: { type: string } }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [status]
+ *             properties:
+ *               status:
+ *                 type: string
+ *                 enum: [APPROVED, REJECTED]
+ *               notes:
+ *                 type: string
+ *     responses:
+ *       200: { description: Attachment review recorded }
+ *       404: { description: Attachment slot not found }
+ */
 router.put("/review-attachment/:attachmentSlotId", auth, permission("EDIT_PROJECT"), taskService.reviewPhaseAttachment);
 router.put("/sign-off", auth, taskService.signOffPhase);
 

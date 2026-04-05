@@ -7,21 +7,17 @@ const router = Router();
 
 /**
  * @swagger
- * tags:
- *   name: Job Titles
- *   description: Job Title Management APIs
- *
  * /job-titles:
  *   get:
  *     summary: Get all job titles
- *     tags: [Job Titles]
+ *     tags: [Settings]
  *     security: [{ bearerAuth: [] }]
  *     responses:
  *       200:
  *         description: List of job titles
  *   post:
  *     summary: Create a new job title
- *     tags: [Job Titles]
+ *     tags: [Settings]
  *     security: [{ bearerAuth: [] }]
  *     requestBody:
  *       required: true
@@ -41,21 +37,21 @@ const router = Router();
  * /job-titles/{id}:
  *   get:
  *     summary: Get job title by ID
- *     tags: [Job Titles]
+ *     tags: [Settings]
  *     security: [{ bearerAuth: [] }]
  *     parameters: [{ in: path, name: id, required: true, schema: { type: string } }]
  *     responses:
  *       200: { description: Job Title details }
  *   put:
  *     summary: Update job title
- *     tags: [Job Titles]
+ *     tags: [Settings]
  *     security: [{ bearerAuth: [] }]
  *     parameters: [{ in: path, name: id, required: true, schema: { type: string } }]
  *     responses:
  *       200: { description: Job Title updated }
  *   delete:
  *     summary: Delete job title
- *     tags: [Job Titles]
+ *     tags: [Settings]
  *     security: [{ bearerAuth: [] }]
  *     parameters: [{ in: path, name: id, required: true, schema: { type: string } }]
  *     responses:

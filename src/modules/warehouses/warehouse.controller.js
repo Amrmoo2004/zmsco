@@ -108,7 +108,26 @@ router.delete("/:id", auth, permission("MANAGE_INVENTORY"), warehouseService.del
  */
 router.get("/:id/inventory", auth, permission("VIEW_INVENTORY"), warehouseService.getWarehouseInventory);
 
-// ...
+/**
+ * @swagger
+ * /warehouses/{id}/transactions:
+ *   get:
+ *     summary: Get transaction history for a specific warehouse
+ *     tags: [Warehouses]
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *       - in: query
+ *         name: type
+ *         schema: { type: string, enum: [IN, OUT, TRANSFER] }
+ *         description: Filter by transaction type
+ *     responses:
+ *       200: { description: Warehouse transaction history }
+ *       404: { description: Warehouse not found }
+ */
 router.get("/:id/transactions", auth, permission("VIEW_INVENTORY"), warehouseService.getWarehouseTransactions);
 
 export default router;

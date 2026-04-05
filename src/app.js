@@ -48,6 +48,10 @@ import goodsReceiptRoutes from "./modules/goods-receipts/goodsReceipt.controller
 import ticketRoutes from "./modules/tickets/ticket.controller.js";
 import projectClosureRoutes from "./modules/project-closure/projectClosure.controller.js";
 
+// Phase 6: Security & Reports
+import auditLogRoutes from "./modules/audit-logs/auditLog.controller.js";
+import reportTemplateRoutes from "./modules/report-templates/reportTemplate.controller.js";
+
 // Cron Jobs
 import { startDraftCleanupJob } from "./auto/draft-cleanup.cron.js";
 
@@ -126,6 +130,10 @@ export const bootstrap = async () => {
   // Phase 5: Ticketing & Project Closure APIs
   app.use('/api/tickets', ticketRoutes);
   app.use('/api/projects/:projectId/closure', projectClosureRoutes);
+
+  // Phase 6: Security & Reports APIs
+  app.use('/api/audit-logs', auditLogRoutes);
+  app.use('/api/report-templates', reportTemplateRoutes);
 
   app.use(globalErrorHandler);
 

@@ -7,20 +7,16 @@ const router = Router();
 
 /**
  * @swagger
- * tags:
- *   name: Workflows
- *   description: Dynamic Approval Workflow Engine
- *
  * /workflows:
  *   get:
  *     summary: Get all workflows
- *     tags: [Workflows]
+ *     tags: [Settings]
  *     security: [{ bearerAuth: [] }]
  *     responses:
  *       200: { description: List of workflows }
  *   post:
  *     summary: Create a workflow
- *     tags: [Workflows]
+ *     tags: [Settings]
  *     security: [{ bearerAuth: [] }]
  *     requestBody:
  *       required: true
@@ -49,21 +45,21 @@ const router = Router();
  * /workflows/{id}:
  *   get:
  *     summary: Get workflow by ID
- *     tags: [Workflows]
+ *     tags: [Settings]
  *     security: [{ bearerAuth: [] }]
  *     parameters: [{ in: path, name: id, required: true, schema: { type: string } }]
  *     responses:
  *       200: { description: Workflow details }
  *   put:
  *     summary: Update workflow
- *     tags: [Workflows]
+ *     tags: [Settings]
  *     security: [{ bearerAuth: [] }]
  *     parameters: [{ in: path, name: id, required: true, schema: { type: string } }]
  *     responses:
  *       200: { description: Workflow updated }
  *   delete:
  *     summary: Delete workflow
- *     tags: [Workflows]
+ *     tags: [Settings]
  *     security: [{ bearerAuth: [] }]
  *     parameters: [{ in: path, name: id, required: true, schema: { type: string } }]
  *     responses:

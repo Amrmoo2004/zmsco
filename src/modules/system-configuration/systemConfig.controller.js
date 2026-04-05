@@ -7,20 +7,16 @@ const router = Router();
 
 /**
  * @swagger
- * tags:
- *   name: System Configuration
- *   description: System-wide Settings (Singleton document)
- *
  * /system-config:
  *   get:
  *     summary: Get system configuration
- *     tags: [System Configuration]
+ *     tags: [Settings]
  *     security: [{ bearerAuth: [] }]
  *     responses:
  *       200: { description: Current system configuration }
  *   put:
  *     summary: Update system configuration
- *     tags: [System Configuration]
+ *     tags: [Settings]
  *     security: [{ bearerAuth: [] }]
  *     requestBody:
  *       content:

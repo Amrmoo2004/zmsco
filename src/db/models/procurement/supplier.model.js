@@ -5,22 +5,41 @@ const supplierSchema = new mongoose.Schema(
         name: {
             type: String,
             required: true,
-            unique: true
+            unique: true,
+            trim: true
+        },
+        contactPerson: {
+            type: String,
+            trim: true
         },
         email: {
             type: String,
-            required: true,
-            unique: true
+            trim: true
         },
-        phone: String,
-        address: String,
+        phone: {
+            type: String,
+            trim: true
+        },
+        address: {
+            type: String
+        },
         category: {
             type: String, // e.g., "Construction Materials", "Electronics"
             default: "General"
         },
+        // Materials this supplier provides (references to Material catalog)
+        materials: [
+            {
+                type: mongoose.Schema.Types.ObjectId,
+                ref: "Material"
+            }
+        ],
         isActive: {
             type: Boolean,
             default: true
+        },
+        notes: {
+            type: String
         }
     },
     { timestamps: true }

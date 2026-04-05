@@ -8,8 +8,8 @@ const router = Router();
 /**
  * @swagger
  * tags:
- *   name: Roles
- *   description: Role Management APIs
+ *   name: Settings
+ *   description: System Settings - Departments, Job Titles, Workflows, Project Types, Roles & Configurations
  */
 
 /**
@@ -17,12 +17,12 @@ const router = Router();
  * /roles:
  *   get:
  *     summary: Get all roles
- *     tags: [Roles]
+ *     tags: [Settings]
  *     responses:
  *       200: { description: List of roles }
  *   post:
  *     summary: Create new role
- *     tags: [Roles]
+ *     tags: [Settings]
  *     requestBody:
  *       required: true
  *       content:
@@ -47,7 +47,7 @@ router.post("/", auth, permission("MANAGE_ROLES"), roleService.createRole);
  * /roles/{id}:
  *   get:
  *     summary: Get role by ID
- *     tags: [Roles]
+ *     tags: [Settings]
  *     parameters:
  *       - in: path
  *         name: id
@@ -57,7 +57,7 @@ router.post("/", auth, permission("MANAGE_ROLES"), roleService.createRole);
  *       200: { description: Role details }
  *   put:
  *     summary: Update role
- *     tags: [Roles]
+ *     tags: [Settings]
  *     parameters:
  *       - in: path
  *         name: id
@@ -77,7 +77,7 @@ router.post("/", auth, permission("MANAGE_ROLES"), roleService.createRole);
  *       200: { description: Role updated }
  *   delete:
  *     summary: Delete role
- *     tags: [Roles]
+ *     tags: [Settings]
  *     parameters:
  *       - in: path
  *         name: id
