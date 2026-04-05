@@ -53,11 +53,6 @@ import { startDraftCleanupJob } from "./auto/draft-cleanup.cron.js";
 
 
 const app = express();
-
-app.use(express.json());
-app.use(morgan("dev"));
-app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
-
 const corsOptions = {
   origin: '*',
   methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
@@ -65,6 +60,11 @@ const corsOptions = {
   optionsSuccessStatus: 204,
 };
 app.use(cors(corsOptions));
+app.use(express.json());
+app.use(morgan("dev"));
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+
+
 app.use(cookieParser());
 
 export const bootstrap = async () => {
