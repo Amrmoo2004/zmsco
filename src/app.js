@@ -56,7 +56,6 @@ const app = express();
 const corsOptions = {
   origin: '*',
   methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
-  credentials: true,
   optionsSuccessStatus: 204,
 };
 app.use(cors(corsOptions));
