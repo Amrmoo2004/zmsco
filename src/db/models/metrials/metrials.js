@@ -8,8 +8,15 @@ const materialSchema = new mongoose.Schema(
       unique: true
     },
 
+    category: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "MaterialCategory",
+      required: true
+    },
+
     unit: {
-      type: String,
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "MeasurementUnit",
       required: true
     },
 

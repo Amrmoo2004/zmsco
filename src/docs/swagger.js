@@ -89,7 +89,8 @@ const SETTINGS_PATH_PREFIXES = [
   "/equipment",
   "/notifications",
   "/audit-logs",
-  "/report-templates"
+  "/report-templates",
+  "/inventory-settings"
 ];
 
 const HTTP_METHODS = ["get", "post", "put", "patch", "delete", "options", "head"];
