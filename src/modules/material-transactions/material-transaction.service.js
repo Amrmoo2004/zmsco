@@ -3,6 +3,8 @@ import Material from "../../db/models/metrials/metrials.js";
 import Project from "../../db/models/projects/project.js";
 import Warehouse from "../../db/models/warehouse.model.js";
 import Inventory from "../../db/models/inventory.js";
+import SystemConfiguration from "../../db/models/settings/systemConfiguration.model.js";
+import MaterialRequest from "../../db/models/metrials/materialRequest.model.js";
 import { AppError } from "../../utils/appError.js";
 import { asynchandler } from "../../utils/response/response.js";
 
@@ -58,7 +60,27 @@ export const getTransactionById = asynchandler(async (req, res, next) => {
  * Create material transaction (IN or OUT)
  */
 export const createTransaction = asynchandler(async (req, res, next) => {
-    const { material, quantity, type, warehouse, project, notes } = req.body;
+    const { material, quantity, type, warehouse, project, notes, referenceRequest } = req.body;
+
+    // Check system config for OUT transactions (Approval Issuance)
+    if (type === "OUT") {
+        const config = await SystemConfiguration.findOne();
+        const approvalRequired = config?.inventorySettings?.approvalOnIssuance || false;
+
+        if (approvalRequired) {
+            if (!referenceRequest) {
+                return next(new AppError("System configuration requires an approved Material Request for stock issuance.", 403));
+            }
+            
+            const matReq = await MaterialRequest.findById(referenceRequest);
+            if (!matReq) {
+                return next(new AppError("Reference Material Request not found.", 404));
+            }
+            if (matReq.status !== "APPROVED") {
+                return next(new AppError("Material Request must be APPROVED before issuance.", 403));
+            }
+        }
+    }
 
     // Validate material exists
     const materialExists = await Material.findById(material);
@@ -96,6 +118,7 @@ export const createTransaction = asynchandler(async (req, res, next) => {
         warehouse,
         project,
         notes,
+        referenceRequest,
         createdBy: req.user._id
     });
 

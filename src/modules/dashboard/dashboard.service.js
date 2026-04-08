@@ -1,5 +1,6 @@
 import ProjectModel from "../../db/models/projects/project.js";
 import InventoryModel from "../../db/models/inventory.js";
+import SystemConfiguration from "../../db/models/settings/systemConfiguration.model.js";
 import { asynchandler } from "../../utils/response/response.js";
 
 /**
@@ -22,16 +23,24 @@ export const getDashboardStats = asynchandler(async (req, res, next) => {
     const totalBudget = budgetAgg.length > 0 ? budgetAgg[0].totalBudget : 0;
 
     // 3. Inventory Alerts (Low Stock)
-    // Assuming alertQuantity needs to be fetched from Material, but for now let's say < 50 is low
-    // Better: Populate material and check alertQuantity
-    const lowStockItems = await InventoryModel.find().populate("material");
+    let config = await SystemConfiguration.findOne();
+    const inventorySettings = config?.inventorySettings || { lowStockAlerts: true, lowStockThreshold: 10 };
+    
     let lowStockCount = 0;
-
-    lowStockItems.forEach(item => {
-        if (item.material && item.quantity <= (item.material.alertQuantity || 10)) {
-            lowStockCount++;
-        }
-    });
+    
+    if (inventorySettings.lowStockAlerts) {
+        const lowStockItems = await InventoryModel.find().populate("material");
+        
+        lowStockItems.forEach(item => {
+            const threshold = (item.material && item.material.alertQuantity) 
+                ? item.material.alertQuantity 
+                : inventorySettings.lowStockThreshold;
+                
+            if (item.quantity <= threshold) {
+                lowStockCount++;
+            }
+        });
+    }
 
     return res.status(200).json({
         success: true,

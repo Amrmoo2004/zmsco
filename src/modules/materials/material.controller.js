@@ -47,7 +47,7 @@ const router = Router();
  *               description: { type: string }
  *               unit: { type: string }
  *               category: { type: string }
- *               minStockLevel: { type: number }
+ *               alertQuantity: { type: number }
  *     responses:
  *       201: { description: Material created }
  */
@@ -102,7 +102,7 @@ router.get("/search", auth, permission("VIEW_INVENTORY"), materialService.search
  *               description: { type: string }
  *               unit: { type: string }
  *               category: { type: string }
- *               minStockLevel: { type: number }
+ *               alertQuantity: { type: number }
  *     responses:
  *       200: { description: Material updated }
  *   delete:
