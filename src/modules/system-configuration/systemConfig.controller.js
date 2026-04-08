@@ -31,6 +31,17 @@ const router = Router();
  *               timezone: { type: string }
  *               dateFormat: { type: string }
  *               currency: { type: string }
+ *               inventorySettings:
+ *                 type: object
+ *                 properties:
+ *                   lowStockAlerts: { type: boolean }
+ *                   lowStockThreshold: { type: number }
+ *                   expirationAlerts: { type: boolean }
+ *                   expirationDaysWarning: { type: number }
+ *                   batchTracking: { type: boolean }
+ *                   serialNumberTracking: { type: boolean }
+ *                   approvalOnIssuance: { type: boolean }
+ *                   autoReorderPointCalculation: { type: boolean }
  *     responses:
  *       200: { description: Configuration updated }
  */
