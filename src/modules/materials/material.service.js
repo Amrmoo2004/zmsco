@@ -26,6 +26,8 @@ export const getAllMaterials = asynchandler(async (req, res, next) => {
     const skip = (page - 1) * limit;
 
     const materials = await Material.find(query)
+        .populate("category")
+        .populate("unit")
         .limit(parseInt(limit))
         .skip(skip)
         .sort({ createdAt: -1 });
@@ -50,7 +52,9 @@ export const getAllMaterials = asynchandler(async (req, res, next) => {
 export const getMaterialById = asynchandler(async (req, res, next) => {
     const { id } = req.params;
 
-    const material = await Material.findById(id);
+    const material = await Material.findById(id)
+        .populate("category")
+        .populate("unit");
 
     if (!material) {
         return next(new AppError("Material not found", 404));
@@ -81,6 +85,9 @@ export const createMaterial = asynchandler(async (req, res, next) => {
         category,
         minStockLevel
     });
+
+    await material.populate("category");
+    await material.populate("unit");
 
     return res.status(201).json({
         success: true,
@@ -118,6 +125,9 @@ export const updateMaterial = asynchandler(async (req, res, next) => {
     if (minStockLevel !== undefined) material.minStockLevel = minStockLevel;
 
     await material.save();
+
+    await material.populate("category");
+    await material.populate("unit");
 
     return res.status(200).json({
         success: true,
@@ -161,7 +171,10 @@ export const searchMaterials = asynchandler(async (req, res, next) => {
             { name: { $regex: q, $options: "i" } },
             { description: { $regex: q, $options: "i" } }
         ]
-    }).limit(20);
+    })
+    .populate("category")
+    .populate("unit")
+    .limit(20);
 
     return res.status(200).json({
         success: true,
