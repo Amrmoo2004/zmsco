@@ -9,6 +9,7 @@ import ProjectPhase from "../../db/models/projects/project.phase.js";
 import ProjectDocument from "../../db/models/projects/project.document.js";
 import ProjectMaterial from "../../db/models/metrials/📁 projectMaterial.model.js";
 import ProjectEquipment from "../../db/models/projects/project.equipment.js";
+import ProjectType from "../../db/models/settings/projectType.model.js";
 
 /**
  * CREATE PROJECT
@@ -57,9 +58,44 @@ export const create_project = asynchandler(async (req, res, next) => {
     createdBy: req.user.id
   });
 
-  // 2. Create Nested Entities (Frontend-driven Blueprint)
-  if (phases?.length > 0) {
+  // 2. Create Nested Entities (Frontend-driven OR Auto-generator)
+  if (phases && phases.length > 0) {
     await ProjectPhase.insertMany(phases.map(p => ({ ...p, project: project._id })));
+  } else {
+    // Auto-generate phases from ProjectType blueprint if frontend didn't send any
+    const projectTypeBlueprint = await ProjectType.findById(type);
+    if (projectTypeBlueprint && projectTypeBlueprint.phases && projectTypeBlueprint.phases.length > 0) {
+      const autoPhases = projectTypeBlueprint.phases.map(phase => {
+        const requiredApprovals = phase.approvals ? phase.approvals.map(app => ({
+          role: app.entity,
+          isMandatory: app.isRequired
+        })) : [];
+
+        const requiredAttachments = phase.attachments ? phase.attachments.map(att => ({
+          documentType: att.name,
+          isMandatory: att.isRequired
+        })) : [];
+
+        const customFields = {};
+        if (phase.fields) {
+            phase.fields.forEach(f => {
+                customFields[f.name] = ""; 
+            });
+        }
+
+        return {
+          project: project._id,
+          name: phase.name,
+          order: phase.order,
+          expectedDays: phase.expectedDays,
+          isRequired: phase.isRequired,
+          customFields,
+          requiredAttachments,
+          requiredApprovals
+        };
+      });
+      await ProjectPhase.insertMany(autoPhases);
+    }
   }
   if (materials?.length > 0) {
     // Some frontend schemas might use material._id vs material
