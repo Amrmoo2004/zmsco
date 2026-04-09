@@ -2,13 +2,34 @@ import mongoose from "mongoose";
 
 const systemConfigurationSchema = new mongoose.Schema(
     {
-        companyName: {
+        companyNameAr: {
+            type: String,
+            required: true,
+        },
+        companyNameEn: {
             type: String,
             required: true,
         },
         registrationNumber: String,
         taxId: String,
         logoUrl: String,
+        address: String,
+        phoneNumber: String,
+        email: String,
+        website: String,
+        defaultLanguage: {
+            type: String,
+            default: "ar",
+        },
+        financialYearStart: String,
+        maintenanceMode: {
+            type: Boolean,
+            default: false,
+        },
+        autoBackup: {
+            type: Boolean,
+            default: false,
+        },
         timezone: {
             type: String,
             default: "UTC",

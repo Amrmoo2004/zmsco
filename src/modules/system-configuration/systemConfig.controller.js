@@ -24,10 +24,19 @@ const router = Router();
  *           schema:
  *             type: object
  *             properties:
- *               companyName: { type: string }
+ *               companyNameAr: { type: string }
+ *               companyNameEn: { type: string }
  *               registrationNumber: { type: string }
  *               taxId: { type: string }
  *               logoUrl: { type: string }
+ *               address: { type: string }
+ *               phoneNumber: { type: string }
+ *               email: { type: string }
+ *               website: { type: string }
+ *               defaultLanguage: { type: string }
+ *               financialYearStart: { type: string }
+ *               maintenanceMode: { type: boolean }
+ *               autoBackup: { type: boolean }
  *               timezone: { type: string }
  *               dateFormat: { type: string }
  *               currency: { type: string }

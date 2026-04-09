@@ -5,7 +5,7 @@ import { asynchandler } from "../../utils/response/response.js";
 export const getConfig = asynchandler(async (req, res) => {
     // There is only one config document (singleton)
     let config = await SystemConfiguration.findOne();
-    if (!config) config = await SystemConfiguration.create({ companyName: "My Company" });
+    if (!config) config = await SystemConfiguration.create({ companyNameAr: "شركتي", companyNameEn: "My Company" });
     return res.status(200).json({ success: true, data: config });
 });
 
