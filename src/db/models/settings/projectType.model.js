@@ -3,7 +3,7 @@ import mongoose from "mongoose";
 const phaseFieldSchema = new mongoose.Schema(
     {
         name: { type: String, required: true },
-        type: { type: String, enum: ['text', 'number', 'date', 'file'], default: 'text' },
+        type: { type: String, enum: ['text', 'textarea', 'number', 'date', 'file'], default: 'text' },
         isRequired: { type: Boolean, default: false }
     },
     { _id: false }
