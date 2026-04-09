@@ -15,6 +15,8 @@ const phaseAttachmentSchema = new mongoose.Schema(
         type: { type: String, enum: ['PDF', 'IMAGE', 'ANY'], default: 'ANY' },
         isRequired: { type: Boolean, default: false }
     },
+    { _id: false }
+);
 
 
 const phaseApprovalSchema = new mongoose.Schema(
