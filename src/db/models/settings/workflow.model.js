@@ -17,7 +17,6 @@ const workflowSchema = new mongoose.Schema(
                 stepOrder: { type: Number, required: true },
                 role: { type: mongoose.Schema.Types.ObjectId, ref: "Role" },
                 user: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
-                condition: { type: String }, // e.g., 'amount > 10000'
                 isMandatory: { type: Boolean, default: true }
             }
         ],

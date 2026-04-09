@@ -30,6 +30,7 @@ import departmentRoutes from "./modules/departments/department.controller.js";
 import jobTitleRoutes from "./modules/job-titles/jobTitle.controller.js";
 import systemConfigRoutes from "./modules/system-configuration/systemConfig.controller.js";
 import workflowRoutes from "./modules/workflows/workflow.controller.js";
+import approvalRuleRoutes from "./modules/workflows/approvalRule.controller.js";
 import projectTypeRoutes from "./modules/project-types/projectType.controller.js";
 
 // Phase 2: Project Core Upgrades
@@ -114,6 +115,7 @@ export const bootstrap = async () => {
   app.use('/api/job-titles', jobTitleRoutes);
   app.use('/api/system-config', systemConfigRoutes);
   app.use('/api/workflows', workflowRoutes);
+  app.use('/api/approval-rules', approvalRuleRoutes);
   app.use('/api/project-types', projectTypeRoutes);
 
   // Phase 2: Project Core Upgrades
