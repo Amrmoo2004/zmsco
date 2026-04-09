@@ -25,9 +25,11 @@ const router = Router();
  *         application/json:
  *           schema:
  *             type: object
- *             required: [title, department]
+ *             required: [nameAr, nameEn, code, department]
  *             properties:
- *               title: { type: string }
+ *               nameAr: { type: string }
+ *               nameEn: { type: string }
+ *               code: { type: string }
  *               department: { type: string, description: "Department ObjectId" }
  *               description: { type: string }
  *     responses:
@@ -47,6 +49,17 @@ const router = Router();
  *     tags: [Settings]
  *     security: [{ bearerAuth: [] }]
  *     parameters: [{ in: path, name: id, required: true, schema: { type: string } }]
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               nameAr: { type: string }
+ *               nameEn: { type: string }
+ *               code: { type: string }
+ *               department: { type: string }
+ *               description: { type: string }
  *     responses:
  *       200: { description: Job Title updated }
  *   delete:

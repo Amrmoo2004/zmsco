@@ -51,6 +51,20 @@ const router = Router();
  *                   serialNumberTracking: { type: boolean }
  *                   approvalOnIssuance: { type: boolean }
  *                   autoReorderPointCalculation: { type: boolean }
+ *               hrSettings:
+ *                 type: object
+ *                 properties:
+ *                   attendanceTracking: { type: boolean }
+ *                   dailyWorkingHours: { type: number }
+ *                   weeklyWorkingDays: { type: number }
+ *                   overtimeRate: { type: number }
+ *                   leaveManagement: { type: boolean }
+ *                   annualLeaveDays: { type: number }
+ *                   sickLeaveDays: { type: number }
+ *                   directManagerApproval: { type: boolean }
+ *                   performanceEvaluation: { type: boolean }
+ *                   evaluationPeriodicity: { type: string }
+ *                   sharedResourcePool: { type: boolean }
  *     responses:
  *       200: { description: Configuration updated }
  */

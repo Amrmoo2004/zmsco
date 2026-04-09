@@ -14,10 +14,10 @@ export const getDepartmentById = asynchandler(async (req, res, next) => {
 });
 
 export const createDepartment = asynchandler(async (req, res, next) => {
-    const { name, description, manager } = req.body;
-    const existing = await Department.findOne({ name });
-    if (existing) return next(new AppError("Department with this name already exists", 400));
-    const dept = await Department.create({ name, description, manager });
+    const { nameAr, nameEn, code, description, manager } = req.body;
+    const existing = await Department.findOne({ code });
+    if (existing) return next(new AppError("Department with this code already exists", 400));
+    const dept = await Department.create({ nameAr, nameEn, code, description, manager });
     return res.status(201).json({ success: true, message: "Department created successfully", data: dept });
 });
 

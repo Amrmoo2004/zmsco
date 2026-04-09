@@ -2,7 +2,15 @@ import mongoose from "mongoose";
 
 const departmentSchema = new mongoose.Schema(
     {
-        name: {
+        nameAr: {
+            type: String,
+            required: true,
+        },
+        nameEn: {
+            type: String,
+            required: true,
+        },
+        code: {
             type: String,
             required: true,
             unique: true,

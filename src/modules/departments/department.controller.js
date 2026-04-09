@@ -29,9 +29,11 @@ const router = Router();
  *         application/json:
  *           schema:
  *             type: object
- *             required: [name]
+ *             required: [nameAr, nameEn, code]
  *             properties:
- *               name: { type: string }
+ *               nameAr: { type: string }
+ *               nameEn: { type: string }
+ *               code: { type: string }
  *               description: { type: string }
  *               manager: { type: string, description: "User ObjectId" }
  *     responses:
@@ -66,7 +68,9 @@ const router = Router();
  *           schema:
  *             type: object
  *             properties:
- *               name: { type: string }
+ *               nameAr: { type: string }
+ *               nameEn: { type: string }
+ *               code: { type: string }
  *               description: { type: string }
  *               manager: { type: string }
  *     responses:
@@ -87,9 +91,9 @@ const router = Router();
  */
 
 router.get("/", auth, departmentService.getAllDepartments);
-router.post("/", auth, permission("CREATE_PROJECT"), departmentService.createDepartment);
+router.post("/", auth, permission("MANAGE_SETTINGS"), departmentService.createDepartment);
 router.get("/:id", auth, departmentService.getDepartmentById);
-router.put("/:id", auth, permission("UPDATE_PROJECT"), departmentService.updateDepartment);
-router.delete("/:id", auth, permission("DELETE_PROJECT"), departmentService.deleteDepartment);
+router.put("/:id", auth, permission("MANAGE_SETTINGS"), departmentService.updateDepartment);
+router.delete("/:id", auth, permission("MANAGE_SETTINGS"), departmentService.deleteDepartment);
 
 export default router;
