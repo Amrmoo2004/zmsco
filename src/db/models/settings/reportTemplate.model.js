@@ -10,7 +10,16 @@ const reportTemplateSchema = new mongoose.Schema(
         type: {
             type: String,
             required: true,
-            enum: ["PROJECTS", "HR", "INVENTORY", "PROCUREMENT", "FINANCIAL", "EQUIPMENT", "TICKETS"]
+            enum: ["مشروع", "مالي", "مخزون", "موارد بشرية", "مشتريات", "معدات", "تذاكر"]
+        },
+        category: {
+            type: String,
+            required: true
+        },
+        format: {
+            type: String,
+            enum: ["PDF", "Excel", "CSV"],
+            default: "PDF"
         },
         description: {
             type: String

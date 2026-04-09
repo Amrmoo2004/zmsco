@@ -29,7 +29,7 @@ const router = Router();
  *               name: { type: string }
  *               entityType:
  *                 type: string
- *                 enum: [MaterialRequest, PurchaseOrder, ProjectClosure, PhaseApproval, MaintenanceRequest, LeaveRequest]
+ *                 enum: [مشتريات, مخزون, موارد بشرية, مشروع]
  *               steps:
  *                 type: array
  *                 items:

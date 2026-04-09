@@ -111,6 +111,9 @@ const projectTypeSchema = new mongoose.Schema(
         description: {
             type: String,
         },
+        category: {
+            type: String, // e.g., "إنشاءات", "تشغيل وصيانة"
+        },
         phases: [phaseTemplateSchema],
         materials: [materialSchema],
         equipments: [equipmentSchema],

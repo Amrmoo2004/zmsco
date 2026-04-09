@@ -10,7 +10,7 @@ const workflowSchema = new mongoose.Schema(
         entityType: {
             type: String,
             required: true,
-            enum: ['MaterialRequest', 'PurchaseOrder', 'ProjectClosure', 'PhaseApproval', 'MaintenanceRequest', 'LeaveRequest'],
+            enum: ['مشتريات', 'مخزون', 'موارد بشرية', 'مشروع'],
         },
         steps: [
             {

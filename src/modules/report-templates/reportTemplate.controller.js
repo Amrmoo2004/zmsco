@@ -17,7 +17,7 @@ const router = Router();
  *         name: type
  *         schema:
  *           type: string
- *           enum: [PROJECTS, HR, INVENTORY, PROCUREMENT, FINANCIAL, EQUIPMENT, TICKETS]
+ *           enum: ["مشروع", "مالي", "مخزون", "موارد بشرية", "مشتريات", "معدات", "تذاكر"]
  *         description: Filter templates by report type
  *     responses:
  *       200: { description: List of saved report templates }
@@ -36,7 +36,9 @@ const router = Router();
  *               name: { type: string }
  *               type:
  *                 type: string
- *                 enum: [PROJECTS, HR, INVENTORY, PROCUREMENT, FINANCIAL, EQUIPMENT, TICKETS]
+ *                 enum: ["مشروع", "مالي", "مخزون", "موارد بشرية", "مشتريات", "معدات", "تذاكر"]
+ *               category: { type: string }
+ *               format: { type: string, enum: ["PDF", "Excel", "CSV"] }
  *               description: { type: string }
  *               filters:
  *                 type: object

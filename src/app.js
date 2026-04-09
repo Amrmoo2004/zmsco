@@ -53,6 +53,9 @@ import projectClosureRoutes from "./modules/project-closure/projectClosure.contr
 import auditLogRoutes from "./modules/audit-logs/auditLog.controller.js";
 import reportTemplateRoutes from "./modules/report-templates/reportTemplate.controller.js";
 import inventorySettingsRoutes from "./modules/inventory-settings/inventorySettings.controller.js";
+import documentTemplateRoutes from "./modules/document-templates/documentTemplate.controller.js";
+import scheduledReportRoutes from "./modules/scheduled-reports/scheduledReport.controller.js";
+import templateVariableRoutes from "./modules/template-variables/templateVariable.controller.js";
 
 // Cron Jobs
 import { startDraftCleanupJob } from "./auto/draft-cleanup.cron.js";
@@ -137,6 +140,9 @@ export const bootstrap = async () => {
   // Phase 6: Security & Reports APIs
   app.use('/api/audit-logs', auditLogRoutes);
   app.use('/api/report-templates', reportTemplateRoutes);
+  app.use('/api/document-templates', documentTemplateRoutes);
+  app.use('/api/scheduled-reports', scheduledReportRoutes);
+  app.use('/api/template-variables', templateVariableRoutes);
 
   // Phase 7: Inventory Config
   app.use('/api/inventory-settings', inventorySettingsRoutes);

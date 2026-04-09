@@ -28,7 +28,7 @@ const router = Router();
  *             properties:
  *               entityType:
  *                 type: string
- *                 enum: [MaterialRequest, PurchaseOrder, ProjectClosure, PhaseApproval, MaintenanceRequest, LeaveRequest]
+ *                 enum: [مشتريات, مخزون, موارد بشرية, مشروع]
  *               description: { type: string, description: "e.g., Less than 50K SAR" }
  *               condition:
  *                 type: object

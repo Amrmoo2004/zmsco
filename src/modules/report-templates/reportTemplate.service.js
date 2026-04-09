@@ -72,21 +72,21 @@ export const runTemplate = asynchandler(async (req, res, next) => {
     let data = [];
 
     switch (template.type) {
-        case "PROJECTS": {
+        case "مشروع": {
             const f = {};
             if (Object.keys(dateFilter).length) f.createdAt = dateFilter;
             if (template.filters?.status?.length) f.status = { $in: template.filters.status };
             data = await Project.find(f).populate("manager", "name").select(template.columns?.join(" ") || "");
             break;
         }
-        case "HR": {
+        case "موارد بشرية": {
             const f = {};
             if (Object.keys(dateFilter).length) f.createdAt = dateFilter;
             if (template.filters?.status?.length) f.status = { $in: template.filters.status };
             data = await HrRequest.find(f).populate("user", "name email").select(template.columns?.join(" ") || "");
             break;
         }
-        case "TICKETS": {
+        case "تذاكر": {
             const f = {};
             if (Object.keys(dateFilter).length) f.createdAt = dateFilter;
             if (template.filters?.status?.length) f.status = { $in: template.filters.status };

@@ -32,6 +32,7 @@ const router = Router();
  *             properties:
  *               name: { type: string }
  *               description: { type: string }
+ *               category: { type: string }
  *               phases:
  *                 type: array
  *                 items:
