@@ -14,10 +14,10 @@ export const getProjectTypeById = asynchandler(async (req, res, next) => {
 });
 
 export const createProjectType = asynchandler(async (req, res, next) => {
-    const { name, description, category, phases, materials, equipments, employees, attachments, rules } = req.body;
+    const { name, description, category, phases } = req.body;
     const existing = await ProjectType.findOne({ name });
     if (existing) return next(new AppError("Project Type with this name already exists", 400));
-    const pt = await ProjectType.create({ name, description, category, phases, materials, equipments, employees, attachments, rules });
+    const pt = await ProjectType.create({ name, description, category, phases });
     return res.status(201).json({ success: true, message: "Project Type created successfully", data: pt });
 });
 
@@ -57,16 +57,6 @@ export const instantiatePhases = asynchandler(async (req, res, next) => {
             });
         }
 
-        // Map permits
-        const requiredPermits = [];
-        if (phase.permits && phase.permits.length > 0) {
-            phase.permits.forEach(permit => {
-                requiredPermits.push({
-                    name: permit.name,
-                    isMandatory: permit.isRequired
-                });
-            });
-        }
 
         // Map approvals
         const requiredApprovals = [];
@@ -86,7 +76,6 @@ export const instantiatePhases = asynchandler(async (req, res, next) => {
             isRequired: phase.isRequired,
             customFields,
             requiredAttachments,
-            requiredPermits,
             requiredApprovals
         };
     });

@@ -15,16 +15,7 @@ const phaseAttachmentSchema = new mongoose.Schema(
         type: { type: String, enum: ['PDF', 'IMAGE', 'ANY'], default: 'ANY' },
         isRequired: { type: Boolean, default: false }
     },
-    { _id: false }
-);
 
-const phasePermitSchema = new mongoose.Schema(
-    {
-        name: { type: String, required: true },
-        isRequired: { type: Boolean, default: false }
-    },
-    { _id: false }
-);
 
 const phaseApprovalSchema = new mongoose.Schema(
     {
@@ -51,55 +42,12 @@ const phaseTemplateSchema = new mongoose.Schema(
         },
         fields: [phaseFieldSchema],
         attachments: [phaseAttachmentSchema],
-        permits: [phasePermitSchema],
         approvals: [phaseApprovalSchema]
     },
     { _id: false, timestamps: true }
 );
 
-const materialSchema = new mongoose.Schema(
-  {
-    name: { type: String, required: true },
-    unit: { type: String, required: true },
-    defaultQuantity: { type: Number, default: 0 }
-  },
-  { _id: false }
-);
 
-const equipmentSchema = new mongoose.Schema(
-  {
-    name: { type: String, required: true },
-    unit: { type: String, required: true },
-    defaultQuantity: { type: Number, default: 1 }
-  },
-  { _id: false }
-);
-
-const employeeSchema = new mongoose.Schema(
-  {
-    role: { type: String, required: true },
-    defaultCount: { type: Number, default: 1 },
-    systemRole: { type: mongoose.Schema.Types.ObjectId, ref: "Role" }
-  },
-  { _id: false }
-);
-
-const attachmentSchema = new mongoose.Schema(
-  {
-    name: { type: String, required: true },
-    required: { type: Boolean, default: true }
-  },
-  { _id: false }
-);
-
-const rulesSchema = new mongoose.Schema(
-  {
-    inventoryTracking: { type: Boolean, default: true },
-    stockAlert: { type: Boolean, default: true },
-    approvalRequired: { type: Boolean, default: true }
-  },
-  { _id: false }
-);
 
 const projectTypeSchema = new mongoose.Schema(
     {
@@ -115,11 +63,6 @@ const projectTypeSchema = new mongoose.Schema(
             type: String, // e.g., "إنشاءات", "تشغيل وصيانة"
         },
         phases: [phaseTemplateSchema],
-        materials: [materialSchema],
-        equipments: [equipmentSchema],
-        employees: [employeeSchema],
-        attachments: [attachmentSchema],
-        rules: rulesSchema,
         isActive: {
             type: Boolean,
             default: true,
