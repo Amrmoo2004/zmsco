@@ -15,13 +15,9 @@ const projectSchema = new mongoose.Schema(
     },
 
     type: {
-      type: String,
-      enum: [
-        "INFRASTRUCTURE",
-        "TECHNOLOGY",
-        "MAINTENANCE",
-        "TRANSFORMATION"
-      ]
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "ProjectType",
+      required: true
     },
 
     priority: {
@@ -47,7 +43,8 @@ const projectSchema = new mongoose.Schema(
     endDate: Date,
 
     department: {
-      type: String
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Department"
     },
     budget: {
       type: Number,
