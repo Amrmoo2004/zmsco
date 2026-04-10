@@ -156,6 +156,19 @@ router.route("/")
  *         application/json:
  *           schema:
  *             type: object
+ *             properties:
+ *               name: { type: string }
+ *               type: { type: string, description: "MongoDB ObjectId for type" }
+ *               manager: { type: string, description: "MongoDB ObjectId for manager" }
+ *               priority: { type: string, enum: [LOW, MEDIUM, HIGH] }
+ *               startDate: { type: string, format: date }
+ *               endDate: { type: string, format: date }
+ *               department: { type: string, description: "MongoDB ObjectId for department" }
+ *               client: { type: string, description: "MongoDB ObjectId for client" }
+ *               budget: { type: number }
+ *               description: { type: string }
+ *               warehouseType: { type: string, enum: [SHARED, DEDICATED] }
+ *               dedicatedWarehouse: { type: string, description: "MongoDB ObjectId for warehouse" }
  *     responses:
  *       200:
  *         description: Project updated
