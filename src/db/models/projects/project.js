@@ -51,6 +51,11 @@ const projectSchema = new mongoose.Schema(
       default: 0
     },
 
+    estimatedCost: {
+      type: Number,
+      default: 0
+    },
+
     client: {
       type: String
     },

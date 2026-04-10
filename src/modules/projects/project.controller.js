@@ -134,7 +134,21 @@ const router = express.Router();
  *                     count: { type: integer }
  *     responses:
  *       201:
- *         description: Project created successfully with auto-generated phases, members, materials, and budget
+ *         description: Project created successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean, example: true }
+ *                 message: { type: string, example: "Project draft created. Use /activate to finalize." }
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     _id: { type: string, description: "MongoDB ObjectId" }
+ *                     name: { type: string }
+ *                     budget: { type: number, description: "Allocated Budget (from request)" }
+ *                     estimatedCost: { type: number, description: "Auto-calculated estimated cost of resources" }
  *       400:
  *         description: Validation error
  */

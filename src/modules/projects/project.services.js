@@ -114,7 +114,7 @@ export const create_project = asynchandler(async (req, res, next) => {
       await ProjectPhase.insertMany(autoPhases);
   }
 
-  let finalBudget = budget || 0;
+  let estimatedCost = 0;
 
   // Process Materials
   let actualMaterials = materials;
@@ -134,7 +134,7 @@ export const create_project = asynchandler(async (req, res, next) => {
       const materialsToInsert = actualMaterials.map(m => {
           const qty = m.plannedQuantity || m.quantity || 0;
           const cost = m.totalCost || (m.unitCost ? m.unitCost * qty : 0);
-          finalBudget += cost;
+          estimatedCost += cost;
           return {
               ...m,
               project: project._id,
@@ -192,7 +192,7 @@ export const create_project = asynchandler(async (req, res, next) => {
   if (actualEquipments?.length > 0) {
       await ProjectEquipment.insertMany(actualEquipments.map(e => {
           const cost = e.totalCost || (e.unitCost ? e.unitCost * e.count : 0);
-          finalBudget += cost;
+          estimatedCost += cost;
           return { ...e, project: project._id, totalCost: cost };
       }));
   }
@@ -223,15 +223,13 @@ export const create_project = asynchandler(async (req, res, next) => {
   }
   if (actualMembers?.length > 0) {
       await ProjectMember.insertMany(actualMembers.map(m => {
-          finalBudget += (m.estimatedCost || 0);
+          estimatedCost += (m.estimatedCost || 0);
           return { ...m, project: project._id, status: m.status || "VACANT" };
       }));
   }
 
-  if (finalBudget !== project.budget) {
-      project.budget = finalBudget;
-      await project.save();
-  }
+  project.estimatedCost = estimatedCost;
+  await project.save();
 
   return res.status(201).json({
     success: true,
