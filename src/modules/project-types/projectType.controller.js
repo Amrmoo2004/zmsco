@@ -63,7 +63,7 @@ const router = Router();
  *                       items:
  *                         type: object
  *                         properties:
- *                           title: { type: string }
+ *                           name: { type: string }
  *                           description: { type: string }
  *                           isRequired: { type: boolean }
  *               materials:
