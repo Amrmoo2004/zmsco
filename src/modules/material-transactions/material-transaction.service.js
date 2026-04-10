@@ -57,90 +57,89 @@ export const getTransactionById = asynchandler(async (req, res, next) => {
 });
 
 /**
- * Create material transaction (IN or OUT)
+ * Create material transaction (IN or OUT) - Supports grouping in Array
  */
 export const createTransaction = asynchandler(async (req, res, next) => {
-    const { material, quantity, type, warehouse, project, notes, referenceRequest } = req.body;
+    const transactionsData = Array.isArray(req.body) ? req.body : (req.body.transactions ? req.body.transactions : [req.body]);
 
-    // Check system config for OUT transactions (Approval Issuance)
-    if (type === "OUT") {
-        const config = await SystemConfiguration.findOne();
-        const approvalRequired = config?.inventorySettings?.approvalOnIssuance || false;
+    if (!transactionsData || transactionsData.length === 0) {
+        return next(new AppError("No transactions provided", 400));
+    }
 
-        if (approvalRequired) {
+    const config = await SystemConfiguration.findOne();
+    const approvalRequired = config?.inventorySettings?.approvalOnIssuance || false;
+
+    // First Array Pass: Validate Everything (Fail Fast)
+    for (const trx of transactionsData) {
+        const { material, quantity, type, warehouse, project, referenceRequest } = trx;
+
+        if (type === "OUT" && approvalRequired) {
             if (!referenceRequest) {
                 return next(new AppError("System configuration requires an approved Material Request for stock issuance.", 403));
             }
-            
             const matReq = await MaterialRequest.findById(referenceRequest);
-            if (!matReq) {
-                return next(new AppError("Reference Material Request not found.", 404));
+            if (!matReq) return next(new AppError("Reference Material Request not found.", 404));
+            if (matReq.status !== "APPROVED") return next(new AppError("Material Request must be APPROVED before issuance.", 403));
+        }
+
+        const materialExists = await Material.findById(material);
+        if (!materialExists) return next(new AppError(`Material ${material} not found`, 404));
+
+        const warehouseExists = await Warehouse.findById(warehouse);
+        if (!warehouseExists) return next(new AppError(`Warehouse ${warehouse} not found`, 404));
+
+        if (project) {
+            const projectExists = await Project.findById(project);
+            if (!projectExists) return next(new AppError(`Project ${project} not found`, 404));
+        }
+
+        if (type === "OUT") {
+            const inventory = await Inventory.findOne({ material, warehouse });
+            if (!inventory || inventory.quantity < quantity) {
+                return next(new AppError(`Insufficient inventory for material ${material} in warehouse ${warehouse}`, 400));
             }
-            if (matReq.status !== "APPROVED") {
-                return next(new AppError("Material Request must be APPROVED before issuance.", 403));
-            }
         }
     }
 
-    // Validate material exists
-    const materialExists = await Material.findById(material);
-    if (!materialExists) {
-        return next(new AppError("Material not found", 404));
+    // Second Array Pass: Execute Transactions & Update Inventory
+    let createdTransactions = [];
+    for (const trx of transactionsData) {
+        const { material, quantity, type, warehouse, project, notes, referenceRequest } = trx;
+
+        // 1. Create transaction doc
+        const transaction = await MaterialTransaction.create({
+            material,
+            quantity,
+            type,
+            warehouse,
+            project,
+            notes,
+            referenceRequest,
+            createdBy: req.user._id
+        });
+
+        // 2. Adjust inventory
+        const multiplier = type === "IN" ? 1 : -1;
+        await Inventory.updateOne(
+            { material, warehouse },
+            {
+                $inc: { quantity: quantity * multiplier },
+                $set: { lastUpdated: new Date() }
+            },
+            { upsert: true }
+        );
+
+        await transaction.populate("material", "name unit");
+        await transaction.populate("warehouse", "name location");
+        if (project) await transaction.populate("project", "name");
+
+        createdTransactions.push(transaction);
     }
-
-    // Validate warehouse exists
-    const warehouseExists = await Warehouse.findById(warehouse);
-    if (!warehouseExists) {
-        return next(new AppError("Warehouse not found", 404));
-    }
-
-    // Validate project if provided
-    if (project) {
-        const projectExists = await Project.findById(project);
-        if (!projectExists) {
-            return next(new AppError("Project not found", 404));
-        }
-    }
-
-    // Check inventory for OUT transactions
-    if (type === "OUT") {
-        const inventory = await Inventory.findOne({ material, warehouse });
-        if (!inventory || inventory.quantity < quantity) {
-            return next(new AppError("Insufficient inventory for this transaction", 400));
-        }
-    }
-
-    // Create transaction
-    const transaction = await MaterialTransaction.create({
-        material,
-        quantity,
-        type,
-        warehouse,
-        project,
-        notes,
-        referenceRequest,
-        createdBy: req.user._id
-    });
-
-    // Update inventory
-    const multiplier = type === "IN" ? 1 : -1;
-    await Inventory.updateOne(
-        { material, warehouse },
-        {
-            $inc: { quantity: quantity * multiplier },
-            $set: { lastUpdated: new Date() }
-        },
-        { upsert: true }
-    );
-
-    await transaction.populate("material", "name unit");
-    await transaction.populate("warehouse", "name location");
-    if (project) await transaction.populate("project", "name");
 
     return res.status(201).json({
         success: true,
-        message: "Material transaction created successfully",
-        data: transaction
+        message: "Material transaction(s) created successfully",
+        data: createdTransactions
     });
 });
 
