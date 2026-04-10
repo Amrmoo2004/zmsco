@@ -81,6 +81,15 @@ const router = express.Router();
  *                     requiredApprovals:
  *                       type: array
  *                       items: { type: object }
+ *                     tasks:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           name: { type: string }
+ *                           description: { type: string }
+ *                           priority: { type: string, enum: [LOW, MEDIUM, HIGH] }
+ *                           assignedTo: { type: string }
  *               materials:
  *                 type: array
  *                 items:

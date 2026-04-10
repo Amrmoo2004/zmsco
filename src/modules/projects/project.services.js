@@ -83,6 +83,12 @@ export const create_project = asynchandler(async (req, res, next) => {
             });
         }
 
+        const tasks = phase.tasks ? phase.tasks.map(t => ({
+           name: t.name,
+           description: t.description,
+           status: "PENDING"
+        })) : [];
+
         return {
           project: project._id,
           name: phase.name,
@@ -91,7 +97,8 @@ export const create_project = asynchandler(async (req, res, next) => {
           isRequired: phase.isRequired,
           customFields,
           requiredAttachments,
-          requiredApprovals
+          requiredApprovals,
+          tasks
         };
       });
       await ProjectPhase.insertMany(autoPhases);
