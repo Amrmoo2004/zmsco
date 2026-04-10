@@ -59,7 +59,10 @@ export const create_project = asynchandler(async (req, res, next) => {
   });
 
   // 2. Fetch Blueprint for Defaults
-  const projectTypeBlueprint = await ProjectType.findById(type).populate("defaultResources.materials.material defaultResources.employees.jobTitle");
+  const projectTypeBlueprint = await ProjectType.findById(type).populate([
+    { path: "defaultResources.materials.material" },
+    { path: "defaultResources.employees.jobTitle" }
+  ]);
 
   // 3. Create Nested Entities (Frontend-driven OR Auto-generator)
   if (phases && phases.length > 0) {
@@ -92,7 +95,10 @@ export const create_project = asynchandler(async (req, res, next) => {
 
         return {
           project: project._id,
-          name: phase.name,
+          name: phase.nameAr || phase.nameEn || phase.name || "مرحلة",
+          nameAr: phase.nameAr,
+          nameEn: phase.nameEn,
+          color: phase.color,
           order: phase.order,
           expectedDays: phase.expectedDays,
           isRequired: phase.isRequired,
@@ -147,6 +153,8 @@ export const create_project = asynchandler(async (req, res, next) => {
           return {
               name: eq.name,
               count: eq.count,
+              unit: eq.unit || "وحدة",
+              ownershipType: "OWNED",
               unitCost: estimatedCost * projectDurationDays,
               totalCost: totalEqCost
           };

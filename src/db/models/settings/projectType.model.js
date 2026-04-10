@@ -109,6 +109,7 @@ const projectTypeSchema = new mongoose.Schema(
                 {
                     name: { type: String, required: true },
                     count: { type: Number, default: 1 },
+                    unit: { type: String, default: "وحدة" }, // e.g. وحدة, متر, مجموعات
                     estimatedDailyCost: { type: Number, default: 0 }
                 }
             ]

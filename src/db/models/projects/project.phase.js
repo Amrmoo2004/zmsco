@@ -40,6 +40,10 @@ const projectPhaseSchema = new mongoose.Schema(
       required: true
     },
 
+    nameAr: { type: String },
+    nameEn: { type: String },
+    color: { type: String, default: "#10B981" },
+
     order: {
       type: Number,
       required: true

@@ -15,6 +15,18 @@ const projectEquipmentSchema = new mongoose.Schema(
             type: Number,
             default: 1
         },
+        unit: {
+            type: String,
+            default: "وحدة" // e.g. وحدة، متر، مجموعات
+        },
+        ownershipType: {
+            type: String,
+            enum: ["OWNED", "RENTED", "BORROWED"],
+            default: "OWNED"
+        },
+        location: {
+            type: String, // e.g. المستودع أ، الموقع ب، مورد خارجي
+        },
         status: {
             type: String,
             enum: ["PENDING", "ACTIVE", "RELEASED"],
