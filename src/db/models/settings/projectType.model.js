@@ -39,8 +39,17 @@ const taskTemplateSchema = new mongoose.Schema(
 const phaseTemplateSchema = new mongoose.Schema(
     {
         name: {
+            type: String, // Kept for backward compatibility
+        },
+        nameAr: {
             type: String,
-            required: true,
+        },
+        nameEn: {
+            type: String,
+        },
+        color: {
+            type: String,
+            default: "#10B981"
         },
         order: {
             type: Number,
@@ -64,8 +73,16 @@ const phaseTemplateSchema = new mongoose.Schema(
 const projectTypeSchema = new mongoose.Schema(
     {
         name: {
+            type: String, // Kept for backward compatibility
+        },
+        nameAr: {
             type: String,
-            required: true,
+        },
+        nameEn: {
+            type: String,
+        },
+        code: {
+            type: String,
             unique: true,
         },
         description: {
