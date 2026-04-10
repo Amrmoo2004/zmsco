@@ -27,6 +27,15 @@ const phaseApprovalSchema = new mongoose.Schema(
     { _id: false }
 );
 
+const taskTemplateSchema = new mongoose.Schema(
+    {
+        title: { type: String, required: true },
+        description: { type: String },
+        isRequired: { type: Boolean, default: true }
+    },
+    { _id: false }
+);
+
 const phaseTemplateSchema = new mongoose.Schema(
     {
         name: {
@@ -44,7 +53,8 @@ const phaseTemplateSchema = new mongoose.Schema(
         },
         fields: [phaseFieldSchema],
         attachments: [phaseAttachmentSchema],
-        approvals: [phaseApprovalSchema]
+        approvals: [phaseApprovalSchema],
+        tasks: [taskTemplateSchema]
     },
     { _id: false, timestamps: true }
 );

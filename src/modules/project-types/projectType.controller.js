@@ -58,6 +58,14 @@ const router = Router();
  *                       type: array
  *                       items:
  *                         type: object
+ *                     tasks:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           title: { type: string }
+ *                           description: { type: string }
+ *                           isRequired: { type: boolean }
  *               materials:
  *                 type: array
  *               equipments:
