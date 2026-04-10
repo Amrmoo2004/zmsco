@@ -23,6 +23,10 @@ const jobTitleSchema = new mongoose.Schema(
         description: {
             type: String,
         },
+        estimatedDailyCost: {
+            type: Number,
+            default: 0,
+        },
         isActive: {
             type: Boolean,
             default: true,

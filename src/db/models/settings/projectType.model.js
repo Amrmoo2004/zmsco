@@ -108,7 +108,8 @@ const projectTypeSchema = new mongoose.Schema(
             equipments: [
                 {
                     name: { type: String, required: true },
-                    count: { type: Number, default: 1 }
+                    count: { type: Number, default: 1 },
+                    estimatedDailyCost: { type: Number, default: 0 }
                 }
             ]
         },

@@ -81,7 +81,7 @@ const router = Router();
  *                     items: { properties: { material: { type: string }, quantity: { type: number } } }
  *                   equipments:
  *                     type: array
- *                     items: { properties: { name: { type: string }, count: { type: number } } }
+ *                     items: { properties: { name: { type: string }, count: { type: number }, estimatedDailyCost: { type: number } } }
  *     responses:
  *       201: { description: Project type created }
  *

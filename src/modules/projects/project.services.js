@@ -59,7 +59,7 @@ export const create_project = asynchandler(async (req, res, next) => {
   });
 
   // 2. Fetch Blueprint for Defaults
-  const projectTypeBlueprint = await ProjectType.findById(type).populate("defaultResources.materials.material");
+  const projectTypeBlueprint = await ProjectType.findById(type).populate("defaultResources.materials.material defaultResources.employees.jobTitle");
 
   // 3. Create Nested Entities (Frontend-driven OR Auto-generator)
   if (phases && phases.length > 0) {
@@ -136,15 +136,21 @@ export const create_project = asynchandler(async (req, res, next) => {
       await ProjectMaterial.insertMany(materialsToInsert);
   }
 
+  const projectDurationDays = Math.ceil((new Date(endDate) - new Date(startDate)) / (1000 * 60 * 60 * 24)) || 1;
+
   // Process Equipment
   let actualEquipments = equipments;
   if ((!actualEquipments || actualEquipments.length === 0) && projectTypeBlueprint?.defaultResources?.equipments) {
-      actualEquipments = projectTypeBlueprint.defaultResources.equipments.map(eq => ({
-          name: eq.name,
-          count: eq.count,
-          unitCost: 0,
-          totalCost: 0
-      }));
+      actualEquipments = projectTypeBlueprint.defaultResources.equipments.map(eq => {
+          const estimatedCost = eq.estimatedDailyCost || 0;
+          const totalEqCost = estimatedCost * projectDurationDays * eq.count;
+          return {
+              name: eq.name,
+              count: eq.count,
+              unitCost: estimatedCost * projectDurationDays,
+              totalCost: totalEqCost
+          };
+      });
   }
   if (actualEquipments?.length > 0) {
       await ProjectEquipment.insertMany(actualEquipments.map(e => {
@@ -163,12 +169,16 @@ export const create_project = asynchandler(async (req, res, next) => {
   if ((!actualMembers || actualMembers.length === 0) && projectTypeBlueprint?.defaultResources?.employees) {
       actualMembers = [];
       projectTypeBlueprint.defaultResources.employees.forEach(emp => {
+          const jobTitleDoc = emp.jobTitle || {};
+          const dailyCost = jobTitleDoc.estimatedDailyCost || 0;
+          const estCost = dailyCost * projectDurationDays;
+
           for (let i = 0; i < emp.count; i++) {
               actualMembers.push({
-                  jobTitle: emp.jobTitle,
-                  role: "Project Member", // generic fallback or fetch JobTitle name
+                  jobTitle: jobTitleDoc._id || emp.jobTitle,
+                  role: "Project Member",
                   status: "VACANT",
-                  estimatedCost: 0,
+                  estimatedCost: estCost,
                   actualCost: 0
               });
           }

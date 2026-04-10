@@ -32,6 +32,7 @@ const router = Router();
  *               code: { type: string }
  *               department: { type: string, description: "Department ObjectId" }
  *               description: { type: string }
+ *               estimatedDailyCost: { type: number }
  *     responses:
  *       201:
  *         description: Job Title created
@@ -60,6 +61,7 @@ const router = Router();
  *               code: { type: string }
  *               department: { type: string }
  *               description: { type: string }
+ *               estimatedDailyCost: { type: number }
  *     responses:
  *       200: { description: Job Title updated }
  *   delete:

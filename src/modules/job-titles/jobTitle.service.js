@@ -14,10 +14,10 @@ export const getJobTitleById = asynchandler(async (req, res, next) => {
 });
 
 export const createJobTitle = asynchandler(async (req, res, next) => {
-    const { nameAr, nameEn, code, department, description } = req.body;
+    const { nameAr, nameEn, code, department, description, estimatedDailyCost } = req.body;
     const existing = await JobTitle.findOne({ code });
     if (existing) return next(new AppError("Job Title with this code already exists", 400));
-    const jt = await JobTitle.create({ nameAr, nameEn, code, department, description });
+    const jt = await JobTitle.create({ nameAr, nameEn, code, department, description, estimatedDailyCost });
     return res.status(201).json({ success: true, message: "Job Title created successfully", data: jt });
 });
 

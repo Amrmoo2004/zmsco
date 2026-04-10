@@ -94,7 +94,7 @@ export const getMaterialById = asynchandler(async (req, res, next) => {
  * Create new material
  */
 export const createMaterial = asynchandler(async (req, res, next) => {
-    const { name, description, unit, category, alertQuantity } = req.body;
+    const { name, description, unit, category, alertQuantity, standardCost } = req.body;
 
     // Check if material with same name exists
     const existingMaterial = await Material.findOne({ name });
@@ -107,7 +107,8 @@ export const createMaterial = asynchandler(async (req, res, next) => {
         description,
         unit,
         category,
-        alertQuantity
+        alertQuantity,
+        standardCost
     });
 
     await material.populate("category");
@@ -125,7 +126,7 @@ export const createMaterial = asynchandler(async (req, res, next) => {
  */
 export const updateMaterial = asynchandler(async (req, res, next) => {
     const { id } = req.params;
-    const { name, description, unit, category, alertQuantity } = req.body;
+    const { name, description, unit, category, alertQuantity, standardCost } = req.body;
 
     const material = await Material.findById(id);
 
@@ -147,6 +148,7 @@ export const updateMaterial = asynchandler(async (req, res, next) => {
     if (unit) material.unit = unit;
     if (category) material.category = category;
     if (alertQuantity !== undefined) material.alertQuantity = alertQuantity;
+    if (standardCost !== undefined) material.standardCost = standardCost;
 
     await material.save();
 
