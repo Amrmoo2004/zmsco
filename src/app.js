@@ -57,6 +57,8 @@ import documentTemplateRoutes from "./modules/document-templates/documentTemplat
 import scheduledReportRoutes from "./modules/scheduled-reports/scheduledReport.controller.js";
 import templateVariableRoutes from "./modules/template-variables/templateVariable.controller.js";
 import hrSettingsRoutes from "./modules/hr-settings/hrSettings.controller.js";
+import phaseSettingsRoutes from "./modules/project-settings/phase.controller.js";
+import kpiSettingsRoutes from "./modules/project-settings/kpi.controller.js";
 
 // Cron Jobs
 import { startDraftCleanupJob } from "./auto/draft-cleanup.cron.js";
@@ -148,6 +150,10 @@ export const bootstrap = async () => {
   // Phase 7: Inventory Config
   app.use('/api/inventory-settings', inventorySettingsRoutes);
   app.use('/api/hr-settings', hrSettingsRoutes);
+
+  // Global Project Settings
+  app.use('/api/project-settings/phases', phaseSettingsRoutes);
+  app.use('/api/project-settings/kpis', kpiSettingsRoutes);
 
   app.use(globalErrorHandler);
 

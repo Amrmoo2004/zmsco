@@ -28,9 +28,11 @@ const router = Router();
  *         application/json:
  *           schema:
  *             type: object
- *             required: [name]
+ *             required: [nameAr, nameEn, code]
  *             properties:
- *               name: { type: string }
+ *               nameAr: { type: string }
+ *               nameEn: { type: string }
+ *               code: { type: string }
  *               description: { type: string }
  *               category: { type: string }
  *               phases:
@@ -38,7 +40,9 @@ const router = Router();
  *                 items:
  *                   type: object
  *                   properties:
- *                     name: { type: string }
+ *                     nameAr: { type: string }
+ *                     nameEn: { type: string }
+ *                     color: { type: string }
  *                     order: { type: integer }
  *                     expectedDays: { type: integer }
  *                     isRequired: { type: boolean }
@@ -66,16 +70,18 @@ const router = Router();
  *                           name: { type: string }
  *                           description: { type: string }
  *                           isRequired: { type: boolean }
- *               materials:
- *                 type: array
- *               equipments:
- *                 type: array
- *               employees:
- *                 type: array
- *               attachments:
- *                 type: array
- *               rules:
+ *               defaultResources:
  *                 type: object
+ *                 properties:
+ *                   employees:
+ *                     type: array
+ *                     items: { properties: { jobTitle: { type: string }, count: { type: number } } }
+ *                   materials:
+ *                     type: array
+ *                     items: { properties: { material: { type: string }, quantity: { type: number } } }
+ *                   equipments:
+ *                     type: array
+ *                     items: { properties: { name: { type: string }, count: { type: number } } }
  *     responses:
  *       201: { description: Project type created }
  *

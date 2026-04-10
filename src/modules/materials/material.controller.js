@@ -29,7 +29,25 @@ const router = Router();
  *         name: search
  *         schema: { type: string }
  *     responses:
- *       200: { description: List of materials }
+ *       200: 
+ *         description: List of materials with inventory aggregates
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean }
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       name: { type: string }
+ *                       unit: { type: object }
+ *                       availableQuantity: { type: number }
+ *                       unitCost: { type: number }
+ *                       isAvailable: { type: boolean }
+ *                       source: { type: string, enum: [INVENTORY, PROCUREMENT] }
  *   post:
  *     summary: Create new material
  *     tags: [Materials]
@@ -48,6 +66,7 @@ const router = Router();
  *               unit: { type: string }
  *               category: { type: string }
  *               alertQuantity: { type: number }
+ *               standardCost: { type: number }
  *     responses:
  *       201: { description: Material created }
  */

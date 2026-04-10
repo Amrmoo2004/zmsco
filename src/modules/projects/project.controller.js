@@ -106,6 +106,11 @@ const router = express.Router();
  *                 type: array
  *                 items:
  *                   type: object
+ *               equipments:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *             description: If phases, members, materials, or equipments are omitted, they will be auto-generated from the chosen ProjectType defaults.
  *     responses:
  *       201:
  *         description: Project created successfully
@@ -221,6 +226,21 @@ router.post(
  *     responses:
  *       200:
  *         description: Full project data including phases, members, materials, equipment, documents
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean }
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     project: { type: object, properties: { budget: { type: number } } }
+ *                     phases: { type: array }
+ *                     members: { type: array, items: { type: object, properties: { actualCost: { type: number }, estimatedCost: { type: number } } } }
+ *                     materials: { type: array, items: { type: object, properties: { unitCost: { type: number }, totalCost: { type: number } } } }
+ *                     equipment: { type: array, items: { type: object, properties: { unitCost: { type: number }, totalCost: { type: number } } } }
+ *                     documents: { type: array }
  */
 router.get(
   "/:id/summary",
