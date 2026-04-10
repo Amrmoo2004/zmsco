@@ -58,14 +58,15 @@ export const create_project = asynchandler(async (req, res, next) => {
     createdBy: req.user.id
   });
 
-  // 2. Create Nested Entities (Frontend-driven OR Auto-generator)
+  // 2. Fetch Blueprint for Defaults
+  const projectTypeBlueprint = await ProjectType.findById(type).populate("defaultResources.materials.material");
+
+  // 3. Create Nested Entities (Frontend-driven OR Auto-generator)
   if (phases && phases.length > 0) {
     await ProjectPhase.insertMany(phases.map(p => ({ ...p, project: project._id })));
-  } else {
+  } else if (projectTypeBlueprint && projectTypeBlueprint.phases && projectTypeBlueprint.phases.length > 0) {
     // Auto-generate phases from ProjectType blueprint if frontend didn't send any
-    const projectTypeBlueprint = await ProjectType.findById(type);
-    if (projectTypeBlueprint && projectTypeBlueprint.phases && projectTypeBlueprint.phases.length > 0) {
-      const autoPhases = projectTypeBlueprint.phases.map(phase => {
+    const autoPhases = projectTypeBlueprint.phases.map(phase => {
         const requiredApprovals = phase.approvals ? phase.approvals.map(app => ({
           role: app.entity,
           isMandatory: app.isRequired
@@ -102,24 +103,87 @@ export const create_project = asynchandler(async (req, res, next) => {
         };
       });
       await ProjectPhase.insertMany(autoPhases);
-    }
   }
-  if (materials?.length > 0) {
-    // Some frontend schemas might use material._id vs material
-    await ProjectMaterial.insertMany(materials.map(m => ({
-      ...m,
-      project: project._id,
-      material: m.material || m._id || m.materialId
-    })));
+
+  let finalBudget = budget || 0;
+
+  // Process Materials
+  let actualMaterials = materials;
+  if ((!actualMaterials || actualMaterials.length === 0) && projectTypeBlueprint?.defaultResources?.materials) {
+      actualMaterials = projectTypeBlueprint.defaultResources.materials.map(mat => {
+          const materialObj = mat.material || {};
+          const baseCost = materialObj.standardCost || 0;
+          return {
+              material: materialObj._id || mat.material,
+              plannedQuantity: mat.quantity,
+              unitCost: baseCost,
+              totalCost: baseCost * mat.quantity
+          };
+      });
   }
-  if (equipments?.length > 0) {
-    await ProjectEquipment.insertMany(equipments.map(e => ({ ...e, project: project._id })));
+  if (actualMaterials?.length > 0) {
+      const materialsToInsert = actualMaterials.map(m => {
+          const cost = m.totalCost || (m.unitCost ? m.unitCost * (m.plannedQuantity || m.quantity || 0) : 0);
+          finalBudget += cost;
+          return {
+              ...m,
+              project: project._id,
+              material: m.material || m._id || m.materialId,
+              unitCost: m.unitCost || 0,
+              totalCost: cost
+          };
+      });
+      await ProjectMaterial.insertMany(materialsToInsert);
   }
+
+  // Process Equipment
+  let actualEquipments = equipments;
+  if ((!actualEquipments || actualEquipments.length === 0) && projectTypeBlueprint?.defaultResources?.equipments) {
+      actualEquipments = projectTypeBlueprint.defaultResources.equipments.map(eq => ({
+          name: eq.name,
+          count: eq.count,
+          unitCost: 0,
+          totalCost: 0
+      }));
+  }
+  if (actualEquipments?.length > 0) {
+      await ProjectEquipment.insertMany(actualEquipments.map(e => {
+          const cost = e.totalCost || (e.unitCost ? e.unitCost * e.count : 0);
+          finalBudget += cost;
+          return { ...e, project: project._id, totalCost: cost };
+      }));
+  }
+
   if (documents?.length > 0) {
     await ProjectDocument.insertMany(documents.map(d => ({ ...d, project: project._id, status: "PENDING" })));
   }
-  if (members?.length > 0) {
-    await ProjectMember.insertMany(members.map(m => ({ ...m, project: project._id, status: "VACANT" })));
+
+  // Process Members (Vacancies)
+  let actualMembers = members;
+  if ((!actualMembers || actualMembers.length === 0) && projectTypeBlueprint?.defaultResources?.employees) {
+      actualMembers = [];
+      projectTypeBlueprint.defaultResources.employees.forEach(emp => {
+          for (let i = 0; i < emp.count; i++) {
+              actualMembers.push({
+                  jobTitle: emp.jobTitle,
+                  role: "Project Member", // generic fallback or fetch JobTitle name
+                  status: "VACANT",
+                  estimatedCost: 0,
+                  actualCost: 0
+              });
+          }
+      });
+  }
+  if (actualMembers?.length > 0) {
+      await ProjectMember.insertMany(actualMembers.map(m => {
+          finalBudget += (m.estimatedCost || 0);
+          return { ...m, project: project._id, status: m.status || "VACANT" };
+      }));
+  }
+
+  if (finalBudget !== project.budget) {
+      project.budget = finalBudget;
+      await project.save();
   }
 
   return res.status(201).json({
@@ -226,18 +290,25 @@ export const assign_member = asynchandler(async (req, res, next) => {
     return next(new AppError("Member vacancy not found or already filled", 404));
   }
 
-  // 3. assign
-  memberSlot.assignedUser = userId;
+  // 3. assign and calculate cost
+  const project = await ProjectModel.findById(projectId);
+  let durationDays = 30; // default assumption
+  if(project && project.startDate && project.endDate) {
+      durationDays = Math.max(1, Math.ceil((new Date(project.endDate) - new Date(project.startDate)) / (1000 * 60 * 60 * 24)));
+  }
+
+  const newCost = (user.hourlyRate || 0) * 8 * durationDays;
+  const oldCost = memberSlot.estimatedCost || 0;
+  const costDiff = newCost - oldCost;
+
+  memberSlot.user = userId;
   memberSlot.status = "FILLED";
+  memberSlot.actualCost = newCost;
   await memberSlot.save();
 
-  // 4. Update User Role (If vacancy has a systemRole)
-  if (memberSlot.systemRole) {
-    await User.findByIdAndUpdate(
-      userId,
-      { role: memberSlot.systemRole },
-      { new: true }
-    );
+  if(project) {
+      project.budget = (project.budget || 0) + costDiff;
+      await project.save();
   }
 
   res.status(200).json({

@@ -19,7 +19,12 @@ const projectMemberSchema = new mongoose.Schema(
     user: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: true
+      required: false
+    },
+
+    jobTitle: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "JobTitle"
     },
 
     status: {
@@ -44,7 +49,17 @@ const projectMemberSchema = new mongoose.Schema(
       default: 100
     },
 
-    notes: String
+    notes: String,
+
+    estimatedCost: {
+      type: Number,
+      default: 0
+    },
+
+    actualCost: {
+      type: Number,
+      default: 0
+    }
     // ─────────────────────────────────────────────────────────────────────────
   },
   { timestamps: true }

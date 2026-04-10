@@ -19,6 +19,14 @@ const projectEquipmentSchema = new mongoose.Schema(
             type: String,
             enum: ["PENDING", "ACTIVE", "RELEASED"],
             default: "PENDING"
+        },
+        unitCost: {
+            type: Number,
+            default: 0
+        },
+        totalCost: {
+            type: Number,
+            default: 0
         }
     },
     { timestamps: true }

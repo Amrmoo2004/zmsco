@@ -35,6 +35,11 @@ const materialSchema = new mongoose.Schema(
       }
     ],
 
+    standardCost: {
+      type: Number,
+      default: 0
+    },
+
     isActive: {
       type: Boolean,
       default: true

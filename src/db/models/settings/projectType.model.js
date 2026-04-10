@@ -75,6 +75,26 @@ const projectTypeSchema = new mongoose.Schema(
             type: String, // e.g., "إنشاءات", "تشغيل وصيانة"
         },
         phases: [phaseTemplateSchema],
+        defaultResources: {
+            employees: [
+                {
+                    jobTitle: { type: mongoose.Schema.Types.ObjectId, ref: "JobTitle", required: true },
+                    count: { type: Number, default: 1 }
+                }
+            ],
+            materials: [
+                {
+                    material: { type: mongoose.Schema.Types.ObjectId, ref: "Material", required: true },
+                    quantity: { type: Number, default: 0 }
+                }
+            ],
+            equipments: [
+                {
+                    name: { type: String, required: true },
+                    count: { type: Number, default: 1 }
+                }
+            ]
+        },
         isActive: {
             type: Boolean,
             default: true,

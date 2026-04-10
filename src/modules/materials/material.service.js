@@ -1,4 +1,5 @@
 import Material from "../../db/models/metrials/metrials.js";
+import Inventory from "../../db/models/inventory.js";
 import { AppError } from "../../utils/appError.js";
 import { asynchandler } from "../../utils/response/response.js";
 
@@ -30,13 +31,36 @@ export const getAllMaterials = asynchandler(async (req, res, next) => {
         .populate("unit")
         .limit(parseInt(limit))
         .skip(skip)
-        .sort({ createdAt: -1 });
+        .sort({ createdAt: -1 })
+        .lean();
 
     const total = await Material.countDocuments(query);
 
+    // Aggregate inventory balances
+    const materialIds = materials.map(m => m._id);
+    const inventoryBalances = await Inventory.aggregate([
+        { $match: { material: { $in: materialIds } } },
+        { $group: { _id: "$material", totalQuantity: { $sum: "$quantity" } } }
+    ]);
+    const inventoryMap = {};
+    inventoryBalances.forEach(bal => { 
+        inventoryMap[bal._id.toString()] = bal.totalQuantity; 
+    });
+
+    const enrichedMaterials = materials.map(material => {
+        const availableQuantity = inventoryMap[material._id.toString()] || 0;
+        return {
+            ...material,
+            availableQuantity,
+            unitCost: material.standardCost || 0,
+            isAvailable: availableQuantity > 0,
+            source: availableQuantity > 0 ? "INVENTORY" : "PROCUREMENT"
+        };
+    });
+
     return res.status(200).json({
         success: true,
-        data: materials,
+        data: enrichedMaterials,
         pagination: {
             total,
             page: parseInt(page),
@@ -174,10 +198,32 @@ export const searchMaterials = asynchandler(async (req, res, next) => {
     })
     .populate("category")
     .populate("unit")
-    .limit(20);
+    .limit(20)
+    .lean();
+
+    const materialIds = materials.map(m => m._id);
+    const inventoryBalances = await Inventory.aggregate([
+        { $match: { material: { $in: materialIds } } },
+        { $group: { _id: "$material", totalQuantity: { $sum: "$quantity" } } }
+    ]);
+    const inventoryMap = {};
+    inventoryBalances.forEach(bal => { 
+        inventoryMap[bal._id.toString()] = bal.totalQuantity; 
+    });
+
+    const enrichedMaterials = materials.map(material => {
+        const availableQuantity = inventoryMap[material._id.toString()] || 0;
+        return {
+            ...material,
+            availableQuantity,
+            unitCost: material.standardCost || 0,
+            isAvailable: availableQuantity > 0,
+            source: availableQuantity > 0 ? "INVENTORY" : "PROCUREMENT"
+        };
+    });
 
     return res.status(200).json({
         success: true,
-        data: materials
+        data: enrichedMaterials
     });
 });
