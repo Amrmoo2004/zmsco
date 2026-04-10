@@ -1,4 +1,4 @@
-import Task from "../../db/models/projects/task.model.js";
+
 import ProjectPhase from "../../db/models/projects/project.phase.js";
 import { AppError } from "../../utils/appError.js";
 import { asynchandler } from "../../utils/response/response.js";
@@ -6,40 +6,63 @@ import { asynchandler } from "../../utils/response/response.js";
 // GET /api/projects/:projectId/phases/:phaseId/tasks
 export const getTasksByPhase = asynchandler(async (req, res) => {
     const { phaseId } = req.params;
-    const tasks = await Task.find({ phase: phaseId })
-        .populate("assignedTo", "name email")
-        .sort({ createdAt: -1 });
+    const phase = await ProjectPhase.findById(phaseId).populate("tasks.assignedTo", "name email");
+    if (!phase) return res.status(404).json({ success: false, message: "Phase not found" });
+    
+    // Sort tasks descending by createdAt
+    const tasks = phase.tasks.sort((a, b) => b.createdAt - a.createdAt);
     return res.status(200).json({ success: true, data: tasks });
 });
 
 // POST /api/projects/:projectId/phases/:phaseId/tasks
 export const createTask = asynchandler(async (req, res, next) => {
-    const { projectId, phaseId } = req.params;
+    const { phaseId } = req.params;
     const { name, description, assignedTo, priority, dueDate } = req.body;
-    const task = await Task.create({
-        project: projectId,
-        phase: phaseId,
-        name, description, assignedTo, priority, dueDate
-    });
+    
+    const phase = await ProjectPhase.findById(phaseId);
+    if (!phase) return next(new AppError("Phase not found", 404));
+
+    phase.tasks.push({ name, description, assignedTo, priority, dueDate });
+    await phase.save();
+
+    const task = phase.tasks[phase.tasks.length - 1];
     return res.status(201).json({ success: true, message: "Task created successfully", data: task });
 });
 
 // PUT /api/projects/:projectId/phases/:phaseId/tasks/:taskId
 export const updateTask = asynchandler(async (req, res, next) => {
-    const task = await Task.findByIdAndUpdate(req.params.taskId, req.body, { new: true, runValidators: true });
+    const { phaseId, taskId } = req.params;
+    
+    const phase = await ProjectPhase.findById(phaseId);
+    if (!phase) return next(new AppError("Phase not found", 404));
+
+    const task = phase.tasks.id(taskId);
     if (!task) return next(new AppError("Task not found", 404));
+
+    Object.assign(task, req.body);
+
     // If task is now completed, record completedAt
     if (req.body.status === "COMPLETED" && !task.completedAt) {
         task.completedAt = new Date();
-        await task.save();
     }
+
+    await phase.save();
     return res.status(200).json({ success: true, message: "Task updated successfully", data: task });
 });
 
 // DELETE /api/projects/:projectId/phases/:phaseId/tasks/:taskId
 export const deleteTask = asynchandler(async (req, res, next) => {
-    const task = await Task.findByIdAndDelete(req.params.taskId);
+    const { phaseId, taskId } = req.params;
+    
+    const phase = await ProjectPhase.findById(phaseId);
+    if (!phase) return next(new AppError("Phase not found", 404));
+
+    const task = phase.tasks.id(taskId);
     if (!task) return next(new AppError("Task not found", 404));
+
+    phase.tasks.pull(taskId);
+    await phase.save();
+
     return res.status(200).json({ success: true, message: "Task deleted successfully" });
 });
 

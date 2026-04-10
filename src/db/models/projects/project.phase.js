@@ -1,5 +1,32 @@
 import mongoose from "mongoose";
 
+const phaseTaskSchema = new mongoose.Schema(
+  {
+    name: {
+      type: String,
+      required: true
+    },
+    description: String,
+    assignedTo: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User"
+    },
+    priority: {
+      type: String,
+      enum: ["LOW", "MEDIUM", "HIGH"],
+      default: "MEDIUM"
+    },
+    dueDate: Date,
+    status: {
+      type: String,
+      enum: ["PENDING", "IN_PROGRESS", "COMPLETED", "CANCELLED"],
+      default: "PENDING"
+    },
+    completedAt: Date
+  },
+  { timestamps: true }
+);
+
 const projectPhaseSchema = new mongoose.Schema(
   {
     project: {
@@ -84,7 +111,10 @@ const projectPhaseSchema = new mongoose.Schema(
     customFields: {
       type: mongoose.Schema.Types.Mixed,
       default: {}
-    }
+    },
+    
+    // ─── Phase Tasks ──────────────────────────────────────────────────────────
+    tasks: [phaseTaskSchema]
     // ─────────────────────────────────────────────────────────────────────────
   },
   { timestamps: true }
