@@ -39,8 +39,12 @@ const router = express.Router();
  *                 type: string
  *               type:
  *                 type: string
+ *                 format: objectId
+ *                 description: MongoDB ObjectId for type
  *               manager:
  *                 type: string
+ *                 format: objectId
+ *                 description: MongoDB ObjectId for manager
  *                 description: User ID of the project manager
  *               priority:
  *                 type: string
@@ -53,8 +57,12 @@ const router = express.Router();
  *                 format: date
  *               department:
  *                 type: string
+ *                 format: objectId
+ *                 description: MongoDB ObjectId for department
  *               client:
  *                 type: string
+ *                 format: objectId
+ *                 description: MongoDB ObjectId for client
  *               budget:
  *                 type: number
  *               description:

@@ -1,8 +1,37 @@
 export const globalErrorHandler = (err, req, res, next) => {
-  const statusCode = err.statusCode || 500;
+  let statusCode = err.statusCode || 500;
+  let message = err.message || "Internal Server Error";
+  let errors = null;
+
+  // Handle Mongoose Validation Error
+  if (err.name === 'ValidationError') {
+    statusCode = 400;
+    message = "Validation Error";
+    errors = Object.values(err.errors).map(val => ({
+      field: val.path,
+      message: val.message
+    }));
+  }
+
+  // Handle Mongoose Cast Error (Invalid ObjectId)
+  if (err.name === 'CastError') {
+    statusCode = 400;
+    message = `Invalid value for ${err.path || 'ID'}`;
+    errors = [{ field: err.path, message: `Value '${err.value}' is not a valid ID` }];
+  }
+
+  // Handle Mongoose Duplicate Key Error
+  if (err.code === 11000) {
+    statusCode = 400;
+    const field = Object.keys(err.keyValue)[0];
+    message = `Duplicate value error for field: ${field}`;
+    errors = [{ field, message: `The value '${err.keyValue[field]}' already exists` }];
+  }
 
   res.status(statusCode).json({
     success: false,
-    message: err.message
+    message,
+    ...(errors && { errors }),
+    ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
   });
 };

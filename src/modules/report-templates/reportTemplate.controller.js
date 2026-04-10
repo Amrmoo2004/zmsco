@@ -36,6 +36,8 @@ const router = Router();
  *               name: { type: string }
  *               type:
  *                 type: string
+ *                 format: objectId
+ *                 description: MongoDB ObjectId for type
  *                 enum: ["مشروع", "مالي", "مخزون", "موارد بشرية", "مشتريات", "معدات", "تذاكر"]
  *               category: { type: string }
  *               format: { type: string, enum: ["PDF", "Excel", "CSV"] }
