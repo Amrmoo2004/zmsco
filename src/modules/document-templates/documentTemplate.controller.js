@@ -27,8 +27,8 @@ const router = Router();
  *             required: [name, type, category]
  *             properties:
  *               name: { type: string }
- *               type: { type: string, description: "e.g. عقد, أمر شراء" }
- *               category: { type: string, description: "e.g. عربي, عربي/إنجليزي" }
+ *               type: { type: string, description: "MongoDB ObjectId" }
+ *               category: { type: string, description: "MongoDB ObjectId" }
  *               version: { type: string, default: "v1.0" }
  *               content: { type: string, description: "HTML or rich text content" }
  *     responses:
@@ -56,8 +56,8 @@ const router = Router();
  *             type: object
  *             properties:
  *               name: { type: string }
- *               type: { type: string }
- *               category: { type: string }
+ *               type: { type: string, description: "MongoDB ObjectId" }
+ *               category: { type: string, description: "MongoDB ObjectId" }
  *               version: { type: string }
  *               content: { type: string }
  *     responses:

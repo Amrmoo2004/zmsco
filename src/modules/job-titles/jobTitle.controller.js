@@ -59,7 +59,7 @@ const router = Router();
  *               nameAr: { type: string }
  *               nameEn: { type: string }
  *               code: { type: string }
- *               department: { type: string }
+ *               department: { type: string, description: "MongoDB ObjectId" }
  *               description: { type: string }
  *               estimatedDailyCost: { type: number }
  *     responses:

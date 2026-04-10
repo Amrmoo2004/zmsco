@@ -36,8 +36,8 @@ const router = Router();
  *                   type: object
  *                   properties:
  *                     stepOrder: { type: integer }
- *                     role: { type: string }
- *                     user: { type: string }
+ *                     role: { type: string, description: "MongoDB ObjectId" }
+ *                     user: { type: string, description: "MongoDB ObjectId" }
  *                     isMandatory: { type: boolean }
  *     responses:
  *       201: { description: Workflow created }

@@ -40,13 +40,13 @@ const router = Router();
  *               - project
  *               - materials
  *             properties:
- *               project: { type: string }
+ *               project: { type: string, description: "MongoDB ObjectId" }
  *               materials:
  *                 type: array
  *                 items:
  *                   type: object
  *                   properties:
- *                     material: { type: string }
+ *                     material: { type: string, description: "MongoDB ObjectId" }
  *                     quantity: { type: number }
  *               notes: { type: string }
  *     responses:

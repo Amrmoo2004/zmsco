@@ -32,7 +32,7 @@ const router = Router();
  *             properties:
  *               nameAr: { type: string }
  *               nameEn: { type: string }
- *               unit: { type: string }
+ *               unit: { type: string, description: "MongoDB ObjectId" }
  *               targetValue: { type: number }
  *     responses:
  *       201: { description: KPI created }

@@ -40,7 +40,7 @@ const router = Router({ mergeParams: true });
  *                 items:
  *                   type: object
  *                   properties:
- *                     material: { type: string }
+ *                     material: { type: string, description: "MongoDB ObjectId" }
  *                     orderedQuantity: { type: number }
  *                     receivedQuantity: { type: number }
  *     responses:

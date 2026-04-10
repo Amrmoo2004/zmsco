@@ -72,7 +72,7 @@ const router = Router();
  *               nameEn: { type: string }
  *               code: { type: string }
  *               description: { type: string }
- *               manager: { type: string }
+ *               manager: { type: string, description: "MongoDB ObjectId" }
  *     responses:
  *       200:
  *         description: Department updated

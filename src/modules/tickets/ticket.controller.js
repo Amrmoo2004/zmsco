@@ -35,9 +35,9 @@ const router = Router();
  *             type: object
  *             required: [type, description]
  *             properties:
- *               type: { type: string, enum: [MAINTENANCE, SUPPORT, INSPECTION, OTHER] }
- *               project: { type: string }
- *               equipment: { type: string }
+ *               type: { type: string, description: "MongoDB ObjectId" }
+ *               project: { type: string, description: "MongoDB ObjectId" }
+ *               equipment: { type: string, description: "MongoDB ObjectId" }
  *               description: { type: string }
  *               priority: { type: string, enum: [LOW, MEDIUM, HIGH, CRITICAL] }
  *               targetDate: { type: string, format: date }

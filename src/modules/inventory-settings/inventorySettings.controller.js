@@ -78,7 +78,7 @@ router.delete("/categories/:id", auth, permission("MANAGE_SETTINGS"), inventoryS
  *               nameAr: { type: string }
  *               nameEn: { type: string }
  *               code: { type: string }
- *               type: { type: string, enum: ["طول", "وزن", "حجم", "عدد"] }
+ *               type: { type: string, description: "MongoDB ObjectId" }
  *     responses:
  *       201: { description: Unit created }
  * 

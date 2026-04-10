@@ -9,7 +9,7 @@ const router = express.Router();
  * @swagger
  * tags:
  *   name: Projects
- *   description: Project Lifecycle Management
+ *   description: Project management endpoints
  */
 
 /**
@@ -18,24 +18,12 @@ const router = express.Router();
  *   get:
  *     summary: Get all projects
  *     tags: [Projects]
- *     security: [{ bearerAuth: [] }]
- *     parameters:
- *       - in: query
- *         name: status
- *         schema:
- *           type: string
- *           enum: [DRAFT, PLANNING, IN_PROGRESS, ON_HOLD, COMPLETED, CANCELLED]
- *       - in: query
- *         name: search
- *         schema:
- *           type: string
  *     responses:
  *       200:
  *         description: List of projects
  *   post:
  *     summary: Create a new project
  *     tags: [Projects]
- *     security: [{ bearerAuth: [] }]
  *     requestBody:
  *       required: true
  *       content:
@@ -49,56 +37,60 @@ const router = express.Router();
  *             properties:
  *               name:
  *                 type: string
- *                 example: "مشروع المجمع السكني A"
  *               type:
  *                 type: string
- *                 description: MongoDB ObjectId for project type (blueprint)
- *                 example: "64a2f1c3e21b4a0012345678"
+ *                 description: "MongoDB ObjectId"
+ *                 format: objectId
+ *                 description: MongoDB ObjectId for type
  *               manager:
  *                 type: string
- *                 description: MongoDB ObjectId for the project manager (User)
- *                 example: "64a2f1c3e21b4a0012345679"
- *               priority:
+ *                 description: "MongoDB ObjectId"
+ *                 format: objectId
+  *               priority:
  *                 type: string
  *                 enum: [LOW, MEDIUM, HIGH]
- *                 default: MEDIUM
  *               startDate:
  *                 type: string
  *                 format: date
- *                 example: "2025-05-01"
  *               endDate:
  *                 type: string
  *                 format: date
- *                 example: "2025-12-31"
  *               department:
  *                 type: string
+ *                 description: "MongoDB ObjectId"
+ *                 format: objectId
  *                 description: MongoDB ObjectId for department
  *               client:
  *                 type: string
+ *                 description: "MongoDB ObjectId"
+ *                 format: objectId
  *                 description: MongoDB ObjectId for client
  *               budget:
  *                 type: number
- *                 example: 500000
  *               description:
  *                 type: string
  *               warehouseType:
  *                 type: string
  *                 enum: [SHARED, DEDICATED]
  *                 default: SHARED
- *               dedicatedWarehouse:
- *                 type: string
- *                 description: MongoDB ObjectId for warehouse (required if warehouseType is DEDICATED)
  *               phases:
  *                 type: array
- *                 description: Optional - if omitted, auto-generated from ProjectType blueprint
  *                 items:
  *                   type: object
  *                   properties:
- *                     nameAr: { type: string }
- *                     nameEn: { type: string }
+ *                     name: { type: string }
  *                     order: { type: integer }
  *                     expectedDays: { type: integer }
- *                     color: { type: string }
+ *                     customFields: { type: object }
+ *                     requiredAttachments:
+ *                       type: array
+ *                       items: { type: object }
+ *                     requiredPermits:
+ *                       type: array
+ *                       items: { type: object }
+ *                     requiredApprovals:
+ *                       type: array
+ *                       items: { type: object }
  *                     tasks:
  *                       type: array
  *                       items:
@@ -106,37 +98,32 @@ const router = express.Router();
  *                         properties:
  *                           name: { type: string }
  *                           description: { type: string }
- *                           isRequired: { type: boolean }
+ *                           priority: { type: string, enum: [LOW, MEDIUM, HIGH] }
+ *                           assignedTo: { type: string, description: "MongoDB ObjectId" }
  *               materials:
  *                 type: array
- *                 description: Optional - if omitted, auto-generated from ProjectType blueprint
  *                 items:
  *                   type: object
- *                   properties:
- *                     material: { type: string, description: "MongoDB ObjectId for material" }
- *                     quantity: { type: number }
  *               equipments:
  *                 type: array
- *                 description: Optional - if omitted, auto-generated from ProjectType blueprint
  *                 items:
  *                   type: object
- *                   properties:
- *                     name: { type: string }
- *                     count: { type: integer }
- *                     unit: { type: string }
+ *               documents:
+ *                 type: array
+ *                 items:
+ *                   type: object
  *               members:
  *                 type: array
- *                 description: Optional - if omitted, auto-generated from ProjectType blueprint
  *                 items:
  *                   type: object
- *                   properties:
- *                     jobTitle: { type: string, description: "MongoDB ObjectId for job title" }
- *                     count: { type: integer }
+ *               equipments:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *             description: If phases, members, materials, or equipments are omitted, they will be auto-generated from the chosen ProjectType defaults.
  *     responses:
  *       201:
- *         description: Project created successfully with auto-generated phases, members, materials, and budget
- *       400:
- *         description: Validation error
+ *         description: Project created successfully
  */
 router.route("/")
   .get(auth, permission("VIEW_PROJECT"), projectService.get_projects)
@@ -148,7 +135,6 @@ router.route("/")
  *   get:
  *     summary: Get project details
  *     tags: [Projects]
- *     security: [{ bearerAuth: [] }]
  *     parameters:
  *       - in: path
  *         name: id
@@ -161,7 +147,6 @@ router.route("/")
  *   put:
  *     summary: Update project details
  *     tags: [Projects]
- *     security: [{ bearerAuth: [] }]
  *     parameters:
  *       - in: path
  *         name: id
@@ -175,7 +160,7 @@ router.route("/")
  *             type: object
  *             properties:
  *               name: { type: string }
- *               type: { type: string, description: "MongoDB ObjectId for project type" }
+ *               type: { type: string, description: "MongoDB ObjectId for type" }
  *               manager: { type: string, description: "MongoDB ObjectId for manager" }
  *               priority: { type: string, enum: [LOW, MEDIUM, HIGH] }
  *               startDate: { type: string, format: date }
@@ -192,7 +177,6 @@ router.route("/")
  *   delete:
  *     summary: Delete a project
  *     tags: [Projects]
- *     security: [{ bearerAuth: [] }]
  *     parameters:
  *       - in: path
  *         name: id
@@ -214,7 +198,6 @@ router.route("/:id")
  *   post:
  *     summary: Assign a user to a project vacancy
  *     tags: [Projects]
- *     security: [{ bearerAuth: [] }]
  *     parameters:
  *       - in: path
  *         name: id
@@ -239,7 +222,7 @@ router.route("/:id")
  *             properties:
  *               userId:
  *                 type: string
- *                 description: MongoDB ObjectId for the user to assign
+ *                 description: ID of the user to assign
  *     responses:
  *       200:
  *         description: Member assigned successfully
@@ -257,7 +240,6 @@ router.post(
  *   get:
  *     summary: Get full project summary (for review screen)
  *     tags: [Projects]
- *     security: [{ bearerAuth: [] }]
  *     parameters:
  *       - in: path
  *         name: id
@@ -276,13 +258,12 @@ router.post(
  *                 data:
  *                   type: object
  *                   properties:
- *                     project: { type: object }
+ *                     project: { type: object, properties: { budget: { type: number } } }
  *                     phases: { type: array }
- *                     members: { type: array }
- *                     materials: { type: array }
- *                     equipment: { type: array }
+ *                     members: { type: array, items: { type: object, properties: { actualCost: { type: number }, estimatedCost: { type: number } } } }
+ *                     materials: { type: array, items: { type: object, properties: { unitCost: { type: number }, totalCost: { type: number } } } }
+ *                     equipment: { type: array, items: { type: object, properties: { unitCost: { type: number }, totalCost: { type: number } } } }
  *                     documents: { type: array }
- *                     budget: { type: number }
  */
 router.get(
   "/:id/summary",
@@ -297,7 +278,6 @@ router.get(
  *   post:
  *     summary: Activate a draft project (Final submit)
  *     tags: [Projects]
- *     security: [{ bearerAuth: [] }]
  *     parameters:
  *       - in: path
  *         name: id

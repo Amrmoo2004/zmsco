@@ -46,7 +46,7 @@ const router = Router();
  *             properties:
  *               name: { type: string }
  *               url: { type: string }
- *               type: { type: string }
+ *               type: { type: string, description: "MongoDB ObjectId" }
  *               description: { type: string }
  *     responses:
  *       201: { description: Document uploaded }

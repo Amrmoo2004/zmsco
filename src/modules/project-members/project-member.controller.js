@@ -43,8 +43,8 @@ const router = Router();
  *               - user
  *               - role
  *             properties:
- *               user: { type: string }
- *               role: { type: string }
+ *               user: { type: string, description: "MongoDB ObjectId" }
+ *               role: { type: string, description: "MongoDB ObjectId" }
  *     responses:
  *       201: { description: Member added }
  */
@@ -73,7 +73,7 @@ router.post("/:projectId/members", auth, permission("UPDATE_PROJECT"), projectMe
  *           schema:
  *             type: object
  *             properties:
- *               role: { type: string }
+ *               role: { type: string, description: "MongoDB ObjectId" }
  *     responses:
  *       200: { description: Member updated }
  *   delete:

@@ -32,13 +32,13 @@ const router = Router({ mergeParams: true });
  *             type: object
  *             required: [supplier, items]
  *             properties:
- *               supplier: { type: string }
+ *               supplier: { type: string, description: "MongoDB ObjectId" }
  *               items:
  *                 type: array
  *                 items:
  *                   type: object
  *                   properties:
- *                     material: { type: string }
+ *                     material: { type: string, description: "MongoDB ObjectId" }
  *                     quantity: { type: number }
  *                     unitPrice: { type: number }
  *               deliveryDays: { type: number }

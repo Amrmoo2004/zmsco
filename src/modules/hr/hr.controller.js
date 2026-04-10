@@ -34,7 +34,7 @@ const router = Router();
  *             type: object
  *             required: [project, date, hoursLogged]
  *             properties:
- *               project: { type: string }
+ *               project: { type: string, description: "MongoDB ObjectId" }
  *               phase: { type: string }
  *               date: { type: string, format: date }
  *               hoursLogged: { type: number, minimum: 0, maximum: 24 }

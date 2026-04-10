@@ -34,7 +34,7 @@ const router = Router({ mergeParams: true });
  *                 items:
  *                   type: object
  *                   properties:
- *                     role: { type: string }
+ *                     role: { type: string, description: "MongoDB ObjectId" }
  *     responses:
  *       201: { description: Closure process initiated }
  *   get:
@@ -91,7 +91,7 @@ const router = Router({ mergeParams: true });
  *                   type: object
  *                   properties:
  *                     name: { type: string }
- *                     role: { type: string }
+ *                     role: { type: string, description: "MongoDB ObjectId" }
  *     responses:
  *       201: { description: Certificate generated with auto-ID (CERT-YYYY-NNN) }
  */

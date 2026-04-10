@@ -63,8 +63,8 @@ const router = Router();
  *             properties:
  *               name: { type: string }
  *               description: { type: string }
- *               unit: { type: string }
- *               category: { type: string }
+ *               unit: { type: string, description: "MongoDB ObjectId" }
+ *               category: { type: string, description: "MongoDB ObjectId" }
  *               alertQuantity: { type: number }
  *               standardCost: { type: number }
  *     responses:
@@ -119,8 +119,8 @@ router.get("/search", auth, permission("VIEW_INVENTORY"), materialService.search
  *             properties:
  *               name: { type: string }
  *               description: { type: string }
- *               unit: { type: string }
- *               category: { type: string }
+ *               unit: { type: string, description: "MongoDB ObjectId" }
+ *               category: { type: string, description: "MongoDB ObjectId" }
  *               alertQuantity: { type: number }
  *     responses:
  *       200: { description: Material updated }

@@ -32,7 +32,7 @@ const router = Router();
  *                 items:
  *                   type: object
  *                   properties:
- *                     material: { type: string }
+ *                     material: { type: string, description: "MongoDB ObjectId" }
  *                     quantity: { type: number }
  *               deadline: { type: string, format: date }
  *     responses:
@@ -76,7 +76,7 @@ router.get("/rfq", auth, permission("VIEW_REPORTS"), procurementService.getRFQs)
  *                 items:
  *                   type: object
  *                   properties:
- *                     material: { type: string }
+ *                     material: { type: string, description: "MongoDB ObjectId" }
  *                     quantity: { type: number }
  *                     unitPrice: { type: number }
  *     responses:

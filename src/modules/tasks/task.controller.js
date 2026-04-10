@@ -38,7 +38,7 @@ const router = Router({ mergeParams: true }); // mergeParams to access :projectI
  *             properties:
  *               name: { type: string }
  *               description: { type: string }
- *               assignedTo: { type: string }
+ *               assignedTo: { type: string, description: "MongoDB ObjectId" }
  *               priority: { type: string, enum: [LOW, MEDIUM, HIGH] }
  *               dueDate: { type: string, format: date }
  *     responses:

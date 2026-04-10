@@ -36,7 +36,7 @@ const router = Router();
  *               name: { type: string }
  *               location: { type: string }
  *               capacity: { type: number }
- *               manager: { type: string }
+ *               manager: { type: string, description: "MongoDB ObjectId" }
  *     responses:
  *       201: { description: Warehouse created }
  */
@@ -74,7 +74,7 @@ router.post("/", auth, permission("MANAGE_INVENTORY"), warehouseService.createWa
  *               name: { type: string }
  *               location: { type: string }
  *               capacity: { type: number }
- *               manager: { type: string }
+ *               manager: { type: string, description: "MongoDB ObjectId" }
  *     responses:
  *       200: { description: Warehouse updated }
  *   delete:

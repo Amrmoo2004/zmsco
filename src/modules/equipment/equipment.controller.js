@@ -31,7 +31,7 @@ const router = Router();
  *             required: [name, type]
  *             properties:
  *               name: { type: string }
- *               type: { type: string }
+ *               type: { type: string, description: "MongoDB ObjectId" }
  *               brand: { type: string }
  *               capacity: { type: string }
  *               condition: { type: string, enum: [EXCELLENT, GOOD, FAIR, POOR, UNDER_MAINTENANCE] }
@@ -84,7 +84,7 @@ const router = Router();
  *             required: [date]
  *             properties:
  *               date: { type: string, format: date }
- *               type: { type: string, enum: [INSPECTION, PREVENTIVE, CORRECTIVE] }
+ *               type: { type: string, description: "MongoDB ObjectId" }
  *               cost: { type: number }
  *               description: { type: string }
  *     responses:
@@ -108,8 +108,8 @@ const router = Router();
  *             type: object
  *             required: [equipment, project, startDate]
  *             properties:
- *               equipment: { type: string }
- *               project: { type: string }
+ *               equipment: { type: string, description: "MongoDB ObjectId" }
+ *               project: { type: string, description: "MongoDB ObjectId" }
  *               phase: { type: string }
  *               startDate: { type: string, format: date }
  *               endDate: { type: string, format: date }

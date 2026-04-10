@@ -34,7 +34,7 @@ const router = Router();
  *               nameEn: { type: string }
  *               code: { type: string }
  *               description: { type: string }
- *               category: { type: string }
+ *               category: { type: string, description: "MongoDB ObjectId" }
  *               phases:
  *                 type: array
  *                 items:
@@ -78,7 +78,7 @@ const router = Router();
  *                     items: { properties: { jobTitle: { type: string }, count: { type: number } } }
  *                   materials:
  *                     type: array
- *                     items: { properties: { material: { type: string }, quantity: { type: number } } }
+ *                     items: { properties: { material: { type: string, description: "MongoDB ObjectId" }, quantity: { type: number } } }
  *                   equipments:
  *                     type: array
  *                     items: { properties: { name: { type: string }, count: { type: number }, estimatedDailyCost: { type: number } } }
