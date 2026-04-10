@@ -6,6 +6,15 @@ const warehouseSchema = new mongoose.Schema({
         required: true
     },
     location: String,
+    
+    capacity: {
+        type: Number,
+        default: 1000
+    },
+    usedCapacity: {
+        type: Number,
+        default: 0
+    },
 
     type: {
         type: String,
