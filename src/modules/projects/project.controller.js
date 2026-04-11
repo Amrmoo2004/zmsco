@@ -405,4 +405,31 @@ router.patch(
   projectService.update_phase_status
 );
 
+/**
+ * @swagger
+ * /projects/{id}/phases/{phaseId}:
+ *   get:
+ *     summary: Get specific phase details (Header info, budget, expenses, progress)
+ *     tags: [Projects]
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *       - in: path
+ *         name: phaseId
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200:
+ *         description: Full phase details and computed statistics
+ */
+router.get(
+  "/:id/phases/:phaseId",
+  auth,
+  permission("VIEW_PROJECT"),
+  projectService.get_phase_details
+);
+
 export default router;

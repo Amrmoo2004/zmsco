@@ -57,6 +57,16 @@ const projectPhaseSchema = new mongoose.Schema(
 
     expectedDays: Number,
 
+    budget: {
+      type: Number,
+      default: 0
+    },
+
+    expenses: {
+      type: Number,
+      default: 0
+    },
+
     startDate: Date,
     endDate: Date,
 

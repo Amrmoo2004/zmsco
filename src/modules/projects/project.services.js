@@ -526,3 +526,37 @@ export const update_phase_status = asynchandler(async (req, res, next) => {
       data: phase
   });
 });
+
+/**
+ * GET PHASE DETAILS
+ * Used by the Phase Details screen to render header widgets
+ */
+export const get_phase_details = asynchandler(async (req, res, next) => {
+  const { id: projectId, phaseId } = req.params;
+
+  const phase = await ProjectPhase.findOne({ _id: phaseId, project: projectId }).lean();
+  
+  if (!phase) {
+      return next(new AppError("Phase not found.", 404));
+  }
+
+  // Calculate task statistics
+  const totalTasks = phase.tasks ? phase.tasks.length : 0;
+  const completedTasks = phase.tasks ? phase.tasks.filter(t => t.status === "COMPLETED").length : 0;
+  const progressPercentage = totalTasks === 0 ? 0 : Math.round((completedTasks / totalTasks) * 100);
+
+  // We rely on phase.budget and phase.expenses stored in the document.
+  // In a robust scenario, we could sum MaterialTransactions here.
+  
+  return res.status(200).json({
+    success: true,
+    data: {
+      ...phase,
+      statistics: {
+        totalTasks,
+        completedTasks,
+        progressPercentage
+      }
+    }
+  });
+});
