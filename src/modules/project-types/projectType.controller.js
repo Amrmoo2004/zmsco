@@ -48,22 +48,33 @@ const router = Router();
  *                     isRequired: { type: boolean }
  *                     fields:
  *                       type: array
+ *                       example: []
  *                       items:
  *                         type: object
+ *                         properties:
+ *                           name: { type: string }
+ *                           type: { type: string, enum: ['text', 'textarea', 'number', 'date', 'file'] }
+ *                           isRequired: { type: boolean }
  *                     attachments:
  *                       type: array
+ *                       example: []
  *                       items:
  *                         type: object
- *                     permits:
- *                       type: array
- *                       items:
- *                         type: object
+ *                         properties:
+ *                           name: { type: string }
+ *                           type: { type: string, enum: ['PDF', 'IMAGE', 'ANY'] }
+ *                           isRequired: { type: boolean }
  *                     approvals:
  *                       type: array
+ *                       example: []
  *                       items:
  *                         type: object
+ *                         properties:
+ *                           entity: { type: string, description: "Role ObjectId" }
+ *                           isRequired: { type: boolean }
  *                     tasks:
  *                       type: array
+ *                       example: []
  *                       items:
  *                         type: object
  *                         properties:
