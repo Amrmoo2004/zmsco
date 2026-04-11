@@ -43,7 +43,7 @@ const router = Router();
  *               phone: { type: string }
  *               email: { type: string }
  *               address: { type: string }
- *               materials: { type: array, items: { type: string } }
+ *               materials: { type: array, items: { type: string, description: "MongoDB ObjectId for material" } }
  *     responses:
  *       201: { description: Supplier created }
  */
@@ -83,7 +83,7 @@ router.post("/", auth, permission("MANAGE_SUPPLIERS"), supplierService.createSup
  *               phone: { type: string }
  *               email: { type: string }
  *               address: { type: string }
- *               materials: { type: array, items: { type: string } }
+ *               materials: { type: array, items: { type: string, description: "MongoDB ObjectId for material" } }
  *     responses:
  *       200: { description: Supplier updated }
  *   delete:

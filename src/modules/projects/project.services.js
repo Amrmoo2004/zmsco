@@ -140,35 +140,12 @@ export const create_project = asynchandler(async (req, res, next) => {
               project: project._id,
               material: m.material || m._id || m.materialId,
               plannedQuantity: qty,
-              issuedQuantity: qty, // Auto-issued immediately
+              issuedQuantity: 0, // No material is issued at creation step
               unitCost: m.unitCost || 0,
               totalCost: cost
           };
       });
       await ProjectMaterial.insertMany(materialsToInsert);
-
-      // Auto-deduct from main inventory and push to dedicated warehouse
-      const mainWarehouses = await Warehouse.find({ type: "MAIN" }).select("_id");
-      const mainWarehouseIds = mainWarehouses.map(w => w._id);
-
-      for (const mat of materialsToInsert) {
-          if (mat.issuedQuantity > 0) {
-              // 1. Deduct from a general/main warehouse holding this material
-              await Inventory.findOneAndUpdate(
-                  { material: mat.material, warehouse: { $in: mainWarehouseIds }, quantity: { $gte: mat.issuedQuantity } },
-                  { $inc: { quantity: -mat.issuedQuantity }, $set: { lastUpdated: new Date() } }
-              );
-
-              // 2. Add to project's dedicated warehouse (if any)
-              if (dedicatedWarehouse) {
-                  await Inventory.findOneAndUpdate(
-                      { material: mat.material, warehouse: dedicatedWarehouse },
-                      { $inc: { quantity: mat.issuedQuantity }, $set: { lastUpdated: new Date() } },
-                      { upsert: true, new: true }
-                  );
-              }
-          }
-      }
   }
 
   const projectDurationDays = Math.ceil((new Date(endDate) - new Date(startDate)) / (1000 * 60 * 60 * 24)) || 1;

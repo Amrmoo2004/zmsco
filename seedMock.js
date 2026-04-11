@@ -14,6 +14,7 @@ import Material from "./src/db/models/metrials/metrials.js";
 import { Equipment } from "./src/db/models/hr/equipment.model.js";
 import Warehouse from "./src/db/models/warehouse.model.js";
 import Inventory from "./src/db/models/inventory.js";
+import ProjectType from "./src/db/models/settings/projectType.model.js";
 import { connectDB } from "./src/db/db.connection.js";
 
 const seed = async () => {
@@ -107,6 +108,41 @@ const seed = async () => {
         }));
         await Inventory.insertMany(inventoryData);
         console.log("✅ Inventory seeded: Added 5000 units for each material in Main Warehouse");
+
+        // 7. Project Blueprint (Type) Setup
+        const projectTypeCode = "PT-RES-01";
+        let defaultProjectType = await ProjectType.findOne({ code: projectTypeCode });
+        if (!defaultProjectType) {
+            defaultProjectType = await ProjectType.create({
+                name: "مجمع سكني قياسي",
+                nameAr: "مجمع سكني قياسي",
+                nameEn: "Standard Residential Complex",
+                code: projectTypeCode,
+                description: "قالب افتراضي لإنشاء المجمعات السكنية مع المراحل والموارد",
+                category: "إنشاءات",
+                phases: [
+                    { nameAr: "التخطيط", nameEn: "Planning", name: "Planning", order: 1, expectedDays: 15, color: "#3498db" },
+                    { nameAr: "التصميم", nameEn: "Design", name: "Design", order: 2, expectedDays: 30, color: "#9b59b6" },
+                    { nameAr: "التنفيذ", nameEn: "Execution", name: "Execution", order: 3, expectedDays: 120, color: "#f1c40f" },
+                    { nameAr: "الإغلاق", nameEn: "Closure", name: "Closure", order: 4, expectedDays: 10, color: "#2ecc71" }
+                ],
+                defaultResources: {
+                    employees: [
+                        { jobTitle: createdJobs[0]._id, count: 2 }, // Engineers
+                        { jobTitle: createdJobs[1]._id, count: 10 } // Workers
+                    ],
+                    materials: [
+                        { material: createdMaterials[0]._id, quantity: 100 }, // Cement
+                        { material: createdMaterials[1]._id, quantity: 50 }  // Steel
+                    ],
+                    equipments: [
+                        { name: equipmentsToInsert[0].name, count: 1, unit: "وحدة", estimatedDailyCost: 2000 },
+                        { name: equipmentsToInsert[1].name, count: 2, unit: "معدة", estimatedDailyCost: 500 }
+                    ]
+                }
+            });
+            console.log("✅ Project blueprint (ProjectType) created with default phases and resources.");
+        }
 
         console.log("🎉 All seeding completed successfully!");
         process.exit(0);

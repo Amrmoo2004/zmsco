@@ -41,7 +41,7 @@ export const approveRequest = asynchandler(async (req, res, next) => {
     const { requestId } = req.params;
     const userId = req.user._id;
 
-    const request = await MaterialRequest.findById(requestId);
+    const request = await MaterialRequest.findById(requestId).populate("project");
     if (!request) {
         return next(new AppError("Request not found", 404));
     }
@@ -50,33 +50,86 @@ export const approveRequest = asynchandler(async (req, res, next) => {
         return next(new AppError("Request is not pending", 400));
     }
 
+    const project = request.project;
+
+    // Fetch MAIN warehouses to deduct stock from
+    const mainWarehouses = await mongoose.model("Warehouse").find({ type: "MAIN" }).select("_id");
+    const mainWarehouseIds = mainWarehouses.map(w => w._id);
+
     // 1. Process each item
     for (const item of request.items) {
-        // A. Check Stock
-        const stock = await Inventory.findOne({ material: item.material });
-        if (!stock || stock.quantity < item.quantity) {
-            return next(new AppError(`Insufficient stock for material ${item.material}`, 400));
-        }
-
-        // B. Deduct Stock
-        stock.quantity -= item.quantity;
-        await stock.save();
-
-        // C. Create Transaction
-        await MaterialTransaction.create({
-            project: request.project,
-            material: item.material,
-            quantity: item.quantity,
-            type: "ISSUE",
-            referenceRequest: request._id,
-            createdBy: userId
+        // A. Find Stock in MAIN warehouses
+        const stock = await Inventory.findOne({ 
+            material: item.material, 
+            warehouse: { $in: mainWarehouseIds },
+            quantity: { $gte: item.quantity }
         });
 
-        // D. Update Project Material (Issued Quantity)
-        // Find project material or create if not exists? Usually it exists from auto-setup.
+        if (!stock) {
+            return next(new AppError(`Insufficient stock in main warehouses for material ${item.material}`, 400));
+        }
+
+        // B. Transfer & Issue Logic
+        if (project.warehouseType === "DEDICATED" && project.dedicatedWarehouse) {
+            // STEP 1: Transfer from MAIN to DEDICATED
+            stock.quantity -= item.quantity;
+            await stock.save();
+
+            // Create TRANSFER transaction (optional, to log the movement)
+            await MaterialTransaction.create({
+                project: project._id,
+                material: item.material,
+                quantity: item.quantity,
+                type: "ISSUE", // Can be "TRANSFER" if supported, but preserving schema valid enum
+                warehouse: project.dedicatedWarehouse,
+                referenceRequest: request._id,
+                createdBy: userId
+            });
+
+            // Add to DEDICATED inventory
+            const dedicatedStock = await Inventory.findOneAndUpdate(
+                { material: item.material, warehouse: project.dedicatedWarehouse },
+                { $inc: { quantity: item.quantity }, $set: { lastUpdated: new Date() } },
+                { upsert: true, new: true }
+            );
+
+            // STEP 2: Issue from DEDICATED
+            dedicatedStock.quantity -= item.quantity;
+            await dedicatedStock.save();
+
+            await MaterialTransaction.create({
+                project: project._id,
+                material: item.material,
+                phase: request.phase || null,
+                quantity: item.quantity,
+                type: "ISSUE",
+                warehouse: project.dedicatedWarehouse,
+                referenceRequest: request._id,
+                createdBy: userId
+            });
+
+        } else {
+            // Direct Issue from MAIN
+            stock.quantity -= item.quantity;
+            await stock.save();
+
+            await MaterialTransaction.create({
+                project: project._id,
+                material: item.material,
+                phase: request.phase || null,
+                quantity: item.quantity,
+                type: "ISSUE",
+                warehouse: stock.warehouse, // The main warehouse it was taken from
+                referenceRequest: request._id,
+                createdBy: userId
+            });
+        }
+
+        // C. Update Project Material (Issued Quantity)
         await ProjectMaterial.findOneAndUpdate(
-            { project: request.project, material: item.material },
-            { $inc: { issuedQuantity: item.quantity } }
+            { project: project._id, material: item.material },
+            { $inc: { issuedQuantity: item.quantity } },
+            { upsert: true }
         );
     }
 

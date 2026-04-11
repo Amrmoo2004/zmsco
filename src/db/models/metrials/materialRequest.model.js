@@ -16,9 +16,31 @@ const materialRequestSchema = new mongoose.Schema(
 
     status: {
       type: String,
-      enum: ["PENDING", "APPROVED", "REJECTED", "ISSUED"],
+      enum: ["PENDING", "PENDING_APPROVAL", "APPROVED", "REJECTED", "FULFILLED"],
       default: "PENDING"
     },
+
+    // ── Workflow Engine Fields ──
+    workflow: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Workflow"
+    },
+    currentStepIndex: {
+      type: Number,
+      default: 0
+    },
+    approvalHistory: [
+      {
+        stepIndex: Number,
+        role: { type: mongoose.Schema.Types.ObjectId, ref: "Role" },
+        user: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+        approvedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+        status: { type: String, enum: ["APPROVED", "REJECTED"] },
+        comment: String,
+        timestamp: { type: Date, default: Date.now }
+      }
+    ],
+    // ────────────────────────────
 
     items: [
       {

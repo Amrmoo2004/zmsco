@@ -34,6 +34,7 @@ const options = {
       { name: "Project Documents", description: "Project Document Management" },
       { name: "Project Equipment", description: "Equipment Assigned to Projects" },
       { name: "Project Closure", description: "Project Closure Process & Certificates" },
+      { name: "ProjectSettings", description: "Global Project Configurations (KPIs, Phases, etc)" },
       { name: "HR", description: "Human Resources — Work Logs & HR Requests" },
       { name: "Equipment", description: "Equipment Fleet & Maintenance" },
       { name: "Materials", description: "Material Catalog Management" },
@@ -90,7 +91,8 @@ const SETTINGS_PATH_PREFIXES = [
   "/notifications",
   "/audit-logs",
   "/report-templates",
-  "/inventory-settings"
+  "/inventory-settings",
+  "/project-settings"
 ];
 
 const HTTP_METHODS = ["get", "post", "put", "patch", "delete", "options", "head"];

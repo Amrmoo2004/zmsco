@@ -3,6 +3,9 @@ import http from 'http';
 import { bootstrap } from './app.js';
 import { initSocket } from './utils/socket.js';
 
+// Initialize global event listeners
+import './events/inventory.events.js';
+
 const app = await bootstrap();
 const server = http.createServer(app);
 

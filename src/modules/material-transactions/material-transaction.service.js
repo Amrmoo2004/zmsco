@@ -7,6 +7,7 @@ import SystemConfiguration from "../../db/models/settings/systemConfiguration.mo
 import MaterialRequest from "../../db/models/metrials/materialRequest.model.js";
 import { AppError } from "../../utils/appError.js";
 import { asynchandler } from "../../utils/response/response.js";
+import eventBus from "../../events/index.js";
 
 /**
  * Get all transactions with filters
@@ -120,14 +121,23 @@ export const createTransaction = asynchandler(async (req, res, next) => {
 
         // 2. Adjust inventory
         const multiplier = type === "IN" ? 1 : -1;
-        await Inventory.updateOne(
+        const updatedInventory = await Inventory.findOneAndUpdate(
             { material, warehouse },
             {
                 $inc: { quantity: quantity * multiplier },
                 $set: { lastUpdated: new Date() }
             },
-            { upsert: true }
+            { new: true, upsert: true }
         );
+
+        if (type === "OUT" && updatedInventory) {
+            // Fire background task to check low stock
+            eventBus.emit('INVENTORY_UPDATED', {
+                materialId: material,
+                currentQuantity: updatedInventory.quantity,
+                warehouseId: warehouse
+            });
+        }
 
         await transaction.populate("material", "name unit");
         await transaction.populate("warehouse", "name location");

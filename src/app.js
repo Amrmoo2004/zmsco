@@ -60,8 +60,9 @@ import hrSettingsRoutes from "./modules/hr-settings/hrSettings.controller.js";
 import phaseSettingsRoutes from "./modules/project-settings/phase.controller.js";
 import kpiSettingsRoutes from "./modules/project-settings/kpi.controller.js";
 
-// Cron Jobs
+// Cron Jobs & Seeders
 import { startDraftCleanupJob } from "./auto/draft-cleanup.cron.js";
+import { seedDefaultSettings } from "./auto/seed-settings.js";
 
 
 const app = express();
@@ -161,6 +162,9 @@ export const bootstrap = async () => {
 
   // Start scheduled jobs
   startDraftCleanupJob();
+
+  // Seed default settings globally
+  await seedDefaultSettings();
 
   // Return the app so index.js can attach Socket.IO and start the HTTP server
   return app;
