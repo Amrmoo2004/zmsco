@@ -23,26 +23,10 @@ export const createProjectType = asynchandler(async (req, res, next) => {
     const existing = await ProjectType.findOne({ $or: [{ name }, { code }] });
     if (existing) return next(new AppError("Project Type with this name or code already exists", 400));
 
-    // Inject default phases from Global Settings if none provided
-    if (!phases || phases.length === 0) {
-        const globalPhases = await mongoose.model("ProjectPhaseTemplate").find({ isActive: true }).sort({ order: 1 });
-        if (globalPhases && globalPhases.length > 0) {
-            phases = globalPhases.map(p => ({
-                name: p.nameEn || p.nameAr,
-                nameAr: p.nameAr,
-                nameEn: p.nameEn,
-                order: p.order,
-                expectedDays: 30, // Default duration fallback
-                color: p.color || "#3498db"
-            }));
-        } else {
-             phases = [
-                 { nameAr: "التخطيط", nameEn: "Planning", name: "Planning", order: 1, expectedDays: 15, color: "#3498db" },
-                 { nameAr: "التصميم", nameEn: "Design", name: "Design", order: 2, expectedDays: 30, color: "#9b59b6" },
-                 { nameAr: "التنفيذ", nameEn: "Execution", name: "Execution", order: 3, expectedDays: 120, color: "#f1c40f" },
-                 { nameAr: "الإغلاق", nameEn: "Closure", name: "Closure", order: 4, expectedDays: 10, color: "#2ecc71" }
-             ];
-        }
+    // The Frontend handles fetching the default global phases and populating the UI.
+    // If the frontend sends an empty array, it means the user explicitly deleted all phases.
+    if (!phases) {
+        phases = []; // Ensure it's passed as an empty array if undefined
     }
 
     const pt = await ProjectType.create({ name, nameAr, nameEn, code, description, category, phases, defaultResources });
