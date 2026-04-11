@@ -103,6 +103,38 @@ router.patch("/:id/role", auth, permission("ASSIGN_ROLE"), userservrice.update_u
 
 /**
  * @swagger
+ * /users/{id}/hr-profile:
+ *   patch:
+ *     summary: Update a user's HR profile details (hourly rate, job title, skills, etc.)
+ *     tags: [Users]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               hourlyRate: { type: number, description: "Hourly rate in local currency" }
+ *               jobTitle: { type: string, description: "JobTitle ObjectId" }
+ *               status: { type: string, enum: [AVAILABLE, BUSY, ON_LEAVE] }
+ *               skills: { type: array, items: { type: string } }
+ *               joinDate: { type: string, format: date }
+ *               performanceRating: { type: number, minimum: 0, maximum: 5 }
+ *     responses:
+ *       200:
+ *         description: HR Profile updated successfully
+ */
+router.patch("/:id/hr-profile", auth, permission("MANAGE_SETTINGS"), userservrice.update_hr_profile);
+
+
+/**
+ * @swagger
  * /users/updatepassword:
  *   post:
  *     summary: Update password (Authenticated)

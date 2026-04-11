@@ -11,6 +11,8 @@ import ProjectMaterial from "../../db/models/metrials/📁 projectMaterial.model
 import ProjectEquipment from "../../db/models/projects/project.equipment.js";
 import ProjectType from "../../db/models/settings/projectType.model.js";
 import Inventory from "../../db/models/inventory.js";
+import MaterialTransaction from "../../db/models/metrials/materialTransaction.model.js";
+import Notification from "../../db/models/notification.model.js";
 
 /**
  * CREATE PROJECT
@@ -28,7 +30,9 @@ export const create_project = asynchandler(async (req, res, next) => {
     client,
     description,
     warehouseType, // 'SHARED' or 'DEDICATED'
-    dedicatedWarehouse, // ID of selected existing warehouse if DEDICATED
+    dedicatedWarehouse, // ID of selected existing warehouse if SHARED or DEDICATED existing
+    sourceWarehouse,
+    initialTransfers = [],
     phases = [],
     materials = [],
     equipments = [],
@@ -58,6 +62,8 @@ export const create_project = asynchandler(async (req, res, next) => {
     description,
     warehouseType,
     dedicatedWarehouse,
+    sourceWarehouse,
+    initialTransfers,
     createdBy: req.user.id
   });
 
@@ -405,6 +411,8 @@ export const activate_project = asynchandler(async (req, res, next) => {
     return next(new AppError("Project must have a manager before activation", 400));
   }
 
+  const { initialTransfers: reqTransfers } = req.body;
+  
   // Handle Dedicated Warehouse (if not already created)
   if (project.warehouseType === "DEDICATED" && !project.dedicatedWarehouse) {
     const warehouse = await Warehouse.create({
@@ -417,13 +425,98 @@ export const activate_project = asynchandler(async (req, res, next) => {
     project.dedicatedWarehouse = warehouse._id;
   }
 
+  const targetWarehouseId = project.dedicatedWarehouse;
+
+  // Process Initial Transfers if provided either in draft or currently in payload
+  const transfersToProcess = reqTransfers || project.initialTransfers || [];
+
+  if (transfersToProcess.length > 0 && targetWarehouseId) {
+      for (const transfer of transfersToProcess) {
+          const { material, quantity, fromWarehouse } = transfer;
+          if (!material || !quantity || !fromWarehouse) continue;
+
+          // 1. Deduct from Source Warehouse Inventory
+          let sourceInv = await Inventory.findOne({ warehouse: fromWarehouse, material });
+          if (!sourceInv || sourceInv.quantity < quantity) {
+              const deficit = quantity - (sourceInv ? sourceInv.quantity : 0);
+              
+              // Skip the transfer and notify manager instead of crashing project creation
+              await Notification.create({
+                  user: project.manager || req.user.id,
+                  title: "عجز في المخزون لنقل المواد الأولية",
+                  body: `تم تجاوز نقل ${quantity} وحدة من المادة (${material}) بسبب عجز قدره ${deficit} وحدة في المستودع المغذي. يرجى مراجعة المخزون لإتمام النقل يدوياً.`,
+                  type: "WARNING",
+                  data: { projectId: project._id, materialId: material, deficit }
+              });
+
+              continue; // Skip this specific transfer and process the rest
+          }
+          sourceInv.quantity -= quantity;
+          await sourceInv.save();
+
+          // 2. Add to Target (Project) Warehouse Inventory
+          let targetInv = await Inventory.findOne({ warehouse: targetWarehouseId, material });
+          if (!targetInv) {
+              targetInv = new Inventory({
+                  warehouse: targetWarehouseId,
+                  material,
+                  quantity: 0
+              });
+          }
+          targetInv.quantity += quantity;
+          await targetInv.save();
+
+          // 3. Log the Transaction
+          await MaterialTransaction.create({
+              material,
+              project: project._id,
+              type: "TRANSFER",
+              quantity,
+              fromWarehouse,
+              toWarehouse: targetWarehouseId,
+              processedBy: req.user.id,
+              reference: `Initial transfer for project ${project.code}`,
+              status: "COMPLETED"
+          });
+      }
+  }
+
   // Activate
   project.status = "PLANNING";
   await project.save();
 
   return res.status(200).json({
     success: true,
-    message: "Project activated successfully",
+    message: "Project activated successfully and initial transfers processed.",
     data: project
+  });
+});
+
+/**
+ * UPDATE PHASE STATUS
+ * Simple endpoint for frontend to transition a phase between PENDING, IN_PROGRESS, and COMPLETED
+ */
+export const update_phase_status = asynchandler(async (req, res, next) => {
+  const { id: projectId, phaseId } = req.params;
+  const { status } = req.body;
+
+  if (!["PENDING", "IN_PROGRESS", "COMPLETED"].includes(status)) {
+      return next(new AppError("Invalid status value.", 400));
+  }
+
+  const phase = await ProjectPhase.findOneAndUpdate(
+      { _id: phaseId, project: projectId },
+      { status },
+      { new: true }
+  );
+
+  if (!phase) {
+      return next(new AppError("Phase not found.", 404));
+  }
+
+  return res.status(200).json({
+      success: true,
+      message: `Phase status updated to ${status}`,
+      data: phase
   });
 });

@@ -87,7 +87,19 @@ const router = express.Router();
  *                 default: SHARED
  *               dedicatedWarehouse:
  *                 type: string
- *                 description: MongoDB ObjectId for warehouse (required if warehouseType is DEDICATED)
+ *                 description: MongoDB ObjectId for an existing central Warehouse you wish to share or assign.
+ *               sourceWarehouse:
+ *                 type: string
+ *                 description: MongoDB ObjectId for the Parent/Main Warehouse from which materials will be initially transferred (especially for DEDICATED type).
+ *               initialTransfers:
+ *                 type: array
+ *                 description: Initial material transfers to be executed automatically upon project activation.
+ *                 items:
+ *                   type: object
+ *                   properties:
+ *                     material: { type: string, description: "MongoDB ObjectId for material" }
+ *                     quantity: { type: number, description: "Amount of material to transfer" }
+ *                     fromWarehouse: { type: string, description: "MongoDB ObjectId for source warehouse" }
  *               phases:
  *                 type: array
  *                 description: Optional - if omitted, auto-generated from ProjectType blueprint
@@ -200,6 +212,15 @@ router.route("/")
  *               description: { type: string }
  *               warehouseType: { type: string, enum: [SHARED, DEDICATED] }
  *               dedicatedWarehouse: { type: string, description: "MongoDB ObjectId for warehouse" }
+ *               sourceWarehouse: { type: string, description: "MongoDB ObjectId for the Parent/Main Warehouse" }
+ *               initialTransfers:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *                   properties:
+ *                     material: { type: string, description: "MongoDB ObjectId for material" }
+ *                     quantity: { type: number }
+ *                     fromWarehouse: { type: string, description: "MongoDB ObjectId for source warehouse" }
  *     responses:
  *       200:
  *         description: Project updated
@@ -309,7 +330,7 @@ router.get(
  * @swagger
  * /projects/{id}/activate:
  *   post:
- *     summary: Activate a draft project (Final submit)
+ *     summary: Activate a draft project (Final submit & execute initial transfers)
  *     tags: [Projects]
  *     security: [{ bearerAuth: [] }]
  *     parameters:
@@ -318,15 +339,70 @@ router.get(
  *         required: true
  *         schema:
  *           type: string
+ *     requestBody:
+ *       required: false
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               initialTransfers:
+ *                 type: array
+ *                 description: Can pass transfers here instead of in draft to execute them immediately.
+ *                 items:
+ *                   type: object
+ *                   properties:
+ *                     material: { type: string, description: "MongoDB ObjectId for material" }
+ *                     quantity: { type: number }
+ *                     fromWarehouse: { type: string, description: "MongoDB ObjectId for source warehouse" }
  *     responses:
  *       200:
- *         description: Project activated and moved from DRAFT to PLANNING
+ *         description: Project activated, DEDICATED warehouse created (if applicable), and materials transferred.
  */
 router.post(
   "/:id/activate",
   auth,
   permission("EDIT_PROJECT"),
   projectService.activate_project
+);
+
+/**
+ * @swagger
+ * /projects/{id}/phases/{phaseId}/status:
+ *   patch:
+ *     summary: Simplest way to open or close a project's phase
+ *     tags: [Projects]
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *       - in: path
+ *         name: phaseId
+ *         required: true
+ *         schema: { type: string }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [status]
+ *             properties:
+ *               status:
+ *                 type: string
+ *                 enum: [PENDING, IN_PROGRESS, COMPLETED]
+ *                 description: Set to COMPLETED to close the phase, or IN_PROGRESS to open it.
+ *     responses:
+ *       200:
+ *         description: Phase status updated successfully
+ */
+router.patch(
+  "/:id/phases/:phaseId/status",
+  auth,
+  permission("EDIT_PROJECT"),
+  projectService.update_phase_status
 );
 
 export default router;

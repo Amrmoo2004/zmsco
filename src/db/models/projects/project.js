@@ -77,6 +77,19 @@ const projectSchema = new mongoose.Schema(
       ref: "Warehouse"
     },
 
+    sourceWarehouse: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Warehouse"
+    },
+
+    initialTransfers: [
+      {
+        material: { type: mongoose.Schema.Types.ObjectId, ref: "Material" },
+        quantity: { type: Number, default: 0 },
+        fromWarehouse: { type: mongoose.Schema.Types.ObjectId, ref: "Warehouse" }
+      }
+    ],
+
     description: String,
 
     createdBy: {

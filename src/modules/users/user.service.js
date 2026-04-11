@@ -152,6 +152,40 @@ export const updatepassword = asynchandler(async (req, res, next) => {
     message: "Password updated. Please login again."
   });
 });
+export const update_hr_profile = asynchandler(async (req, res, next) => {
+  const { hourlyRate, jobTitle, status, skills, joinDate, performanceRating } = req.body;
+
+  const user = await UserModel.findByIdAndUpdate(
+    req.params.id,
+    { 
+      $set: { 
+        ...(hourlyRate !== undefined && { hourlyRate }),
+        ...(jobTitle !== undefined && { jobTitle }),
+        ...(status !== undefined && { status }),
+        ...(skills !== undefined && { skills }),
+        ...(joinDate !== undefined && { joinDate }),
+        ...(performanceRating !== undefined && { performanceRating }),
+      } 
+    },
+    { new: true, runValidators: true }
+  ).select('-password -__v -createdAt -updatedAt');
+
+  if (!user) {
+    return next(new Error('User not found', { cause: 404 }));
+  }
+
+  // decrypt phone if exists because we are returning the profile
+  if (user.phone) {
+    user.phone = decrypt(user.phone);
+  }
+
+  return res.status(200).json({
+    success: true,
+    message: "HR Profile updated successfully",
+    data: user
+  });
+});
+
 export const get_member_profile = asynchandler(async (req, res, next) => {
   const user = await UserModel.findById(req.params.id)
     .select('-password -__v -createdAt -updatedAt -forgotPasswordOtp -otpExpires')
