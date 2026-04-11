@@ -485,6 +485,12 @@ export const activate_project = asynchandler(async (req, res, next) => {
   project.status = "PLANNING";
   await project.save();
 
+  // 4. Auto-Open all phases to remove manual gating workload from the frontend
+  await ProjectPhase.updateMany(
+      { project: project._id },
+      { $set: { status: "IN_PROGRESS" } }
+  );
+
   return res.status(200).json({
     success: true,
     message: "Project activated successfully and initial transfers processed.",
