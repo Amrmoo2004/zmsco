@@ -46,13 +46,24 @@ const router = Router({ mergeParams: true }); // mergeParams to access :projectI
  *
  * /projects/{projectId}/phases/{phaseId}/tasks/{taskId}:
  *   put:
- *     summary: Update a task
+ *     summary: Update a task (e.g. change status)
  *     tags: [Phase Tasks]
  *     security: [{ bearerAuth: [] }]
  *     parameters:
  *       - { in: path, name: projectId, required: true, schema: { type: string } }
  *       - { in: path, name: phaseId, required: true, schema: { type: string } }
  *       - { in: path, name: taskId, required: true, schema: { type: string } }
+ *     requestBody:
+ *       required: false
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               status: { type: string, enum: [PENDING, IN_PROGRESS, COMPLETED, CANCELLED] }
+ *               name: { type: string }
+ *               description: { type: string }
+ *               priority: { type: string, enum: [LOW, MEDIUM, HIGH] }
  *     responses:
  *       200: { description: Task updated }
  *   delete:
