@@ -5,21 +5,38 @@ import { AppError } from "../../utils/appError.js";
 import { asynchandler } from "../../utils/response/response.js";
 
 /**
- * Get all warehouses
+ * Get all warehouses — with capacity stats for the warehouse selector dropdown
  */
 export const getAllWarehouses = asynchandler(async (req, res, next) => {
     const warehouses = await Warehouse.find()
         .populate("manager", "name email")
         .sort({ createdAt: -1 });
 
+    // Add capacityPercentage and inventory count for each warehouse
+    const enriched = await Promise.all(warehouses.map(async (w) => {
+        const inventoryCount = await Inventory.countDocuments({ warehouse: w._id });
+        const transactionsCount = await MaterialTransaction.countDocuments({
+            $or: [{ fromWarehouse: w._id }, { toWarehouse: w._id }]
+        });
+        const capacityPercentage = w.capacity > 0
+            ? Math.min(100, Math.round((w.usedCapacity / w.capacity) * 100))
+            : 0;
+        return {
+            ...w.toObject(),
+            capacityPercentage,
+            inventoryItemsCount: inventoryCount,
+            transactionsCount
+        };
+    }));
+
     return res.status(200).json({
         success: true,
-        data: warehouses
+        data: enriched
     });
 });
 
 /**
- * Get warehouse by ID
+ * Get warehouse by ID — includes capacity stats for the Step 4 UI card
  */
 export const getWarehouseById = asynchandler(async (req, res, next) => {
     const { id } = req.params;
@@ -31,9 +48,23 @@ export const getWarehouseById = asynchandler(async (req, res, next) => {
         return next(new AppError("Warehouse not found", 404));
     }
 
+    // Stats for the Figma progress bar card
+    const inventoryItemsCount = await Inventory.countDocuments({ warehouse: id });
+    const transactionsCount = await MaterialTransaction.countDocuments({
+        $or: [{ fromWarehouse: id }, { toWarehouse: id }]
+    });
+    const capacityPercentage = warehouse.capacity > 0
+        ? Math.min(100, Math.round((warehouse.usedCapacity / warehouse.capacity) * 100))
+        : 0;
+
     return res.status(200).json({
         success: true,
-        data: warehouse
+        data: {
+            ...warehouse.toObject(),
+            capacityPercentage,       // ← الـ % اللي بيتعرض في Progress Bar
+            inventoryItemsCount,      // ← عدد العمليات المضافة
+            transactionsCount         // ← عدد المعاملات
+        }
     });
 });
 
