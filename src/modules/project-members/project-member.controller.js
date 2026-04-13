@@ -26,7 +26,7 @@ const router = Router();
  *     responses:
  *       200: { description: List of members }
  *   post:
- *     summary: Add member to project
+ *     summary: Add member to project (or create a VACANT slot)
  *     tags: [Project Members]
  *     parameters:
  *       - in: path
@@ -39,14 +39,14 @@ const router = Router();
  *         application/json:
  *           schema:
  *             type: object
- *             required:
- *               - user
- *               - role
  *             properties:
- *               user: { type: string, description: "MongoDB ObjectId" }
- *               role: { type: string, description: "MongoDB ObjectId" }
+ *               user: { type: string, description: "User ObjectId (optional - omit to create a VACANT slot)" }
+ *               role: { type: string, description: "Role title e.g. مدير المشروع" }
+ *               jobTitle: { type: string, description: "JobTitle ObjectId" }
+ *               status: { type: string, enum: [ACTIVE, VACANT], description: "Defaults to ACTIVE if user provided, VACANT otherwise" }
+ *               estimatedCost: { type: number, description: "Estimated cost for this role slot" }
  *     responses:
- *       201: { description: Member added }
+ *       201: { description: Member added or vacancy created }
  */
 router.get("/:projectId/members", auth, permission("VIEW_REPORTS"), projectMemberService.getProjectMembers);
 router.post("/:projectId/members", auth, permission("UPDATE_PROJECT"), projectMemberService.addProjectMember);

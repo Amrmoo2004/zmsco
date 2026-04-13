@@ -19,15 +19,36 @@ export const getProjectPhases = asynchandler(async (req, res, next) => {
 /** Create project phase */
 export const createProjectPhase = asynchandler(async (req, res, next) => {
     const { projectId } = req.params;
-    const { name, description, startDate, endDate, status } = req.body;
+    const {
+        name, nameAr, nameEn, description,
+        startDate, endDate, status,
+        color, order, expectedDays, budget, isRequired,
+        tasks, requiredAttachments, requiredPermits, requiredApprovals,
+        customFields
+    } = req.body;
 
     const project = await Project.findById(projectId);
     if (!project) return next(new AppError("Project not found", 404));
 
+    // Auto-assign order if not provided
+    const phaseCount = await ProjectPhase.countDocuments({ project: projectId });
+
     const phase = await ProjectPhase.create({
         project: projectId,
-        name, description, startDate, endDate,
-        status: status || "PENDING"
+        name: name || nameAr || nameEn || "مرحلة",
+        nameAr, nameEn,
+        description, startDate, endDate,
+        status: status || "IN_PROGRESS",
+        color: color || "#10B981",
+        order: order ?? phaseCount + 1,
+        expectedDays,
+        budget: budget || 0,
+        isRequired: isRequired ?? true,
+        tasks: tasks || [],
+        requiredAttachments: requiredAttachments || [],
+        requiredPermits: requiredPermits || [],
+        requiredApprovals: requiredApprovals || [],
+        customFields: customFields || {}
     });
 
     // 🔔 Broadcast to project room
