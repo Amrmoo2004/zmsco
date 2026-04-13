@@ -38,9 +38,6 @@ const taskTemplateSchema = new mongoose.Schema(
 
 const phaseTemplateSchema = new mongoose.Schema(
     {
-        name: {
-            type: String, // Kept for backward compatibility
-        },
         nameAr: {
             type: String,
         },
@@ -72,9 +69,6 @@ const phaseTemplateSchema = new mongoose.Schema(
 
 const projectTypeSchema = new mongoose.Schema(
     {
-        name: {
-            type: String, // Kept for backward compatibility
-        },
         nameAr: {
             type: String,
         },

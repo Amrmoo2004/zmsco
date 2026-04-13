@@ -15,12 +15,13 @@ export const getProjectTypeById = asynchandler(async (req, res, next) => {
 });
 
 export const createProjectType = asynchandler(async (req, res, next) => {
-    let { name, nameAr, nameEn, code, description, category, phases, defaultResources } = req.body;
+    let { nameAr, nameEn, code, description, category, phases, defaultResources } = req.body;
     
-    // Fallback name if only nameAr/nameEn is provided
-    name = name || nameAr || nameEn;
+    if(!nameAr && !nameEn) {
+        return next(new AppError("Project Type name is required in Arabic or English", 400));
+    }
 
-    const existing = await ProjectType.findOne({ $or: [{ name }, { code }] });
+    const existing = await ProjectType.findOne({ $or: [{ nameAr: nameAr || "N/A" }, { nameEn: nameEn || "N/A" }, { code }] });
     if (existing) return next(new AppError("Project Type with this name or code already exists", 400));
 
     // The Frontend handles fetching the default global phases and populating the UI.
@@ -29,7 +30,7 @@ export const createProjectType = asynchandler(async (req, res, next) => {
         phases = []; // Ensure it's passed as an empty array if undefined
     }
 
-    const pt = await ProjectType.create({ name, nameAr, nameEn, code, description, category, phases, defaultResources });
+    const pt = await ProjectType.create({ nameAr, nameEn, code, description, category, phases, defaultResources });
     return res.status(201).json({ success: true, message: "Project Type created successfully", data: pt });
 });
 
@@ -82,7 +83,8 @@ export const instantiatePhases = asynchandler(async (req, res, next) => {
         }
 
         return {
-            name: phase.name,
+            nameAr: phase.nameAr,
+            nameEn: phase.nameEn,
             order: phase.order,
             expectedDays: phase.expectedDays,
             isRequired: phase.isRequired,
