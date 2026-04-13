@@ -167,27 +167,38 @@ export const create_project = asynchandler(async (req, res, next) => {
 
   const projectDurationDays = Math.ceil((new Date(endDate) - new Date(startDate)) / (1000 * 60 * 60 * 24)) || 1;
 
-  // Process Equipment
+  // Process Equipment — supports two modes:
+  // 1. { equipment: ObjectId } – reference from /api/equipment fleet
+  // 2. { name, count, unit, unitCost } – free-form entry (backwards compat)
   let actualEquipments = equipments;
   if ((!actualEquipments || actualEquipments.length === 0) && projectTypeBlueprint?.defaultResources?.equipments) {
       actualEquipments = projectTypeBlueprint.defaultResources.equipments.map(eq => {
-          const estimatedCost = eq.estimatedDailyCost || 0;
-          const totalEqCost = estimatedCost * projectDurationDays * eq.count;
+          const dailyCost = eq.estimatedDailyCost || 0;
+          const totalEqCost = dailyCost * projectDurationDays * (eq.count || 1);
           return {
               name: eq.name,
-              count: eq.count,
+              count: eq.count || 1,
               unit: eq.unit || "وحدة",
               ownershipType: "OWNED",
-              unitCost: estimatedCost * projectDurationDays,
+              unitCost: dailyCost * projectDurationDays,
               totalCost: totalEqCost
           };
       });
   }
   if (actualEquipments?.length > 0) {
       await ProjectEquipment.insertMany(actualEquipments.map(e => {
-          const cost = e.totalCost || (e.unitCost ? e.unitCost * e.count : 0);
+          const qty = e.count || 1;
+          const cost = e.totalCost || (e.unitCost ? e.unitCost * qty : 0);
           estimatedCost += cost;
-          return { ...e, project: project._id, totalCost: cost };
+          return {
+              project: project._id,
+              name: e.name || "معدة",
+              count: qty,
+              unit: e.unit || "وحدة",
+              ownershipType: e.ownershipType || "OWNED",
+              unitCost: e.unitCost || 0,
+              totalCost: cost
+          };
       }));
   }
 
@@ -223,11 +234,19 @@ export const create_project = asynchandler(async (req, res, next) => {
   }
 
   project.estimatedCost = estimatedCost;
+  
+  // If frontend sends skipActivation: true and warehouseType is SHARED → go directly to PLANNING
+  if (req.body.skipActivation && (!warehouseType || warehouseType === "SHARED")) {
+    project.status = "PLANNING";
+  }
+  
   await project.save();
 
   return res.status(201).json({
     success: true,
-    message: "Project draft created. Use /activate to finalize.",
+    message: project.status === "PLANNING"
+      ? "Project created and activated successfully."
+      : "Project draft created. Use /activate to finalize.",
     data: project
   });
 

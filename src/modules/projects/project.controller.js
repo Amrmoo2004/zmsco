@@ -33,7 +33,18 @@ const router = express.Router();
  *       200:
  *         description: List of projects
  *   post:
- *     summary: Create a new project
+ *     summary: Create a new project (Step 1 of Wizard)
+ *     description: |
+ *       Creates a project in DRAFT status. The full Wizard flow is:
+ *       1. **POST /api/projects** → Creates DRAFT project (returns projectId)
+ *       2. **POST /api/projects/:id/phases** → Add phases (or auto-generated from type blueprint)
+ *       3. **POST /api/projects/:id/members** → Add team members or vacancies
+ *       4. **PUT /api/projects/:id** → Update warehouse & initial transfers if needed
+ *       5. **GET /api/projects/:id/summary** → Review screen (all data in one call)
+ *       6. **POST /api/projects/:id/activate** → Final submit → status becomes PLANNING
+ *
+ *       **Shortcut:** Pass `skipActivation: true` (SHARED warehouse only) to skip steps 4-6
+ *       and go directly to PLANNING status in one call.
  *     tags: [Projects]
  *     security: [{ bearerAuth: [] }]
  *     requestBody:
@@ -52,11 +63,11 @@ const router = express.Router();
  *                 example: "مشروع المجمع السكني A"
  *               type:
  *                 type: string
- *                 description: MongoDB ObjectId for project type (blueprint)
+ *                 description: MongoDB ObjectId for project type (blueprint) - GET /api/project-types
  *                 example: "64a2f1c3e21b4a0012345678"
  *               manager:
  *                 type: string
- *                 description: MongoDB ObjectId for the project manager (User)
+ *                 description: MongoDB ObjectId for the project manager (User) - GET /api/users
  *                 example: "64a2f1c3e21b4a0012345679"
  *               priority:
  *                 type: string
@@ -72,45 +83,49 @@ const router = express.Router();
  *                 example: "2025-12-31"
  *               department:
  *                 type: string
- *                 description: MongoDB ObjectId for department
+ *                 description: MongoDB ObjectId for department - GET /api/departments
  *               client:
  *                 type: string
- *                 description: MongoDB ObjectId for client
+ *                 description: Client name or reference
  *               budget:
  *                 type: number
  *                 example: 500000
  *               description:
  *                 type: string
+ *               skipActivation:
+ *                 type: boolean
+ *                 default: false
+ *                 description: "Set true to skip DRAFT and go directly to PLANNING (only works with SHARED warehouse)"
  *               warehouseType:
  *                 type: string
  *                 enum: [SHARED, DEDICATED]
  *                 default: SHARED
  *               dedicatedWarehouse:
  *                 type: string
- *                 description: MongoDB ObjectId for an existing central Warehouse you wish to share or assign.
+ *                 description: MongoDB ObjectId for an existing Warehouse (DEDICATED mode)
  *               sourceWarehouse:
  *                 type: string
- *                 description: MongoDB ObjectId for the Parent/Main Warehouse from which materials will be initially transferred (especially for DEDICATED type).
+ *                 description: MongoDB ObjectId for source Warehouse (materials transferred from here on activate)
  *               initialTransfers:
  *                 type: array
- *                 description: Initial material transfers to be executed automatically upon project activation.
+ *                 description: Material transfers executed automatically on project activation
  *                 items:
  *                   type: object
  *                   properties:
- *                     material: { type: string, description: "MongoDB ObjectId for material" }
- *                     quantity: { type: number, description: "Amount of material to transfer" }
- *                     fromWarehouse: { type: string, description: "MongoDB ObjectId for source warehouse" }
+ *                     material: { type: string, description: "Material ObjectId" }
+ *                     quantity: { type: number }
+ *                     fromWarehouse: { type: string, description: "Source Warehouse ObjectId" }
  *               phases:
  *                 type: array
  *                 description: Optional - if omitted, auto-generated from ProjectType blueprint
  *                 items:
  *                   type: object
  *                   properties:
- *                     nameAr: { type: string }
- *                     nameEn: { type: string }
- *                     order: { type: integer }
- *                     expectedDays: { type: integer }
- *                     color: { type: string }
+ *                     nameAr: { type: string, example: "التخطيط" }
+ *                     nameEn: { type: string, example: "Planning" }
+ *                     order: { type: integer, example: 1 }
+ *                     expectedDays: { type: integer, example: 30 }
+ *                     color: { type: string, example: "#3498db" }
  *                     tasks:
  *                       type: array
  *                       items:
@@ -125,39 +140,46 @@ const router = express.Router();
  *                 items:
  *                   type: object
  *                   properties:
- *                     material: { type: string, description: "MongoDB ObjectId for material" }
+ *                     material: { type: string, description: "Material ObjectId - GET /api/materials" }
  *                     quantity: { type: number }
+ *                     unitCost: { type: number }
  *               equipments:
  *                 type: array
- *                 description: Optional - if omitted, auto-generated from ProjectType blueprint
+ *                 description: Optional free-form equipment list (name + cost)
  *                 items:
  *                   type: object
  *                   properties:
- *                     name: { type: string }
- *                     count: { type: integer }
- *                     unit: { type: string }
+ *                     name: { type: string, example: "رافعة" }
+ *                     count: { type: integer, example: 2 }
+ *                     unit: { type: string, example: "وحدة" }
+ *                     unitCost: { type: number, example: 500 }
  *               members:
  *                 type: array
- *                 description: Optional - if omitted, auto-generated from ProjectType blueprint
+ *                 description: Optional team members or VACANT slots
  *                 items:
  *                   type: object
  *                   properties:
- *                     jobTitle: { type: string, description: "MongoDB ObjectId for job title" }
- *                     count: { type: integer }
+ *                     user: { type: string, description: "User ObjectId (omit for VACANT slot)" }
+ *                     role: { type: string, example: "مدير المشروع" }
+ *                     estimatedCost: { type: number }
  *     responses:
  *       201:
- *         description: Project created successfully
+ *         description: Project created (DRAFT or PLANNING based on skipActivation)
  *         content:
  *           application/json:
  *             schema:
  *               type: object
  *               properties:
  *                 success: { type: boolean, example: true }
- *                 message: { type: string, example: "Project draft created. Use /activate to finalize." }
+ *                 message: { type: string }
  *                 data:
  *                   type: object
  *                   properties:
- *                     _id: { type: string, description: "MongoDB ObjectId" }
+ *                     _id: { type: string, description: "Use this projectId in all next steps" }
+ *                     status: { type: string, enum: [DRAFT, PLANNING] }
+ *                     estimatedCost: { type: number, description: "Auto-calculated from materials + equipment + members" }
+ *       400:
+ *         description: Validation error
  *                     name: { type: string }
  *                     budget: { type: number, description: "Allocated Budget (from request)" }
  *                     estimatedCost: { type: number, description: "Auto-calculated estimated cost of resources" }
