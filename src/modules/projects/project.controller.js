@@ -179,13 +179,9 @@ const router = express.Router();
  *                     status: { type: string, enum: [DRAFT, PLANNING] }
  *                     estimatedCost: { type: number, description: "Auto-calculated from materials + equipment + members" }
  *       400:
- *         description: Validation error
- *                     name: { type: string }
- *                     budget: { type: number, description: "Allocated Budget (from request)" }
- *                     estimatedCost: { type: number, description: "Auto-calculated estimated cost of resources" }
- *       400:
- *         description: Validation error
+ *         description: Validation error — name / type / manager مطلوبين
  */
+
 router.route("/")
   .get(auth, permission("VIEW_PROJECT"), projectService.get_projects)
   .post(auth, permission("CREATE_PROJECT"), projectService.create_project);
