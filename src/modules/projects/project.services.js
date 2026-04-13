@@ -75,7 +75,12 @@ export const create_project = asynchandler(async (req, res, next) => {
 
   // 3. Create Nested Entities (Frontend-driven OR Auto-generator)
   if (phases && phases.length > 0) {
-    await ProjectPhase.insertMany(phases.map(p => ({ ...p, project: project._id })));
+    await ProjectPhase.insertMany(phases.map(p => ({
+      ...p,
+      project: project._id,
+      name: p.name || p.nameAr || p.nameEn || "مرحلة",  // ensure name is always set
+      order: p.order ?? 1
+    })));
   } else if (projectTypeBlueprint && projectTypeBlueprint.phases && projectTypeBlueprint.phases.length > 0) {
     // Auto-generate phases from ProjectType blueprint if frontend didn't send any
     const autoPhases = projectTypeBlueprint.phases.map(phase => {
