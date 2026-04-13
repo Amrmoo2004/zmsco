@@ -352,15 +352,47 @@ router.get(
  * @swagger
  * /projects/{id}/activate:
  *   post:
- *     summary: Activate a draft project (Final submit & execute initial transfers)
+ *     summary: "Step 6: Activate project — تفعيل المشروع وتنفيذ نقل المواد"
+ *     description: |
+ *       ## ما يحدث تلقائياً عند الاستدعاء:
+ *
+ *       ### 1. إنشاء المستودع المخصص (إن لزم)
+ *       - إذا كان `warehouseType === "DEDICATED"` ولم يتم اختيار مستودع مسبقاً
+ *       - يتم إنشاء مستودع جديد تلقائياً باسم المشروع ويُربط بـ `dedicatedWarehouse`
+ *       - إذا تم اختيار مستودع موجود مسبقاً → يُستخدم مباشرةً بدون إنشاء
+ *       - إذا كان `warehouseType === "SHARED"` → لا يُنشأ أي مستودع
+ *
+ *       ### 2. تنفيذ عمليات نقل المواد الأولية (initialTransfers)
+ *       لكل عملية نقل:
+ *       - ✅ يُخصم من المستودع المصدر (`fromWarehouse`)
+ *       - ✅ يُضاف إلى مستودع المشروع (`dedicatedWarehouse`)
+ *       - ✅ يُسجَّل في `MaterialTransaction` بنوع `TRANSFER`
+ *       - ⚠️ إذا كانت الكمية غير متوفرة → يُرسَل إشعار للمدير بدلاً من الإلغاء (لا يتوقف الكود)
+ *
+ *       ### 3. تغيير حالة المشروع
+ *       ```
+ *       DRAFT → PLANNING
+ *       ```
+ *
+ *       ### 4. فتح كل المراحل تلقائياً
+ *       ```
+ *       جميع phases → status: "IN_PROGRESS"
+ *       ```
+ *
+ *       ---
+ *       ## متى ترسل `initialTransfers` هنا بدلاً من الـ POST /api/projects؟
+ *       - لو المستخدم غيّر بيانات المواد في Step 4 بعد إنشاء الـ Draft
+ *       - الـ Body هنا هيــ **Override** ما تم حفظه في الـ Draft
+ *       - لو لم ترسل Body → يستخدم الـ `initialTransfers` المحفوظة في الـ Draft مباشرةً
+ *
  *     tags: [Projects]
  *     security: [{ bearerAuth: [] }]
  *     parameters:
  *       - in: path
  *         name: id
  *         required: true
- *         schema:
- *           type: string
+ *         description: Project ID (يجب أن يكون في حالة DRAFT)
+ *         schema: { type: string }
  *     requestBody:
  *       required: false
  *       content:
@@ -370,16 +402,45 @@ router.get(
  *             properties:
  *               initialTransfers:
  *                 type: array
- *                 description: Can pass transfers here instead of in draft to execute them immediately.
+ *                 description: "اختياري — Override للـ transfers المحفوظة في الـ Draft. اتركه فارغاً لاستخدام ما تم حفظه."
  *                 items:
  *                   type: object
+ *                   required: [material, quantity, fromWarehouse]
  *                   properties:
- *                     material: { type: string, description: "MongoDB ObjectId for material" }
- *                     quantity: { type: number }
- *                     fromWarehouse: { type: string, description: "MongoDB ObjectId for source warehouse" }
+ *                     material:
+ *                       type: string
+ *                       description: "Material ObjectId — GET /api/materials"
+ *                       example: "69da15bf10cc497e60a12b12"
+ *                     quantity:
+ *                       type: number
+ *                       description: "الكمية المراد نقلها"
+ *                       example: 20
+ *                     fromWarehouse:
+ *                       type: string
+ *                       description: "Source Warehouse ObjectId — GET /api/warehouses"
+ *                       example: "69da15bf10cc497e60a12b99"
  *     responses:
  *       200:
- *         description: Project activated, DEDICATED warehouse created (if applicable), and materials transferred.
+ *         description: |
+ *           تم التفعيل بنجاح. المشروع الآن في حالة PLANNING.
+ *           راجع الـ Notifications لأي transfers فشلت بسبب نقص المخزون.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean, example: true }
+ *                 message: { type: string, example: "Project activated successfully and initial transfers processed." }
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     _id: { type: string }
+ *                     status: { type: string, example: "PLANNING" }
+ *                     dedicatedWarehouse: { type: string, description: "ID of the dedicated warehouse (auto-created or existing)" }
+ *       400:
+ *         description: "المشروع ليس في حالة DRAFT، أو لا يوجد مدير مشروع"
+ *       404:
+ *         description: "المشروع غير موجود"
  */
 router.post(
   "/:id/activate",
