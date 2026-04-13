@@ -15,6 +15,8 @@ const workflowSchema = new mongoose.Schema(
         steps: [
             {
                 stepOrder: { type: Number, required: true },
+                stepName: { type: String }, // e.g. "موافقة مدير المشروع"
+                actionLabel: { type: String }, // e.g. "مراجعة والموافقة"
                 role: { type: mongoose.Schema.Types.ObjectId, ref: "Role" },
                 user: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
                 isMandatory: { type: Boolean, default: true }
