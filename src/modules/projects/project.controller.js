@@ -35,17 +35,48 @@ const router = express.Router();
  *   post:
  *     summary: Create a new project (Step 1 of Wizard)
  *     description: |
- *       Creates a project in DRAFT status. The full Wizard flow is:
- *       1. **POST /api/projects** → Creates DRAFT project (returns projectId)
- *       2. **POST /api/projects/:id/phases** → Add phases (or auto-generated from type blueprint)
- *       3. **POST /api/projects/:id/members** → Add team members or vacancies
- *       4. **PUT /api/projects/:id** → Update warehouse & initial transfers if needed
- *       5. **GET /api/projects/:id/summary** → Review screen (all data in one call)
- *       6. **POST /api/projects/:id/activate** → Final submit → status becomes PLANNING
+ *       ## 🧙 Wizard Flow — 6 خطوات (DEDICATED Warehouse)
  *
- *       **Shortcut:** Pass `skipActivation: true` (SHARED warehouse only) to skip steps 4-6
- *       and go directly to PLANNING status in one call.
+ *       | الخطوة | الـ API | البيانات من أين؟ |
+ *       |--------|---------|------------------|
+ *       | **1** | `POST /api/projects` | فورم الإنشاء (name, type, manager...) |
+ *       | **2** | `POST /api/projects/:id/phases` | من Blueprint أو الفرونت يبني يدوياً |
+ *       | **3** | `POST /api/projects/:id/members` | قائمة الموظفين من `GET /api/users` |
+ *       | **4** | `PUT /api/projects/:id` | قائمة المستودعات من `GET /api/warehouses` |
+ *       | **5** | `GET /api/projects/:id/summary` | قراءة فقط — شاشة المراجعة |
+ *       | **6** | `POST /api/projects/:id/activate` | زر "تفعيل" — لا يحتاج body |
+ *
+ *       ---
+ *       ## 📦 Step 4 — المستودع (أهم خطوة في DEDICATED)
+ *
+ *       الفرونت يعمل `GET /api/warehouses` ويعرض للمستخدم خيارين:
+ *
+ *       **خيار أ: مستودع موجود**
+ *       ```json
+ *       PUT /api/projects/:id
+ *       {
+ *         "warehouseType": "DEDICATED",
+ *         "dedicatedWarehouse": "<warehouseId من GET /api/warehouses>",
+ *         "initialTransfers": [
+ *           { "material": "<id>", "quantity": 20, "fromWarehouse": "<id>" }
+ *         ]
+ *       }
+ *       ```
+ *       → Step 6 يستخدم المستودع المحدد مباشرة
+ *
+ *       **خيار ب: مستودع جديد يُنشأ تلقائياً**
+ *       ```json
+ *       PUT /api/projects/:id
+ *       { "warehouseType": "DEDICATED" }
+ *       ```
+ *       → Step 6 (activate) ينشئ مستودع باسم المشروع تلقائياً
+ *
+ *       ---
+ *       ## ⚡ Shortcut — SHARED فقط (خطوة واحدة)
+ *       ابعت `skipActivation: true` في Step 1 ← ينشئ المشروع ويفعّله مباشرة بدون خطوات 4-6
+ *
  *     tags: [Projects]
+
  *     security: [{ bearerAuth: [] }]
  *     requestBody:
  *       required: true
