@@ -29,7 +29,7 @@ const projectMemberSchema = new mongoose.Schema(
 
     status: {
       type: String,
-      enum: ["VACANT", "FILLED"],
+      enum: ["VACANT", "FILLED", "ACTIVE"],
       default: "VACANT"
     },
 
