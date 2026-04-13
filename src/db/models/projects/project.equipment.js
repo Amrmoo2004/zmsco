@@ -7,6 +7,14 @@ const projectEquipmentSchema = new mongoose.Schema(
             ref: "Project",
             required: true
         },
+
+        // ─── Mode 1: Reference from Equipment Fleet (like materials) ──────────
+        equipmentRef: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "Equipment"
+        },
+
+        // ─── Mode 2: Free-form entry (manual) ─────────────────────────────────
         name: {
             type: String,
             required: true
