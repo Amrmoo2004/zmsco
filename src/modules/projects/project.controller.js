@@ -51,6 +51,52 @@ const router = express.Router();
  *       required: true
  *       content:
  *         application/json:
+ *           examples:
+ *             quick_create:
+ *               summary: "⚡ إنشاء سريع (SHARED + skipActivation)"
+ *               description: "أسرع طريقة — ينشئ المشروع ويفعّله مباشرة"
+ *               value:
+ *                 name: "مشروع المجمع السكني A"
+ *                 type: "69da15bf10cc497e60a12b20"
+ *                 manager: "69cfe5865967dfc2d7067624"
+ *                 priority: "HIGH"
+ *                 startDate: "2025-05-01"
+ *                 endDate: "2025-12-31"
+ *                 budget: 500000
+ *                 warehouseType: "SHARED"
+ *                 skipActivation: true
+ *                 phases:
+ *                   - nameAr: "التخطيط"
+ *                     nameEn: "Planning"
+ *                     order: 1
+ *                     expectedDays: 30
+ *                     color: "#3498db"
+ *                     tasks:
+ *                       - name: "إعداد المخططات"
+ *                         isRequired: true
+ *                 materials:
+ *                   - material: "69da15bf10cc497e60a12b12"
+ *                     quantity: 50
+ *                     unitCost: 100
+ *                 equipments:
+ *                   - equipmentId: "64a2f1c3e21b4a0023456789"
+ *                     count: 2
+ *                 members:
+ *                   - role: "مدير المشروع"
+ *                     user: "69cfe5865967dfc2d7067624"
+ *             wizard_step1_only:
+ *               summary: "🪄 Wizard Step 1 فقط (DRAFT — يتكمل لاحقاً)"
+ *               description: "ينشئ Draft وترجع projectId لباقي الخطوات"
+ *               value:
+ *                 name: "مشروع مجمع تجاري B"
+ *                 type: "69da15bf10cc497e60a12b20"
+ *                 manager: "69cfe5865967dfc2d7067624"
+ *                 priority: "MEDIUM"
+ *                 startDate: "2025-06-01"
+ *                 endDate: "2026-03-31"
+ *                 budget: 1200000
+ *                 warehouseType: "DEDICATED"
+ *                 skipActivation: false
  *           schema:
  *             type: object
  *             required:
@@ -145,14 +191,36 @@ const router = express.Router();
  *                     unitCost: { type: number }
  *               equipments:
  *                 type: array
- *                 description: Optional free-form equipment list (name + cost)
+ *                 description: |
+ *                   اختياري — يدعم طريقتين:
+ *                   - **Mode 1 (من الأسطول):** ابعت `equipmentId` من `GET /api/equipment` ← بيجيب الاسم والتكلفة أوتوماتيك
+ *                   - **Mode 2 (يدوي):** ابعت `name` + `unitCost` مباشرة
  *                 items:
  *                   type: object
  *                   properties:
- *                     name: { type: string, example: "رافعة" }
- *                     count: { type: integer, example: 2 }
- *                     unit: { type: string, example: "وحدة" }
- *                     unitCost: { type: number, example: 500 }
+ *                     equipmentId:
+ *                       type: string
+ *                       description: "🔗 Mode 1 — من GET /api/equipment (يُغني عن name و unitCost)"
+ *                       example: "64a2f1c3e21b4a0023456789"
+ *                     name:
+ *                       type: string
+ *                       description: "✍️ Mode 2 — اسم المعدة (مطلوب لو مفيش equipmentId)"
+ *                       example: "رافعة مستأجرة"
+ *                     count:
+ *                       type: integer
+ *                       default: 1
+ *                       example: 2
+ *                     unit:
+ *                       type: string
+ *                       default: "وحدة"
+ *                     unitCost:
+ *                       type: number
+ *                       description: "Mode 2: سعر الوحدة. Mode 1: يُحسب تلقائياً من dailyCost × مدة المشروع (override اختياري)"
+ *                       example: 500
+ *                     ownershipType:
+ *                       type: string
+ *                       enum: [OWNED, RENTED, BORROWED]
+ *                       default: OWNED
  *               members:
  *                 type: array
  *                 description: Optional team members or VACANT slots

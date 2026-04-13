@@ -9,6 +9,7 @@ import ProjectPhase from "../../db/models/projects/project.phase.js";
 import ProjectDocument from "../../db/models/projects/project.document.js";
 import ProjectMaterial from "../../db/models/metrials/📁 projectMaterial.model.js";
 import ProjectEquipment from "../../db/models/projects/project.equipment.js";
+import { Equipment } from "../../db/models/hr/equipment.model.js";
 import ProjectType from "../../db/models/settings/projectType.model.js";
 import Inventory from "../../db/models/inventory.js";
 import MaterialTransaction from "../../db/models/metrials/materialTransaction.model.js";
@@ -167,39 +168,52 @@ export const create_project = asynchandler(async (req, res, next) => {
 
   const projectDurationDays = Math.ceil((new Date(endDate) - new Date(startDate)) / (1000 * 60 * 60 * 24)) || 1;
 
-  // Process Equipment — supports two modes:
-  // 1. { equipment: ObjectId } – reference from /api/equipment fleet
-  // 2. { name, count, unit, unitCost } – free-form entry (backwards compat)
+  // Process Equipment — supports TWO modes (same as materials):
+  // Mode 1: { equipmentId: ObjectId } → Reference from /api/equipment fleet
+  // Mode 2: { name, count, unitCost }  → Free-form manual entry
   let actualEquipments = equipments;
   if ((!actualEquipments || actualEquipments.length === 0) && projectTypeBlueprint?.defaultResources?.equipments) {
-      actualEquipments = projectTypeBlueprint.defaultResources.equipments.map(eq => {
-          const dailyCost = eq.estimatedDailyCost || 0;
-          const totalEqCost = dailyCost * projectDurationDays * (eq.count || 1);
-          return {
-              name: eq.name,
-              count: eq.count || 1,
-              unit: eq.unit || "وحدة",
-              ownershipType: "OWNED",
-              unitCost: dailyCost * projectDurationDays,
-              totalCost: totalEqCost
-          };
-      });
+      actualEquipments = projectTypeBlueprint.defaultResources.equipments.map(eq => ({
+          name: eq.name,
+          count: eq.count || 1,
+          unit: eq.unit || "وحدة",
+          ownershipType: "OWNED",
+          unitCost: (eq.estimatedDailyCost || 0) * projectDurationDays,
+          totalCost: (eq.estimatedDailyCost || 0) * projectDurationDays * (eq.count || 1)
+      }));
   }
   if (actualEquipments?.length > 0) {
-      await ProjectEquipment.insertMany(actualEquipments.map(e => {
+      const equipmentDocs = await Promise.all(actualEquipments.map(async e => {
+          let resolvedName = e.name;
+          let resolvedUnitCost = e.unitCost || 0;
+          let equipmentRef = null;
+
+          // Mode 1: lookup from fleet
+          if (e.equipmentId) {
+              const fleetItem = await Equipment.findById(e.equipmentId);
+              if (fleetItem) {
+                  equipmentRef = fleetItem._id;
+                  resolvedName = fleetItem.name;
+                  resolvedUnitCost = e.unitCost ?? (fleetItem.dailyCost * projectDurationDays);
+              }
+          }
+
           const qty = e.count || 1;
-          const cost = e.totalCost || (e.unitCost ? e.unitCost * qty : 0);
+          const cost = e.totalCost ?? (resolvedUnitCost * qty);
           estimatedCost += cost;
+
           return {
               project: project._id,
-              name: e.name || "معدة",
+              equipmentRef,
+              name: resolvedName || "معدة",
               count: qty,
               unit: e.unit || "وحدة",
               ownershipType: e.ownershipType || "OWNED",
-              unitCost: e.unitCost || 0,
+              unitCost: resolvedUnitCost,
               totalCost: cost
           };
       }));
+      await ProjectEquipment.insertMany(equipmentDocs);
   }
 
   if (documents?.length > 0) {
