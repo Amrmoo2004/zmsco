@@ -39,60 +39,90 @@ const router = Router();
  *                 type: array
  *                 items:
  *                   type: object
+ *                   required: [order]
  *                   properties:
- *                     nameAr: { type: string }
- *                     nameEn: { type: string }
- *                     color: { type: string }
- *                     order: { type: integer }
- *                     expectedDays: { type: integer }
- *                     isRequired: { type: boolean }
+ *                     nameAr: { type: string, example: "التخطيط" }
+ *                     nameEn: { type: string, example: "Planning" }
+ *                     color: { type: string, example: "#3498db" }
+ *                     order: { type: integer, example: 1 }
+ *                     expectedDays: { type: integer, example: 10 }
+ *                     isRequired: { type: boolean, default: true }
  *                     fields:
  *                       type: array
  *                       example: []
  *                       items:
  *                         type: object
+ *                         required: [name]
  *                         properties:
- *                           name: { type: string }
- *                           type: { type: string, enum: ['text', 'textarea', 'number', 'date', 'file'] }
+ *                           name: { type: string, example: "نطاق المشروع" }
+ *                           type: { type: string, enum: ['text', 'textarea', 'number', 'date', 'file'], default: text }
  *                           isRequired: { type: boolean }
  *                     attachments:
  *                       type: array
  *                       example: []
  *                       items:
  *                         type: object
+ *                         required: [name]
  *                         properties:
- *                           name: { type: string }
- *                           type: { type: string, enum: ['PDF', 'IMAGE', 'ANY'] }
+ *                           name: { type: string, example: "رخصة البناء" }
+ *                           type: { type: string, enum: ['PDF', 'IMAGE', 'ANY'], default: ANY }
+ *                           isRequired: { type: boolean }
+ *                     permits:
+ *                       type: array
+ *                       example: []
+ *                       description: Required permits/licenses for this phase (e.g. Building Permit)
+ *                       items:
+ *                         type: object
+ *                         required: [name]
+ *                         properties:
+ *                           name: { type: string, example: "رخصة البناء البلدية" }
  *                           isRequired: { type: boolean }
  *                     approvals:
  *                       type: array
  *                       example: []
  *                       items:
  *                         type: object
+ *                         required: [entity]
  *                         properties:
- *                           entity: { type: string, description: "Role ObjectId" }
+ *                           entity: { type: string, description: "Role ObjectId - Get from GET /api/roles" }
  *                           isRequired: { type: boolean }
  *                     tasks:
  *                       type: array
  *                       example: []
  *                       items:
  *                         type: object
+ *                         required: [name]
  *                         properties:
- *                           name: { type: string }
+ *                           name: { type: string, example: "إعداد المخططات" }
  *                           description: { type: string }
  *                           isRequired: { type: boolean }
  *               defaultResources:
  *                 type: object
+ *                 description: Default resources pre-filled when creating a project of this type
  *                 properties:
  *                   employees:
  *                     type: array
- *                     items: { properties: { jobTitle: { type: string }, count: { type: number } } }
+ *                     items:
+ *                       type: object
+ *                       properties:
+ *                         jobTitle: { type: string, description: "JobTitle ObjectId - Get from GET /api/job-titles" }
+ *                         count: { type: number, example: 2 }
  *                   materials:
  *                     type: array
- *                     items: { properties: { material: { type: string, description: "MongoDB ObjectId" }, quantity: { type: number } } }
+ *                     items:
+ *                       type: object
+ *                       properties:
+ *                         material: { type: string, description: "Material ObjectId - Get from GET /api/materials" }
+ *                         quantity: { type: number, example: 100 }
  *                   equipments:
  *                     type: array
- *                     items: { properties: { name: { type: string }, count: { type: number }, estimatedDailyCost: { type: number } } }
+ *                     items:
+ *                       type: object
+ *                       properties:
+ *                         name: { type: string, example: "رافعة" }
+ *                         count: { type: number, example: 1 }
+ *                         unit: { type: string, example: "وحدة" }
+ *                         estimatedDailyCost: { type: number, example: 500 }
  *     responses:
  *       201: { description: Project type created }
  *

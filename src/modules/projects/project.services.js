@@ -40,8 +40,8 @@ export const create_project = asynchandler(async (req, res, next) => {
     members = []
   } = req.body;
 
-  if (!name ||  !manager) {
-    return next(new Error("Missing required fields", { cause: 400 }));
+  if (!name || !type || !manager) {
+    return next(new AppError("المشروع يحتاج اسم، نوع، ومدير مشروع", 400));
   }
 
   // auto project code
@@ -102,9 +102,14 @@ export const create_project = asynchandler(async (req, res, next) => {
            status: "PENDING"
         })) : [];
 
+        const requiredPermits = phase.permits ? phase.permits.map(p => ({
+          name: p.name,
+          isMandatory: p.isRequired
+        })) : [];
+
         return {
           project: project._id,
-          name: phase.nameAr || phase.nameEn || phase.name || "مرحلة",
+          name: phase.nameAr || phase.nameEn || "مرحلة",
           nameAr: phase.nameAr,
           nameEn: phase.nameEn,
           color: phase.color,
@@ -114,6 +119,7 @@ export const create_project = asynchandler(async (req, res, next) => {
           customFields,
           requiredAttachments,
           requiredApprovals,
+          requiredPermits,
           tasks
         };
       });

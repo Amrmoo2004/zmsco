@@ -82,15 +82,37 @@ export const instantiatePhases = asynchandler(async (req, res, next) => {
             });
         }
 
+        // Map permits
+        const requiredPermits = [];
+        if (phase.permits && phase.permits.length > 0) {
+            phase.permits.forEach(p => {
+                requiredPermits.push({
+                    name: p.name,
+                    isMandatory: p.isRequired
+                });
+            });
+        }
+
+        // Map tasks
+        const tasks = phase.tasks ? phase.tasks.map(t => ({
+            name: t.name,
+            description: t.description,
+            isRequired: t.isRequired,
+            status: "PENDING"
+        })) : [];
+
         return {
             nameAr: phase.nameAr,
             nameEn: phase.nameEn,
+            color: phase.color,
             order: phase.order,
             expectedDays: phase.expectedDays,
             isRequired: phase.isRequired,
             customFields,
             requiredAttachments,
-            requiredApprovals
+            requiredApprovals,
+            requiredPermits,
+            tasks
         };
     });
 

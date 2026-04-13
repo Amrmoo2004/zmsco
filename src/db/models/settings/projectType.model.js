@@ -60,6 +60,12 @@ const phaseTemplateSchema = new mongoose.Schema(
         fields: [phaseFieldSchema],
         attachments: [phaseAttachmentSchema],
         approvals: [phaseApprovalSchema],
+        permits: [
+            {
+                name: { type: String, required: true }, // e.g. "Building Permit"
+                isRequired: { type: Boolean, default: true }
+            }
+        ],
         tasks: [taskTemplateSchema]
     },
     { _id: false, timestamps: true }
