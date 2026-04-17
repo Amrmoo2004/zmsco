@@ -30,6 +30,8 @@ await EquipmentAssignment.deleteMany();
 await EquipmentMaintenance.deleteMany();
 await HrRequest.deleteMany();
 await MaterialRequest.deleteMany();
+import Inventory from "../db/models/inventory.js";
+await Inventory.deleteMany();
 
 import Department from "../db/models/settings/department.model.js";
 
@@ -189,7 +191,16 @@ console.log(`✅ Seeded HR Requests (Leave, Overtime).`);
 // --- 7. Procurement / Material Requests ---
 const matCat = await MaterialCategory.findOne() || await MaterialCategory.create({ name: "مواد بناء" });
 const matUnit = await MeasurementUnit.findOne() || await MeasurementUnit.create({ name: "طن", symbol: "t" });
-const mat1 = await Material.findOne() || await Material.create({ name: "أسمنت بورتلاند", category: matCat._id, unit: matUnit._id, standardCost: 250 });
+const mat1 = await Material.findOne({ name: "أسمنت بورتلاند" }) || await Material.create({ name: "أسمنت بورتلاند", category: matCat._id, unit: matUnit._id, standardCost: 250 });
+const mat2 = await Material.findOne({ name: "حديد تسليح 16مم" }) || await Material.create({ name: "حديد تسليح 16مم", category: matCat._id, unit: matUnit._id, standardCost: 3500 });
+const mat3 = await Material.findOne({ name: "رمل بناء" }) || await Material.create({ name: "رمل بناء", category: matCat._id, unit: matUnit._id, standardCost: 50 });
+
+// Seed Inventory levels in the Main Warehouse for these materials
+await Inventory.create([
+  { warehouse: mainWarehouse._id, material: mat1._id, quantity: 5000, lastUpdated: new Date() },
+  { warehouse: mainWarehouse._id, material: mat2._id, quantity: 500, lastUpdated: new Date() }, // 500 tons
+  { warehouse: mainWarehouse._id, material: mat3._id, quantity: 2000, lastUpdated: new Date() } // 2000 tons
+]);
 
 await MaterialRequest.create({
   project: p1._id,
