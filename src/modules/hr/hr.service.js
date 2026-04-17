@@ -71,3 +71,78 @@ export const processHrRequest = asynchandler(async (req, res, next) => {
     await request.save();
     return res.status(200).json({ success: true, message: `HR Request ${status}`, data: request });
 });
+
+// ─── Dashboard ─────────────────────────────────────────────────────────────────
+
+import { Equipment, EquipmentAssignment } from "../../db/models/hr/equipment.model.js";
+import ProjectMember from "../../db/models/projects/project.member.js";
+
+export const getDashboard = asynchandler(async (req, res) => {
+    // 1. Get Employees except admins maybe, let's just get active employees
+    const employees = await User.find({ isActive: true })
+        .populate("role", "name")
+        .populate("jobTitle", "nameAr nameEn")
+        .lean();
+    
+    // Get all active assignments for employees
+    const empAssignments = await ProjectMember.find({ status: "ACTIVE" })
+        .populate("project", "name")
+        .lean();
+
+    const formattedEmployees = employees.map(emp => {
+        const activeAssig = empAssignments.find(a => a.user?.toString() === emp._id.toString());
+        const utilizationRate = activeAssig ? (activeAssig.allocationPercentage || 100) : 0;
+        return {
+            id: emp._id,
+            name: emp.name,
+            jobTitle: emp.jobTitle?.nameAr || emp.jobTitle?.nameEn || emp.role?.name,
+            status: activeAssig ? "مشغول" : "متاح",
+            utilizationRate: utilizationRate > 100 ? 100 : utilizationRate,
+            currentProject: activeAssig?.project?.name || "غير معين"
+        };
+    });
+
+    // 2. Get Equipments
+    const equipments = await Equipment.find({ isActive: true }).lean();
+    const eqAssignments = await EquipmentAssignment.find({ status: "ACTIVE" })
+        .populate("project", "name")
+        .lean();
+
+    const formattedEquipment = equipments.map(eq => {
+        const activeAssig = eqAssignments.find(a => a.equipment?.toString() === eq._id.toString());
+        const utilizationRate = activeAssig ? (activeAssig.allocationPercentage || 100) : 0;
+        let pStatus = "متاح";
+        if (eq.condition === "UNDER_MAINTENANCE") pStatus = "غير متاح";
+        else if (activeAssig) pStatus = "مشغول";
+
+        return {
+            id: eq._id,
+            name: eq.name,
+            type: eq.type,
+            status: pStatus,
+            utilizationRate: utilizationRate > 100 ? 100 : utilizationRate,
+            currentProject: activeAssig?.project?.name || "غير معين"
+        };
+    });
+
+    const totalResources = formattedEmployees.length + formattedEquipment.length;
+    const busyCount = formattedEmployees.filter(e => e.status === "مشغول").length + formattedEquipment.filter(e => e.status === "مشغول").length;
+    const availableCount = formattedEmployees.filter(e => e.status === "متاح").length + formattedEquipment.filter(e => e.status === "متاح").length;
+    const unavailableCount = formattedEquipment.filter(e => e.status === "غير متاح").length;
+
+    return res.status(200).json({
+        success: true,
+        data: {
+            summary: {
+                totalResources,
+                totalEmployees: formattedEmployees.length,
+                totalEquipment: formattedEquipment.length,
+                available: availableCount,
+                busy: busyCount,
+                unavailable: unavailableCount
+            },
+            employees: formattedEmployees,
+            equipments: formattedEquipment
+        }
+    });
+});

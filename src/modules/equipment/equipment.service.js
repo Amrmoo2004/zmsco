@@ -10,9 +10,50 @@ export const getAllEquipment = asynchandler(async (req, res) => {
 });
 
 export const getEquipmentById = asynchandler(async (req, res, next) => {
-    const eq = await Equipment.findById(req.params.id);
+    const eq = await Equipment.findById(req.params.id).lean();
     if (!eq) return next(new AppError("Equipment not found", 404));
-    return res.status(200).json({ success: true, data: eq });
+
+    // Get assignments for history and current project
+    const assignments = await EquipmentAssignment.find({ equipment: eq._id })
+        .populate("project", "name startDate")
+        .populate("phase", "name")
+        .lean();
+
+    // Get maintenance for history
+    const maintenanceLogs = await EquipmentMaintenance.find({ equipment: eq._id }).lean();
+
+    // Stats calculations
+    const totalMaintenanceCost = maintenanceLogs.reduce((acc, log) => acc + (log.cost || 0), 0);
+    // Rough mock revenue based on assigned days * dailyCost
+    const totalRevenue = assignments.reduce((acc, a) => {
+      // Mock: roughly 30 days active * dailyCost if active, or just a sample calc
+      const activeMultiplier = a.status === "ACTIVE" ? 30 : 60;
+      return acc + (eq.dailyCost * activeMultiplier * ((a.allocationPercentage || 100) / 100));
+    }, 0);
+    const netProfit = totalRevenue - totalMaintenanceCost;
+
+    const currentAssignment = assignments.find(a => a.status === "ACTIVE");
+    const utilizationRate = currentAssignment ? (currentAssignment.allocationPercentage || 100) : 0;
+
+    return res.status(200).json({ 
+      success: true, 
+      data: {
+        ...eq,
+        stats: {
+          totalRevenue,
+          totalMaintenanceCost,
+          netProfit,
+          utilizationRate
+        },
+        currentAssignment: currentAssignment || null,
+        history: assignments.map(a => ({
+          project: a.project?.name,
+          date: a.startDate || a.createdAt,
+          status: a.status
+        })),
+        maintenanceLogs
+      } 
+    });
 });
 
 export const createEquipment = asynchandler(async (req, res) => {

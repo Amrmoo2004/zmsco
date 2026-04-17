@@ -184,7 +184,8 @@ router.get('/count', auth, permission("VIEW_USERS"), userservrice.get_usercount)
  *         required: true
  *         schema: { type: string }
  *     responses:
- *       200: { description: Full user profile including role, department, and job title }
+ *       200: 
+ *         description: Full user profile including role, stats (completed/active projects, utilizationRate), currentAssignment, and work history.
  *       404: { description: User not found }
  */
 router.get('/:id', auth, permission("VIEW_USERS"), userservrice.get_member_profile);

@@ -111,6 +111,20 @@ router.post("/work-logs", auth, hrService.createWorkLog);
 router.put("/work-logs/:id", auth, hrService.updateWorkLog);
 router.delete("/work-logs/:id", auth, hrService.deleteWorkLog);
 
+/**
+ * @swagger
+ * /hr/dashboard:
+ *   get:
+ *     summary: Get HR and Equipment Combined Dashboard
+ *     tags: [HR]
+ *     security: [{ bearerAuth: [] }]
+ *     responses:
+ *       200:
+ *         description: Dashboard stats including total resources, available/busy counts, and lists of all employees and equipment with their utilization rates and current projects.
+ */
+// HR Dashboard
+router.get("/dashboard", auth, permission("VIEW_REPORTS"), hrService.getDashboard);
+
 // HR Requests
 router.get("/requests", auth, hrService.getHrRequests);
 router.post("/requests", auth, hrService.createHrRequest);

@@ -186,10 +186,14 @@ export const update_hr_profile = asynchandler(async (req, res, next) => {
   });
 });
 
+import ProjectMember from "../../db/models/projects/project.member.js";
+
 export const get_member_profile = asynchandler(async (req, res, next) => {
   const user = await UserModel.findById(req.params.id)
     .select('-password -__v -createdAt -updatedAt -forgotPasswordOtp -otpExpires')
-    .populate('role', 'name');
+    .populate('role', 'name')
+    .populate('jobTitle', 'nameAr nameEn')
+    .lean();
 
   if (!user) {
     return next(new Error('User not found', { cause: 404 }));
@@ -197,9 +201,38 @@ export const get_member_profile = asynchandler(async (req, res, next) => {
   if (user.phone) {
     user.phone = decrypt(user.phone);
   }
+
+  // Calculate stats & history for UI
+  const assignments = await ProjectMember.find({ user: user._id })
+    .populate("project", "name status startDate")
+    .populate("phase", "name")
+    .lean();
+
+  const activeProjectsCount = assignments.filter(a => a.status === "ACTIVE").length;
+  // Let's assume we can calculate utilization natively (e.g. sum of allocations)
+  const utilizationRate = assignments
+    .filter(a => a.status === "ACTIVE")
+    .reduce((acc, curr) => acc + (curr.allocationPercentage || 0), 0);
+
+  const currentProject = assignments.find(a => a.status === "ACTIVE");
+
   return res.status(200).json({
     success: true,
-    data: user
+    data: {
+      ...user,
+      stats: {
+        completedProjects: assignments.filter(a => a.status !== "ACTIVE").length,
+        activeProjects: activeProjectsCount,
+        utilizationRate: utilizationRate > 100 ? 100 : utilizationRate
+      },
+      currentAssignment: currentProject || null,
+      history: assignments.map(a => ({
+        project: a.project?.name,
+        date: a.startDate || a.createdAt,
+        role: a.role,
+        status: a.status
+      }))
+    }
   });
 });
 export const get_usercount = asynchandler(async (req, res, next) => {
