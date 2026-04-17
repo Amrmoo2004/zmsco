@@ -11,436 +11,677 @@ import { createNotification } from "../notifications/notification.service.js";
 import { emitToProject, emitToManagers, emitInventoryUpdate } from "../../utils/socket.js";
 import User from "../../db/models/user.js";
 import ApprovalRule from "../../db/models/settings/approvalRule.model.js";
-import Workflow from "../../db/models/settings/workflow.model.js";
-/** Get all material requests with filters */
-export const getAllRequests = asynchandler(async (req, res, next) => {
-    const { status, project } = req.query;
-    const query = {};
-    if (status) query.status = status;
-    if (project) query.project = project;
 
-    const requests = await MaterialRequest.find(query)
-        .populate("project", "name")
-        .populate("materials.material", "name unit")
-        .populate("requestedBy", "name email")
-        .sort({ createdAt: -1 });
+// ─── Helper: populate a request fully ────────────────────────────────────────
+const populateRequest = (query) =>
+  query
+    .populate("project", "name warehouseType dedicatedWarehouse manager")
+    .populate("phase", "name nameAr order")
+    .populate("warehouse", "name type")
+    .populate("materials.material", "name unit standardCost alertQuantity")
+    .populate("requestedBy", "name email")
+    .populate("approvedBy", "name email")
+    .populate("issuedBy", "name email");
 
-    return res.status(200).json({ success: true, data: requests });
+// ─── Helper: enrich materials with live availability ─────────────────────────
+const enrichMaterials = async (materials, warehouseId) => {
+  const matIds = materials.map((m) =>
+    m.material?._id ? m.material._id : m.material
+  );
+
+  const matchStage = { material: { $in: matIds } };
+  if (warehouseId) matchStage.warehouse = new mongoose.Types.ObjectId(String(warehouseId));
+
+  const balances = await Inventory.aggregate([
+    { $match: matchStage },
+    { $group: { _id: "$material", availableQuantity: { $sum: "$quantity" } } }
+  ]);
+
+  const balanceMap = {};
+  balances.forEach((b) => { balanceMap[String(b._id)] = b.availableQuantity; });
+
+  return materials.map((item) => {
+    const matId = String(item.material?._id || item.material);
+    const availableQuantity = balanceMap[matId] ?? 0;
+    return {
+      ...item.toObject ? item.toObject() : item,
+      availableQuantity,
+      isAvailable: availableQuantity >= item.quantity,
+      availabilityStatus: availableQuantity >= item.quantity ? "AVAILABLE" : "INSUFFICIENT"
+    };
+  });
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+/** GET /material-requests — list with filters */
+export const getAllRequests = asynchandler(async (req, res) => {
+  const { status, project, phase, warehouse, page = 1, limit = 20 } = req.query;
+
+  const query = {};
+  if (status)    query.status    = status;
+  if (project)   query.project   = project;
+  if (phase)     query.phase     = phase;
+  if (warehouse) query.warehouse = warehouse;
+
+  const skip = (page - 1) * limit;
+
+  const [requests, total] = await Promise.all([
+    populateRequest(MaterialRequest.find(query))
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(parseInt(limit))
+      .lean(),
+    MaterialRequest.countDocuments(query)
+  ]);
+
+  return res.status(200).json({
+    success: true,
+    data: requests,
+    pagination: {
+      total,
+      page: parseInt(page),
+      limit: parseInt(limit),
+      pages: Math.ceil(total / parseInt(limit))
+    }
+  });
 });
 
-/** Get request by ID */
+// ─────────────────────────────────────────────────────────────────────────────
+/** GET /material-requests/:id — single request with live availability */
 export const getRequestById = asynchandler(async (req, res, next) => {
-    const { id } = req.params;
-    const request = await MaterialRequest.findById(id)
-        .populate("project", "name")
-        .populate("materials.material", "name unit")
-        .populate("requestedBy", "name email");
+  const request = await populateRequest(MaterialRequest.findById(req.params.id));
+  if (!request) return next(new AppError("Material request not found", 404));
 
-    if (!request) return next(new AppError("Material request not found", 404));
-    return res.status(200).json({ success: true, data: request });
+  // Enrich each material with live availability from the source warehouse
+  const enrichedMaterials = await enrichMaterials(
+    request.materials,
+    request.warehouse?._id ?? request.warehouse
+  );
+
+  return res.status(200).json({
+    success: true,
+    data: { ...request.toObject(), materials: enrichedMaterials }
+  });
 });
 
-/** Create material request — notifies managers for approval */
+// ─────────────────────────────────────────────────────────────────────────────
+/**
+ * POST /material-requests — إنشاء طلب صرف مواد
+ * Body: { project, warehouse, phase?, materials: [{ material, quantity }], notes? }
+ * Step 1 اختيار المستودع → Step 2 اختيار المواد → Step 3 مراجعة وإرسال
+ */
 export const createRequest = asynchandler(async (req, res, next) => {
-    const { project, materials, notes } = req.body;
+  const { project, warehouse, phase, materials, notes } = req.body;
 
-    const projectExists = await Project.findById(project);
-    if (!projectExists) return next(new AppError("Project not found", 404));
+  // ── Validate project ────────────────────────────────────────────────────
+  const projectExists = await Project.findById(project);
+  if (!projectExists) return next(new AppError("Project not found", 404));
+
+  // ── Validate warehouse exists ───────────────────────────────────────────
+  const Warehouse = mongoose.model("Warehouse");
+  const warehouseExists = await Warehouse.findById(warehouse);
+  if (!warehouseExists) return next(new AppError("Warehouse not found", 404));
+
+  // ── Validate materials + compute costs ─────────────────────────────────
+  if (!materials || materials.length === 0)
+    return next(new AppError("At least one material is required", 400));
+
+  const enrichedItems = [];
+  let totalRequestCost = 0;
+
+  for (const item of materials) {
+    const mat = await Material.findById(item.material).populate("unit");
+    if (!mat) return next(new AppError(`Material ID ${item.material} not found`, 404));
+    if (!item.quantity || item.quantity <= 0)
+      return next(new AppError(`Quantity for ${mat.name} must be greater than 0`, 400));
+
+    const unitCost  = mat.standardCost || 0;
+    const totalCost = unitCost * item.quantity;
+    totalRequestCost += totalCost;
+
+    enrichedItems.push({
+      material:  mat._id,
+      quantity:  item.quantity,
+      unitCost,
+      totalCost
+    });
+  }
+
+  // ── Determine workflow / initial status ────────────────────────────────
+  const approvalRule = await ApprovalRule.findOne({
+    entityType: "مخزون",
+    isActive: true
+  }).populate("workflow");
+
+  let assignedWorkflow = null;
+  let initialStatus    = "PENDING";
+
+  if (
+    approvalRule?.workflow?.isActive &&
+    approvalRule.workflow.steps?.length > 0
+  ) {
+    assignedWorkflow = approvalRule.workflow._id;
+    initialStatus    = "PENDING_APPROVAL";
+  }
+
+  // ── Create ──────────────────────────────────────────────────────────────
+  const request = await MaterialRequest.create({
+    project,
+    warehouse,
+    phase:            phase || undefined,
+    materials:        enrichedItems,
+    totalRequestCost,
+    notes,
+    requestedBy:      req.user._id,
+    status:           initialStatus,
+    workflow:         assignedWorkflow,
+    currentStepIndex: 0,
+    approvalHistory:  []
+  });
+
+  await populateRequest(MaterialRequest.findById(request._id)).then((r) =>
+    Object.assign(request, r?.toObject() || {})
+  );
+
+  // ── Notify managers ─────────────────────────────────────────────────────
+  emitToManagers("notification:approval_pending", {
+    requestId:      request._id,
+    requestNumber:  request.requestNumber,
+    projectName:    projectExists.name,
+    requestedBy:    req.user._id,
+    materialsCount: enrichedItems.length,
+    totalCost:      totalRequestCost,
+    createdAt:      new Date().toISOString()
+  });
+
+  // Notify project manager specifically
+  if (projectExists.manager) {
+    await createNotification(
+      projectExists.manager,
+      "📋 طلب صرف مواد جديد",
+      `تم إنشاء طلب صرف مواد جديد (${request.requestNumber}) في مشروع "${projectExists.name}" بتكلفة ${totalRequestCost} ريال.`,
+      "INFO",
+      { requestId: request._id, projectId: project }
+    );
+  }
+
+  return res.status(201).json({
+    success: true,
+    message: "Material request created successfully",
+    data:    request
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+/** PUT /material-requests/:id — تعديل الطلب (فقط لو PENDING) */
+export const updateRequest = asynchandler(async (req, res, next) => {
+  const { id } = req.params;
+  const { materials, notes, warehouse, phase } = req.body;
+
+  const request = await MaterialRequest.findById(id);
+  if (!request) return next(new AppError("Material request not found", 404));
+  if (!["PENDING", "PENDING_APPROVAL"].includes(request.status))
+    return next(new AppError("Cannot update a request that has already been processed", 400));
+
+  if (materials && materials.length > 0) {
+    let totalRequestCost = 0;
+    const enrichedItems  = [];
 
     for (const item of materials) {
-        const materialExists = await Material.findById(item.material);
-        if (!materialExists) return next(new AppError(`Material ID ${item.material} not found`, 404));
+      const mat = await Material.findById(item.material);
+      if (!mat) return next(new AppError(`Material ID ${item.material} not found`, 404));
+
+      const unitCost  = item.unitCost ?? mat.standardCost ?? 0;
+      const totalCost = unitCost * item.quantity;
+      totalRequestCost += totalCost;
+
+      enrichedItems.push({ material: mat._id, quantity: item.quantity, unitCost, totalCost });
     }
 
-    // ── Evaluate Approval Rules for Inventory (مخزون) ──
-    // In our UI, Material Issue rules are usually "جميع الحالات" (All cases).
-    // We fetch the rule that applies to "مخزون"
-    const approvalRule = await ApprovalRule.findOne({ entityType: "مخزون", isActive: true }).populate("workflow");
-    
-    let assignedWorkflow = null;
-    let initialStatus = "PENDING";
-    let initialStepIndex = 0;
+    request.materials        = enrichedItems;
+    request.totalRequestCost = totalRequestCost;
+  }
 
-    if (approvalRule && approvalRule.workflow && approvalRule.workflow.isActive && approvalRule.workflow.steps.length > 0) {
-        assignedWorkflow = approvalRule.workflow._id;
-        initialStatus = "PENDING_APPROVAL";
-        initialStepIndex = 0; // Starts at 0 (representing stepOrder 1 usually)
-    }
+  if (notes     !== undefined) request.notes     = notes;
+  if (warehouse !== undefined) request.warehouse  = warehouse;
+  if (phase     !== undefined) request.phase      = phase;
 
-    const request = await MaterialRequest.create({
-        project,
-        materials,
-        notes,
-        requestedBy: req.user._id,
-        status: initialStatus,
-        workflow: assignedWorkflow,
-        currentStepIndex: initialStepIndex,
-        approvalHistory: []
-    });
+  await request.save();
+  const populated = await populateRequest(MaterialRequest.findById(id));
 
-    await request.populate("project", "name");
-    await request.populate("materials.material", "name unit");
-
-    // 🔔 Notify managers: pending approval
-    emitToManagers("notification:approval_pending", {
-        requestId: request._id,
-        projectName: request.project?.name,
-        requestedBy: req.user._id,
-        materialsCount: materials.length,
-        createdAt: new Date().toISOString(),
-    });
-
-    return res.status(201).json({
-        success: true,
-        message: "Material request created successfully",
-        data: request
-    });
+  return res.status(200).json({
+    success: true,
+    message: "Material request updated successfully",
+    data:    populated
+  });
 });
 
-/** Update material request */
-export const updateRequest = asynchandler(async (req, res, next) => {
-    const { id } = req.params;
-    const { materials, notes } = req.body;
-
-    const request = await MaterialRequest.findById(id);
-    if (!request) return next(new AppError("Material request not found", 404));
-    if (request.status !== "PENDING") return next(new AppError("Cannot update request that is not pending", 400));
-
-    if (materials) {
-        for (const item of materials) {
-            const materialExists = await Material.findById(item.material);
-            if (!materialExists) return next(new AppError(`Material ID ${item.material} not found`, 404));
-        }
-        request.materials = materials;
-    }
-    if (notes !== undefined) request.notes = notes;
-
-    await request.save();
-    await request.populate("project", "name");
-    await request.populate("materials.material", "name unit");
-
-    return res.status(200).json({ success: true, message: "Material request updated successfully", data: request });
-});
-
-/** Delete material request */
+// ─────────────────────────────────────────────────────────────────────────────
+/** DELETE /material-requests/:id */
 export const deleteRequest = asynchandler(async (req, res, next) => {
-    const { id } = req.params;
-    const request = await MaterialRequest.findById(id);
-    if (!request) return next(new AppError("Material request not found", 404));
-    if (request.status !== "PENDING") return next(new AppError("Cannot delete request that is not pending", 400));
+  const request = await MaterialRequest.findById(req.params.id);
+  if (!request) return next(new AppError("Material request not found", 404));
+  if (!["PENDING", "PENDING_APPROVAL"].includes(request.status))
+    return next(new AppError("Cannot delete a request that has already been processed", 400));
 
-    await request.deleteOne();
-    return res.status(200).json({ success: true, message: "Material request deleted successfully" });
+  await request.deleteOne();
+  return res.status(200).json({ success: true, message: "Material request deleted successfully" });
 });
 
-/** Approve material request — notifies requester + project room */
+// ─────────────────────────────────────────────────────────────────────────────
+/** PATCH /material-requests/:id/approve — الموافقة على الطلب */
 export const approveRequest = asynchandler(async (req, res, next) => {
-    const { id } = req.params;
-    const { comments } = req.body;
+  const { comments } = req.body;
 
-    const request = await MaterialRequest.findById(id)
-        .populate("project", "name")
-        .populate({
-            path: "workflow",
-            populate: { path: "steps.role", select: "_id name" }
-        });
+  const request = await populateRequest(
+    MaterialRequest.findById(req.params.id).populate({
+      path:     "workflow",
+      populate: { path: "steps.role", select: "_id name" }
+    })
+  );
+  if (!request) return next(new AppError("Material request not found", 404));
 
-    if (!request) return next(new AppError("Material request not found", 404));
-
-    if (request.status === "PENDING") {
-        // Fallback: No workflow attached, immediate approval
-        request.status = "APPROVED";
-        await request.save();
-        await request.populate("materials.material", "name unit");
-
-        // 🔔 Notify requester
-        await createNotification(request.requestedBy, '✅ طلب المواد تم قبوله', `تم قبول طلب المواد الخاص بك في مشروع "${request.project?.name}".`, 'SUCCESS', { requestId: request._id, projectId: request.project?._id });
-        emitToProject(String(request.project?._id), 'approval:approved', { requestId: request._id, projectId: request.project?._id, approvedBy: req.user._id, timestamp: new Date().toISOString() });
-        return res.status(200).json({ success: true, message: "Material request approved successfully", data: request });
-    }
-
-    if (request.status !== "PENDING_APPROVAL") {
-        return next(new AppError(`Only pending requests can be approved. Current status: ${request.status}`, 400));
-    }
-
-    // Step-by-Step Workflow Authentication Logic
-    const workflow = request.workflow;
-    if (!workflow || !workflow.steps || workflow.steps.length === 0) {
-        return next(new AppError("Workflow constraints not setup properly for this request.", 500));
-    }
-
-    const currentStepIndex = request.currentStepIndex || 0;
-    const currentStep = workflow.steps[currentStepIndex];
-
-    if (!currentStep) return next(new AppError("Invalid workflow step.", 500));
-
-    let isAuthorized = false;
-    if (currentStep.user && String(currentStep.user) === String(req.user._id)) {
-        isAuthorized = true;
-    } else if (currentStep.role) {
-        const userRoleId = String(req.user.role._id || req.user.role);
-        const stepRoleId = String(currentStep.role._id || currentStep.role);
-        if (userRoleId === stepRoleId) isAuthorized = true;
-    }
-
-    // Allow Admin override?
-    // if (req.user.role.name === 'admin' || req.user.role.name === 'Super Admin') isAuthorized = true;
-
-    if (!isAuthorized) {
-        return next(new AppError("You do not have permission to approve the current workflow step.", 403));
-    }
-
-    // Record Approval
-    request.approvalHistory.push({
-        stepIndex: currentStepIndex,
-        role: currentStep.role ? currentStep.role._id : undefined,
-        user: currentStep.user,
-        approvedBy: req.user._id,
-        status: "APPROVED",
-        comment: comments || "",
-        timestamp: new Date()
-    });
-
-    // Determine completion
-    if (currentStepIndex === workflow.steps.length - 1) {
-        // Fully Approved
-        request.status = "APPROVED";
-        await request.save();
-        await request.populate("materials.material", "name unit");
-
-        await createNotification(request.requestedBy, '✅ طلب المواد تم الموافقة عليه بالكامل', `تم اكتمال سلسلة الاعتمادات لطلب المواد الخاص بك في مشروع "${request.project?.name}".`, 'SUCCESS', { requestId: request._id, projectId: request.project?._id });
-        emitToProject(String(request.project?._id), 'approval:approved', { requestId: request._id, projectId: request.project?._id, approvedBy: req.user._id, timestamp: new Date().toISOString() });
-
-        return res.status(200).json({ success: true, message: "Workflow complete. Request is fully approved.", data: request });
-    } else {
-        request.currentStepIndex += 1;
-        await request.save();
-
-        // Optional: Notify next role (omitted for brevity, could emit notification here)
-        return res.status(200).json({ success: true, message: `Step ${currentStepIndex + 1} approved. Moved to next step.`, data: request });
-    }
-});
-
-/** Reject material request — notifies requester */
-export const rejectRequest = asynchandler(async (req, res, next) => {
-    const { id } = req.params;
-    const { reason } = req.body;
-
-    const request = await MaterialRequest.findById(id)
-        .populate("project", "name")
-        .populate({
-            path: "workflow",
-            populate: { path: "steps.role", select: "_id name" }
-        });
-
-    if (!request) return next(new AppError("Material request not found", 404));
-
-    if (request.status === "PENDING") {
-        request.status = "REJECTED";
-        if (reason) request.notes = (request.notes || "") + `\nRejection reason: ${reason}`;
-        await request.save();
-        await request.populate("materials.material", "name unit");
-
-        // 🔔 Notify requester
-        await createNotification(request.requestedBy, '❌ طلب المواد تم رفضه', `تم رفض طلب المواد الخاص بك في مشروع "${request.project?.name}". ${reason ? 'السبب: ' + reason : ''}`, 'ERROR', { requestId: request._id, projectId: request.project?._id });
-        emitToProject(String(request.project?._id), 'approval:rejected', { requestId: request._id, projectId: request.project?._id, reason, rejectedBy: req.user._id, timestamp: new Date().toISOString() });
-
-        return res.status(200).json({ success: true, message: "Material request rejected", data: request });
-    }
-
-    if (request.status !== "PENDING_APPROVAL") {
-        return next(new AppError(`Only pending requests can be rejected. Current status: ${request.status}`, 400));
-    }
-
-    const workflow = request.workflow;
-    if (!workflow || !workflow.steps || workflow.steps.length === 0) {
-        return next(new AppError("Workflow constraints not setup properly for this request.", 500));
-    }
-
-    const currentStepIndex = request.currentStepIndex || 0;
-    const currentStep = workflow.steps[currentStepIndex];
-
-    if (!currentStep) return next(new AppError("Invalid workflow step.", 500));
-
-    let isAuthorized = false;
-    if (currentStep.user && String(currentStep.user) === String(req.user._id)) {
-        isAuthorized = true;
-    } else if (currentStep.role) {
-        const userRoleId = String(req.user.role._id || req.user.role);
-        const stepRoleId = String(currentStep.role._id || currentStep.role);
-        if (userRoleId === stepRoleId) isAuthorized = true;
-    }
-
-    if (!isAuthorized) {
-        return next(new AppError("You do not have permission to reject the current workflow step.", 403));
-    }
-
-    // Record Rejection in History
-    request.approvalHistory.push({
-        stepIndex: currentStepIndex,
-        role: currentStep.role ? currentStep.role._id : undefined,
-        user: currentStep.user,
-        approvedBy: req.user._id,
-        status: "REJECTED",
-        comment: reason || "",
-        timestamp: new Date()
-    });
-
-    request.status = "REJECTED";
-    await request.save();
-    await request.populate("materials.material", "name unit");
-
-    // 🔔 Notify requester
-    await createNotification(request.requestedBy, '❌ طلب المواد تم رفضه للاعتماد', `تم رفض طلب المواد الخاص بك في سلسلة الاعتمادات لمشروع "${request.project?.name}". ${reason ? 'السبب: ' + reason : ''}`, 'ERROR', { requestId: request._id, projectId: request.project?._id });
-    emitToProject(String(request.project?._id), 'approval:rejected', { requestId: request._id, projectId: request.project?._id, reason, rejectedBy: req.user._id, timestamp: new Date().toISOString() });
-
-    return res.status(200).json({ success: true, message: "Workflow rejected. Request marked as REJECTED.", data: request });
-});
-
-/** Fulfill material request — checks low stock after deduction */
-export const fulfillRequest = asynchandler(async (req, res, next) => {
-    const { id } = req.params;
-    const request = await MaterialRequest.findById(id)
-        .populate("project", "name warehouseType dedicatedWarehouse")
-        .populate("materials.material", "name unit minStock");
-    if (!request) return next(new AppError("Material request not found", 404));
-    if (request.status !== "APPROVED") return next(new AppError("Only approved requests can be fulfilled", 400));
-
-    const project = request.project;
-
-    // Fetch MAIN warehouses to deduct stock from
-    const mainWarehouses = await mongoose.model("Warehouse").find({ type: "MAIN" }).select("_id");
-    const mainWarehouseIds = mainWarehouses.map(w => w._id);
-
-    // Deduct from inventory and check low stock
-    for (const item of request.materials) {
-        // Find Stock in MAIN warehouses
-        const stock = await Inventory.findOne({ 
-            material: item.material._id, 
-            warehouse: { $in: mainWarehouseIds },
-            quantity: { $gte: item.quantity }
-        });
-
-        if (!stock) {
-            return next(new AppError(`Insufficient stock in main warehouses for material ${item.material.name}`, 400));
-        }
-
-        let inv; // Final inventory record we issued from (for low stock checks)
-
-        if (project.warehouseType === "DEDICATED" && project.dedicatedWarehouse) {
-            // STEP 1: Transfer from MAIN to DEDICATED
-            stock.quantity -= item.quantity;
-            await stock.save();
-
-            // TRANSFER transaction
-            await MaterialTransaction.create({
-                project: project._id,
-                material: item.material._id,
-                quantity: item.quantity,
-                type: "ISSUE", 
-                warehouse: project.dedicatedWarehouse,
-                referenceRequest: request._id,
-                createdBy: req.user._id
-            });
-
-            // Add to DEDICATED inventory
-            const dedicatedStock = await Inventory.findOneAndUpdate(
-                { material: item.material._id, warehouse: project.dedicatedWarehouse },
-                { $inc: { quantity: item.quantity }, $set: { lastUpdated: new Date() } },
-                { upsert: true, new: true }
-            );
-
-            // STEP 2: Issue from DEDICATED
-            dedicatedStock.quantity -= item.quantity;
-            await dedicatedStock.save();
-            inv = dedicatedStock;
-
-            // ISSUE transaction
-            await MaterialTransaction.create({
-                project: project._id,
-                material: item.material._id,
-                quantity: item.quantity,
-                type: "ISSUE",
-                warehouse: project.dedicatedWarehouse,
-                referenceRequest: request._id,
-                createdBy: req.user._id
-            });
-
-        } else {
-            // Direct Issue from MAIN
-            stock.quantity -= item.quantity;
-            await stock.save();
-            inv = stock;
-
-            await MaterialTransaction.create({
-                project: project._id,
-                material: item.material._id,
-                quantity: item.quantity,
-                type: "ISSUE",
-                warehouse: stock.warehouse,
-                referenceRequest: request._id,
-                createdBy: req.user._id
-            });
-        }
-
-        // C. Update Project Material (Issued Quantity)
-        await ProjectMaterial.findOneAndUpdate(
-            { project: project._id, material: item.material._id },
-            { $inc: { issuedQuantity: item.quantity } },
-            { upsert: true }
-        );
-
-        if (inv) {
-            const minStock = item.material.minStock || 0;
-
-            // 📊 Broadcast live inventory update
-            emitInventoryUpdate({
-                materialId: String(item.material._id),
-                materialName: item.material.name,
-                newQuantity: inv.quantity,
-                deducted: item.quantity,
-                projectId: String(request.project?._id),
-                timestamp: new Date().toISOString(),
-            });
-
-            // ⚠️ Low stock alert
-            if (inv.quantity <= minStock) {
-                emitToManagers('inventory:low_stock', {
-                    materialId: String(item.material._id),
-                    materialName: item.material.name,
-                    currentQuantity: inv.quantity,
-                    minStock,
-                    timestamp: new Date().toISOString(),
-                });
-
-                // Persist low stock notification for managers
-                const managers = await User.find({ role: { $in: ['manager', 'admin'] } });
-                await Promise.all(
-                    managers.map(m =>
-                        createNotification(
-                            m._id,
-                            `📉 مخزون منخفض: ${item.material.name}`,
-                            `الكمية المتبقية من "${item.material.name}" (${inv.quantity}) أقل من الحد الأدنى (${minStock}).`,
-                            'WARNING',
-                            { materialId: item.material._id, currentQuantity: inv.quantity, minStock }
-                        ).catch(() => { }) // don't block fulfill if notify fails
-                    )
-                );
-            }
-        }
-    }
-
-    request.status = "FULFILLED";
+  // ── No workflow — direct approval ───────────────────────────────────────
+  if (request.status === "PENDING") {
+    request.status     = "APPROVED";
+    request.approvedBy = req.user._id;
     await request.save();
 
-    // 🔔 Notify requester
     await createNotification(
-        request.requestedBy,
-        '📦 تم توريد المواد',
-        `تم توريد المواد لمشروع "${request.project?.name}" بنجاح.`,
-        'SUCCESS',
-        { requestId: request._id, projectId: request.project?._id }
+      request.requestedBy._id,
+      "✅ طلب المواد تم قبوله",
+      `تم قبول طلب صرف المواد (${request.requestNumber}) في مشروع "${request.project?.name}".`,
+      "SUCCESS",
+      { requestId: request._id, projectId: request.project?._id }
+    );
+    emitToProject(String(request.project?._id), "approval:approved", {
+      requestId:  request._id,
+      projectId:  request.project?._id,
+      approvedBy: req.user._id,
+      timestamp:  new Date().toISOString()
+    });
+
+    return res.status(200).json({ success: true, message: "Material request approved", data: request });
+  }
+
+  if (request.status !== "PENDING_APPROVAL")
+    return next(new AppError(`Cannot approve request with status: ${request.status}`, 400));
+
+  // ── Workflow step validation ─────────────────────────────────────────────
+  const workflow    = request.workflow;
+  if (!workflow?.steps?.length)
+    return next(new AppError("Workflow not configured properly", 500));
+
+  const stepIndex  = request.currentStepIndex ?? 0;
+  const step       = workflow.steps[stepIndex];
+  if (!step) return next(new AppError("Invalid workflow step", 500));
+
+  let authorized = false;
+  if (step.user && String(step.user) === String(req.user._id)) {
+    authorized = true;
+  } else if (step.role) {
+    const userRoleId = String(req.user.role?._id || req.user.role);
+    const stepRoleId = String(step.role?._id || step.role);
+    if (userRoleId === stepRoleId) authorized = true;
+  }
+
+  if (!authorized)
+    return next(new AppError("You are not authorized to approve this step", 403));
+
+  // Record approval
+  request.approvalHistory.push({
+    stepIndex,
+    role:       step.role?._id ?? step.role,
+    user:       step.user,
+    approvedBy: req.user._id,
+    status:     "APPROVED",
+    comment:    comments || "",
+    timestamp:  new Date()
+  });
+
+  if (stepIndex === workflow.steps.length - 1) {
+    // All steps done → fully approved
+    request.status     = "APPROVED";
+    request.approvedBy = req.user._id;
+    await request.save();
+
+    await createNotification(
+      request.requestedBy._id,
+      "✅ طلب المواد اعتُمد بالكامل",
+      `تم اكتمال اعتماد طلب صرف المواد (${request.requestNumber}) في مشروع "${request.project?.name}".`,
+      "SUCCESS",
+      { requestId: request._id, projectId: request.project?._id }
+    );
+    emitToProject(String(request.project?._id), "approval:approved", {
+      requestId: request._id, approvedBy: req.user._id, timestamp: new Date().toISOString()
+    });
+
+    return res.status(200).json({ success: true, message: "Workflow complete — request fully approved", data: request });
+  }
+
+  // Move to next step
+  request.currentStepIndex += 1;
+  await request.save();
+
+  return res.status(200).json({
+    success: true,
+    message: `Step ${stepIndex + 1} approved — moved to next approver`,
+    data:    request
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+/** PATCH /material-requests/:id/reject — رفض الطلب */
+export const rejectRequest = asynchandler(async (req, res, next) => {
+  const { reason } = req.body;
+
+  const request = await populateRequest(
+    MaterialRequest.findById(req.params.id).populate({
+      path:     "workflow",
+      populate: { path: "steps.role", select: "_id name" }
+    })
+  );
+  if (!request) return next(new AppError("Material request not found", 404));
+  if (!["PENDING", "PENDING_APPROVAL"].includes(request.status))
+    return next(new AppError(`Cannot reject request with status: ${request.status}`, 400));
+
+  if (request.status === "PENDING_APPROVAL") {
+    // Workflow step auth check
+    const workflow = request.workflow;
+    if (!workflow?.steps?.length)
+      return next(new AppError("Workflow not configured", 500));
+
+    const stepIndex = request.currentStepIndex ?? 0;
+    const step      = workflow.steps[stepIndex];
+    if (!step) return next(new AppError("Invalid workflow step", 500));
+
+    let authorized = false;
+    if (step.user && String(step.user) === String(req.user._id)) authorized = true;
+    else if (step.role) {
+      const userRoleId = String(req.user.role?._id || req.user.role);
+      const stepRoleId = String(step.role?._id || step.role);
+      if (userRoleId === stepRoleId) authorized = true;
+    }
+
+    if (!authorized)
+      return next(new AppError("You are not authorized to reject this step", 403));
+
+    request.approvalHistory.push({
+      stepIndex,
+      role:       step.role?._id ?? step.role,
+      user:       step.user,
+      approvedBy: req.user._id,
+      status:     "REJECTED",
+      comment:    reason || "",
+      timestamp:  new Date()
+    });
+  }
+
+  request.status          = "REJECTED";
+  request.rejectionReason = reason || "";
+  await request.save();
+
+  await createNotification(
+    request.requestedBy._id,
+    "❌ طلب المواد تم رفضه",
+    `تم رفض طلب صرف المواد (${request.requestNumber}) في مشروع "${request.project?.name}".${reason ? " السبب: " + reason : ""}`,
+    "ERROR",
+    { requestId: request._id, projectId: request.project?._id }
+  );
+  emitToProject(String(request.project?._id), "approval:rejected", {
+    requestId: request._id, reason, rejectedBy: req.user._id, timestamp: new Date().toISOString()
+  });
+
+  return res.status(200).json({ success: true, message: "Material request rejected", data: request });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+/**
+ * PATCH /material-requests/:id/fulfill — الموافقة والصرف
+ * يُخصم المواد من المستودع المُختار في الطلب، ثم يُسجّل Transaction.
+ */
+export const fulfillRequest = asynchandler(async (req, res, next) => {
+  const request = await populateRequest(MaterialRequest.findById(req.params.id));
+  if (!request) return next(new AppError("Material request not found", 404));
+  if (request.status !== "APPROVED")
+    return next(new AppError("Only approved requests can be fulfilled", 400));
+
+  const project   = request.project;
+  const sourceWh  = request.warehouse;   // المستودع المختار في Step 1
+
+  for (const item of request.materials) {
+    const matId    = item.material._id;
+    const matName  = item.material.name;
+    const qty      = item.quantity;
+
+    // ── تحقق من وجود مخزون كافٍ ────────────────────────────────────────
+    const stock = await Inventory.findOne({
+      material: matId,
+      warehouse: sourceWh._id ?? sourceWh,
+      quantity:  { $gte: qty }
+    });
+
+    if (!stock) {
+      return next(
+        new AppError(
+          `مخزون غير كافٍ من "${matName}" في المستودع "${sourceWh?.name ?? sourceWh}". المطلوب: ${qty}`,
+          400
+        )
+      );
+    }
+
+    // ── خصم من المستودع ──────────────────────────────────────────────────
+    stock.quantity    -= qty;
+    stock.lastUpdated  = new Date();
+    await stock.save();
+
+    // ── تسجيل transaction ────────────────────────────────────────────────
+    await MaterialTransaction.create({
+      project:          project._id,
+      material:         matId,
+      quantity:         qty,
+      type:             "ISSUE",
+      warehouse:        sourceWh._id ?? sourceWh,
+      referenceRequest: request._id,
+      createdBy:        req.user._id
+    });
+
+    // ── تحديث ProjectMaterial ─────────────────────────────────────────────
+    await ProjectMaterial.findOneAndUpdate(
+      { project: project._id, material: matId },
+      {
+        $inc: { issuedQuantity: qty },
+        $setOnInsert: { unitCost: item.unitCost, plannedQuantity: qty }
+      },
+      { upsert: true }
     );
 
-    return res.status(200).json({ success: true, message: "Material request marked as fulfilled", data: request });
+    // ── إشعار live inventory update ───────────────────────────────────────
+    emitInventoryUpdate({
+      materialId:   String(matId),
+      materialName: matName,
+      newQuantity:  stock.quantity,
+      deducted:     qty,
+      projectId:    String(project._id),
+      timestamp:    new Date().toISOString()
+    });
+
+    // ── تنبيه مخزون منخفض ────────────────────────────────────────────────
+    const minStock = item.material.alertQuantity || 0;
+    if (stock.quantity <= minStock && minStock > 0) {
+      emitToManagers("inventory:low_stock", {
+        materialId:      String(matId),
+        materialName:    matName,
+        currentQuantity: stock.quantity,
+        minStock,
+        timestamp:       new Date().toISOString()
+      });
+
+      const managers = await User.find({ role: { $in: ["manager", "admin"] } });
+      await Promise.all(
+        managers.map((m) =>
+          createNotification(
+            m._id,
+            `📉 مخزون منخفض: ${matName}`,
+            `الكمية المتبقية من "${matName}" (${stock.quantity}) أقل من الحد الأدنى (${minStock}).`,
+            "WARNING",
+            { materialId: matId, currentQuantity: stock.quantity, minStock }
+          ).catch(() => {})
+        )
+      );
+    }
+  }
+
+  // ── تحديث الطلب ────────────────────────────────────────────────────────
+  request.status   = "FULFILLED";
+  request.issuedBy = req.user._id;
+  await request.save();
+
+  await createNotification(
+    request.requestedBy._id,
+    "📦 تم صرف المواد",
+    `تم صرف المواد لمشروع "${project?.name}" بنجاح (${request.requestNumber}).`,
+    "SUCCESS",
+    { requestId: request._id, projectId: project?._id }
+  );
+
+  return res.status(200).json({
+    success: true,
+    message: "Material request fulfilled successfully",
+    data:    request
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+/**
+ * GET /material-requests/projects/:projectId/tracking
+ * شاشة "تتبع استهلاك المواد" — كل مادة في المشروع مع:
+ *   - plannedQty (الاستهلاك المخطط)
+ *   - approvedQty (تم اعتمادها في طلبات)
+ *   - issuedQty  (تم الصرف الفعلي)
+ *   - remainingBudget
+ *   - consumptionRate %
+ */
+export const getProjectMaterialTracking = asynchandler(async (req, res, next) => {
+  const { projectId } = req.params;
+
+  const project = await Project.findById(projectId);
+  if (!project) return next(new AppError("Project not found", 404));
+
+  // كل ProjectMaterials المرتبطة بالمشروع
+  const projectMaterials = await ProjectMaterial.find({ project: projectId })
+    .populate("material", "name unit standardCost alertQuantity category")
+    .lean();
+
+  // جمع الكميات من الطلبات المعتمدة/المنجزة
+  const approvedAgg = await MaterialRequest.aggregate([
+    {
+      $match: {
+        project: new mongoose.Types.ObjectId(projectId),
+        status:  { $in: ["APPROVED", "FULFILLED"] }
+      }
+    },
+    { $unwind: "$materials" },
+    {
+      $group: {
+        _id:          "$materials.material",
+        approvedQty:  { $sum: "$materials.quantity" },
+        approvedCost: { $sum: "$materials.totalCost" }
+      }
+    }
+  ]);
+
+  const approvedMap = {};
+  approvedAgg.forEach((a) => { approvedMap[String(a._id)] = a; });
+
+  // جمع الكميات المصروفة فعلياً من الطلبات FULFILLED
+  const issuedAgg = await MaterialRequest.aggregate([
+    {
+      $match: {
+        project: new mongoose.Types.ObjectId(projectId),
+        status:  "FULFILLED"
+      }
+    },
+    { $unwind: "$materials" },
+    {
+      $group: {
+        _id:       "$materials.material",
+        issuedQty: { $sum: "$materials.quantity" },
+        issuedCost:{ $sum: "$materials.totalCost" }
+      }
+    }
+  ]);
+
+  const issuedMap = {};
+  issuedAgg.forEach((i) => { issuedMap[String(i._id)] = i; });
+
+  // بناء بيانات كل مادة
+  const trackingData = projectMaterials.map((pm) => {
+    const matId       = String(pm.material?._id || pm.material);
+    const approvedRec = approvedMap[matId] || { approvedQty: 0, approvedCost: 0 };
+    const issuedRec   = issuedMap[matId]   || { issuedQty:   0, issuedCost: 0 };
+
+    const plannedQty  = pm.plannedQuantity || 0;
+    const approvedQty = approvedRec.approvedQty;
+    const issuedQty   = issuedRec.issuedQty;
+    const unitCost    = pm.unitCost || pm.material?.standardCost || 0;
+
+    const plannedCost   = plannedQty  * unitCost;
+    const approvedCost  = approvedRec.approvedCost;
+    const issuedCost    = issuedRec.issuedCost;
+
+    // نسبة الصرف من المسموح (issued / approved)
+    const consumptionRate = approvedQty > 0
+      ? Math.min(Math.round((issuedQty / approvedQty) * 100), 100)
+      : 0;
+
+    // نسبة الصرف من الطلبية (issued / planned)
+    const planRate = plannedQty > 0
+      ? Math.min(Math.round((issuedQty / plannedQty) * 100), 100)
+      : 0;
+
+    return {
+      material:        pm.material,
+      unitCost,
+      plannedQty,
+      approvedQty,
+      issuedQty,
+      remainingQty:    Math.max(approvedQty - issuedQty, 0),
+      plannedCost,
+      approvedCost,
+      issuedCost,
+      consumptionRate, // نسبة الصرف من المسموح
+      planRate,        // نسبة الصرف من الطلبية
+      status:
+        issuedQty >= approvedQty && approvedQty > 0
+          ? "FULLY_CONSUMED"
+          : issuedQty > 0
+          ? "PARTIALLY_CONSUMED"
+          : "NOT_STARTED"
+    };
+  });
+
+  // إجمالي المشروع
+  const totalPlannedCost  = trackingData.reduce((s, m) => s + m.plannedCost,  0);
+  const totalApprovedCost = trackingData.reduce((s, m) => s + m.approvedCost, 0);
+  const totalIssuedCost   = trackingData.reduce((s, m) => s + m.issuedCost,   0);
+  const overallRate       = totalApprovedCost > 0
+    ? Math.round((totalIssuedCost / totalApprovedCost) * 100)
+    : 0;
+
+  return res.status(200).json({
+    success: true,
+    data: {
+      project: {
+        _id:              project._id,
+        name:             project.name,
+        totalPlannedCost,
+        totalApprovedCost,
+        totalIssuedCost,
+        remainingBudget:  totalApprovedCost - totalIssuedCost,
+        overallRate
+      },
+      materials: trackingData
+    }
+  });
 });
