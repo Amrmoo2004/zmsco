@@ -1,6 +1,6 @@
 import ProjectModel from "../../db/models/projects/project.js";
 import InventoryModel from "../../db/models/inventory.js";
-import SystemConfiguration from "../../db/models/settings/systemConfiguration.model.js";
+import { getActiveConfig } from "../inventory-settings/inventorySettings.service.js";
 import { asynchandler } from "../../utils/response/response.js";
 
 /**
@@ -22,21 +22,21 @@ export const getDashboardStats = asynchandler(async (req, res, next) => {
     ]);
     const totalBudget = budgetAgg.length > 0 ? budgetAgg[0].totalBudget : 0;
 
-    // 3. Inventory Alerts (Low Stock)
-    let config = await SystemConfiguration.findOne();
-    const inventorySettings = config?.inventorySettings || { lowStockAlerts: true, lowStockThreshold: 10 };
-    
+    // 3. Inventory Alerts (Low Stock) — يستخدم إعدادات المخزون الفعلية
+    const inventoryConfig = await getActiveConfig();
+
     let lowStockCount = 0;
-    
-    if (inventorySettings.lowStockAlerts) {
-        const lowStockItems = await InventoryModel.find().populate("material");
+    if (inventoryConfig.lowStockAlerts) {
+        const threshold = inventoryConfig.lowStockThreshold;
+        const allInventory = await InventoryModel.find().populate("material", "alertQuantity");
         
-        lowStockItems.forEach(item => {
-            const threshold = (item.material && item.material.alertQuantity) 
-                ? item.material.alertQuantity 
-                : inventorySettings.lowStockThreshold;
-                
-            if (item.quantity <= threshold) {
+        allInventory.forEach(item => {
+            // الأولوية: alertQuantity على المادة نفسها، وإلا: الإعداد العام
+            const itemThreshold = (item.material && item.material.alertQuantity)
+                ? item.material.alertQuantity
+                : threshold;
+
+            if (item.quantity <= itemThreshold) {
                 lowStockCount++;
             }
         });

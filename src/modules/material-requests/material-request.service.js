@@ -11,6 +11,7 @@ import { createNotification } from "../notifications/notification.service.js";
 import { emitToProject, emitToManagers, emitInventoryUpdate } from "../../utils/socket.js";
 import User from "../../db/models/user.js";
 import ApprovalRule from "../../db/models/settings/approvalRule.model.js";
+import { getActiveConfig } from "../inventory-settings/inventorySettings.service.js";
 
 // ─── Helper: populate a request fully ────────────────────────────────────────
 const populateRequest = (query) =>
@@ -160,8 +161,15 @@ export const createRequest = asynchandler(async (req, res, next) => {
     approvalRule?.workflow?.isActive &&
     approvalRule.workflow.steps?.length > 0
   ) {
+    // إذا كان يوجد Workflow → استخدمه
     assignedWorkflow = approvalRule.workflow._id;
     initialStatus    = "PENDING_APPROVAL";
+  } else {
+    // Fallback: إذا كان إعداد "الموافقة على الصرف" مفعّلاً من صفحة الإعدادات
+    const invConfig = await getActiveConfig();
+    if (invConfig.requireIssuanceApproval) {
+      initialStatus = "PENDING_APPROVAL";
+    }
   }
 
   // ── Create ──────────────────────────────────────────────────────────────
