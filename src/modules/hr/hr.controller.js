@@ -66,7 +66,7 @@ const router = Router();
  *     parameters:
  *       - { in: query, name: all, schema: { type: boolean }, description: "If true, returns all users' requests (admin)" }
  *     responses:
- *       200: { description: List of HR requests }
+ *       200: { description: List of HR requests and a statistics object containing (total, pending, approved, rejected) counts. }
  *   post:
  *     summary: Submit an HR request (leave, overtime, etc.)
  *     tags: [HR]
