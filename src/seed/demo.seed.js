@@ -14,6 +14,9 @@ import ProjectType from "../db/models/settings/projectType.model.js";
 import MaterialCategory from "../db/models/settings/materialCategory.model.js";
 import MeasurementUnit from "../db/models/settings/measurementUnit.model.js";
 import JobTitle from "../db/models/settings/jobTitle.model.js";
+import Ticket from "../db/models/tickets/ticket.model.js";
+import Supplier from "../db/models/procurement/supplier.model.js";
+import RFQ from "../db/models/procurement/rfq.model.js";
 
 dotenv.config();
 await mongoose.connect(process.env.URL_DATABASE);
@@ -32,6 +35,9 @@ await HrRequest.deleteMany();
 await MaterialRequest.deleteMany();
 import Inventory from "../db/models/inventory.js";
 await Inventory.deleteMany();
+await Ticket.deleteMany();
+await Supplier.deleteMany();
+await RFQ.deleteMany();
 
 import Department from "../db/models/settings/department.model.js";
 
@@ -228,6 +234,74 @@ await MaterialRequest.create({
 });
 
 console.log(`✅ Seeded Material Requests (Procurement).`);
+
+// --- 8. Phase Tasks ---
+phase1.tasks.push({
+  name: "تجهيز الموقع وتسويره",
+  description: "الانتهاء من الأسوار المؤقتة والبوابات",
+  assignedTo: employees[0]._id, // أحمد
+  priority: "HIGH",
+  status: "IN_PROGRESS"
+});
+phase1.tasks.push({
+  name: "الحفر الميكانيكي",
+  description: "حفر الأساسات للبرج الرئيسي",
+  assignedTo: employees[1]._id,
+  priority: "HIGH",
+  status: "PENDING"
+});
+await phase1.save();
+console.log(`✅ Seeded Phase Tasks.`);
+
+// --- 9. Support Tickets (Ticketing API) ---
+await Ticket.create({
+  type: "MAINTENANCE",
+  project: p1._id,
+  equipment: equipments[0]._id,
+  description: "عطل طارئ في الرافعة أثناء التشغيل",
+  priority: "HIGH",
+  status: "IN_PROGRESS",
+  requester: employees[0]._id,
+  assignedTeam: [employees[2]._id]
+});
+await Ticket.create({
+  type: "SUPPORT",
+  project: p2._id,
+  description: "طلب دعم فني في برمجيات الموقع",
+  priority: "MEDIUM",
+  status: "NEW",
+  requester: employees[3]._id
+});
+console.log(`✅ Seeded Tickets.`);
+
+// --- 10. Procurement (Suppliers & RFQs) ---
+const supplier1 = await Supplier.create({
+  name: "شركة مواد البناء المتقدمة",
+  code: "SUP-001",
+  category: "مواد بناء",
+  contactPerson: "سعيد علي",
+  email: "saeed@advanced.com",
+  phone: "0501234567",
+  status: "ACTIVE",
+  rating: 4.5,
+  suppliedMaterials: [mat1._id, mat2._id]
+});
+
+const rfq1 = await RFQ.create({
+  project: p1._id,
+  materialRequest: await MaterialRequest.findOne(), // Pick any
+  createdBy: employees[0]._id,
+  title: "تسعير أسمنت وحديد للمشروع",
+  description: "مطلوب عروض أسعار مبدئية لأساسات المجمع التجاري",
+  deadline: new Date("2026-06-01"),
+  status: "SENT",
+  items: [
+    { material: mat1._id, quantity: 100, unitCost: 0, totalCost: 0 },
+    { material: mat2._id, quantity: 50, unitCost: 0, totalCost: 0 }
+  ],
+  eligibleSuppliers: [supplier1._id]
+});
+console.log(`✅ Seeded Suppliers and RFQs.`);
 
 console.log("🎉 All Demo Data Seeded Successfully!");
 process.exit(0);

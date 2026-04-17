@@ -79,13 +79,12 @@ const ticketSchema = new mongoose.Schema(
 );
 
 // Auto-generate requestId
-ticketSchema.pre("save", async function (next) {
+ticketSchema.pre("save", async function () {
     if (!this.requestId) {
         const year = new Date().getFullYear();
         const count = await mongoose.model("Ticket").countDocuments();
         this.requestId = `REQ-${year}-${String(count + 1).padStart(3, "0")}`;
     }
-    next();
 });
 
 export default mongoose.model("Ticket", ticketSchema);

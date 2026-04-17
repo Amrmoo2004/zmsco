@@ -161,6 +161,9 @@ const router = express.Router();
  *               department:
  *                 type: string
  *                 description: MongoDB ObjectId for department - GET /api/departments
+ *               location:
+ *                 type: string
+ *                 example: "الرياض، حي العليا"
  *               client:
  *                 type: string
  *                 description: Client name or reference

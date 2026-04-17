@@ -90,6 +90,8 @@ const projectSchema = new mongoose.Schema(
       }
     ],
 
+    location: String,
+    
     description: String,
 
     createdBy: {
