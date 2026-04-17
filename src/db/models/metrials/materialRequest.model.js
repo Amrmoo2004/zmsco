@@ -111,14 +111,13 @@ const materialRequestSchema = new mongoose.Schema(
 );
 
 // ── Auto-generate requestNumber before save ────────────────────────────────
-materialRequestSchema.pre("save", async function (next) {
+materialRequestSchema.pre("save", async function () {
   if (this.isNew && !this.requestNumber) {
     const year = new Date().getFullYear();
     const count = await mongoose.model("MaterialRequest").countDocuments();
     const seq = String(count + 1).padStart(3, "0");
     this.requestNumber = `MAT-${year}-${seq}`;
   }
-  next();
 });
 
 export default mongoose.model("MaterialRequest", materialRequestSchema);
