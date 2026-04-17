@@ -2,7 +2,6 @@ import MaterialCategory from "../../db/models/settings/materialCategory.model.js
 import MeasurementUnit from "../../db/models/settings/measurementUnit.model.js";
 import InventoryConfig from "../../db/models/settings/inventoryConfig.model.js";
 import InventoryModel from "../../db/models/inventory.js";
-import Material from "../../db/models/metrials/📁 material.model.js";
 import Notification from "../../db/models/notification.model.js";
 import { AppError } from "../../utils/appError.js";
 import { asynchandler } from "../../utils/response/response.js";
