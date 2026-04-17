@@ -215,7 +215,7 @@ await MaterialRequest.create({
   requestedBy: employees[0]._id, // أحمد
   status: "APPROVED",
   materials: [
-    { material: mat1._id, quantity: 50, unitCost: 250, totalCost: 12500 }
+    { material: mat1._id, quantity: 50, approvedQuantity: 50, issuedQuantity: 20, unitCost: 250, totalCost: 12500 }
   ],
   totalRequestCost: 12500,
   notes: "مطلوب بشكل عاجل لأعمال الأساسات"
@@ -227,7 +227,7 @@ await MaterialRequest.create({
   requestedBy: employees[0]._id, 
   status: "PENDING",
   materials: [
-    { material: mat1._id, quantity: 100, unitCost: 250, totalCost: 25000 }
+    { material: mat1._id, quantity: 100, approvedQuantity: 0, issuedQuantity: 0, unitCost: 250, totalCost: 25000 }
   ],
   totalRequestCost: 25000,
   notes: "طلب تسعير ومستودع لبداية المشروع"
@@ -262,7 +262,16 @@ await Ticket.create({
   priority: "HIGH",
   status: "IN_PROGRESS",
   requester: employees[0]._id,
-  assignedTeam: [employees[2]._id]
+  assignedTeam: [employees[2]._id],
+  history: [
+    { status: "NEW", changedBy: employees[0]._id, timestamp: new Date(Date.now() - 86400000), notes: "تم إنشاء الطلب" },
+    { status: "UNDER_REVIEW", changedBy: employees[2]._id, timestamp: new Date(Date.now() - 43200000), notes: "جاري الفحص المبدئي" },
+    { status: "IN_PROGRESS", changedBy: employees[2]._id, timestamp: new Date(), notes: "تم البدء في الإصلاح" }
+  ],
+  comments: [
+    { user: employees[0]._id, text: "يرجى الإسراع نظراً لتعطل الأعمال في الموقع", createdAt: new Date(Date.now() - 80000000) },
+    { user: employees[2]._id, text: "الفريق الفني في طريقه للموقع الآن", createdAt: new Date(Date.now() - 40000000) }
+  ]
 });
 await Ticket.create({
   type: "SUPPORT",

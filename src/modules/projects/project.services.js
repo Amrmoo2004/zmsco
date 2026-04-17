@@ -266,8 +266,30 @@ export const create_project = asynchandler(async (req, res, next) => {
 
 });
 export const get_projects = asynchandler(async (req, res, next) => {
-  const projects = await ProjectModel.find({ isActive: true })
-    .populate("manager", "username email")
+  // If the user is an admin, they can see all active projects
+  if (req.user.role === "ADMIN") {
+    const projects = await ProjectModel.find({ isActive: true })
+      .populate("manager", "username email name")
+      .sort({ createdAt: -1 });
+
+    return res.status(200).json({
+      success: true,
+      data: projects
+    });
+  }
+
+  // Otherwise, normal users can only see projects they manage OR are explicitly assigned to
+  const assignments = await ProjectMember.find({ user: req.user._id }).select("project");
+  const assignedProjectIds = assignments.map(a => a.project);
+
+  const projects = await ProjectModel.find({
+    isActive: true,
+    $or: [
+      { _id: { $in: assignedProjectIds } },
+      { manager: req.user._id }
+    ]
+  })
+    .populate("manager", "username email name")
     .sort({ createdAt: -1 });
 
   return res.status(200).json({
@@ -275,6 +297,7 @@ export const get_projects = asynchandler(async (req, res, next) => {
     data: projects
   });
 });
+
 
 /**
  * GET SINGLE PROJECT

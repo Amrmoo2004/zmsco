@@ -61,6 +61,16 @@ const materialRequestSchema = new mongoose.Schema(
         totalCost: {
           type: Number,
           default: 0
+        },
+        // الكمية اللي اتوافق عليها (تسمح بالموافقة الجزئية)
+        approvedQuantity: {
+          type: Number,
+          default: 0
+        },
+        // الكمية اللي اتصرفت فعلياً للمشروع من الطلب ده
+        issuedQuantity: {
+          type: Number,
+          default: 0
         }
       }
     ],
