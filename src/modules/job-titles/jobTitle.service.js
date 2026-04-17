@@ -1,16 +1,34 @@
 import JobTitle from "../../db/models/settings/jobTitle.model.js";
+import User from "../../db/models/user.js";
 import { AppError } from "../../utils/appError.js";
 import { asynchandler } from "../../utils/response/response.js";
 
 export const getAllJobTitles = asynchandler(async (req, res) => {
-    const jobTitles = await JobTitle.find().populate("department", "nameAr nameEn code").sort({ createdAt: -1 });
-    return res.status(200).json({ success: true, data: jobTitles });
+    const jobTitles = await JobTitle.find()
+        .populate("department", "nameAr nameEn code")
+        .sort({ createdAt: -1 })
+        .lean();
+
+    const jobTitlesWithCount = await Promise.all(jobTitles.map(async (jt) => {
+        const count = await User.countDocuments({ jobTitle: jt._id });
+        return {
+            ...jt,
+            employeeCount: count
+        };
+    }));
+
+    return res.status(200).json({ success: true, data: jobTitlesWithCount });
 });
 
 export const getJobTitleById = asynchandler(async (req, res, next) => {
-    const jt = await JobTitle.findById(req.params.id).populate("department", "nameAr nameEn code");
+    const jt = await JobTitle.findById(req.params.id)
+        .populate("department", "nameAr nameEn code")
+        .lean();
     if (!jt) return next(new AppError("Job Title not found", 404));
-    return res.status(200).json({ success: true, data: jt });
+
+    const count = await User.countDocuments({ jobTitle: jt._id });
+
+    return res.status(200).json({ success: true, data: { ...jt, employeeCount: count } });
 });
 
 export const createJobTitle = asynchandler(async (req, res, next) => {

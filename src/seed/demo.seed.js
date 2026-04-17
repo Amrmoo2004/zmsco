@@ -53,9 +53,30 @@ const engineeringDept = await Department.findOneAndUpdate(
   { upsert: true, new: true }
 );
 
-const engineerJob = await JobTitle.findOneAndUpdate(
+const hrDept = await Department.findOneAndUpdate(
+  { nameAr: "الموارد البشرية" },
+  { nameEn: "Human Resources", code: "HR-001" },
+  { upsert: true, new: true }
+);
+
+const siteEngineerJob = await JobTitle.findOneAndUpdate(
   { nameAr: "مهندس موقع" },
   { nameEn: "Site Engineer", code: "JOB-ENG-001", department: engineeringDept._id },
+  { upsert: true, new: true }
+);
+const civilEngineerJob = await JobTitle.findOneAndUpdate(
+  { nameAr: "مهندس مدني" },
+  { nameEn: "Civil Engineer", code: "JOB-ENG-002", department: engineeringDept._id },
+  { upsert: true, new: true }
+);
+const architectJob = await JobTitle.findOneAndUpdate(
+  { nameAr: "مهندس معماري" },
+  { nameEn: "Architect", code: "JOB-ENG-003", department: engineeringDept._id },
+  { upsert: true, new: true }
+);
+const hrManagerJob = await JobTitle.findOneAndUpdate(
+  { nameAr: "مدير موارد بشرية" },
+  { nameEn: "HR Manager", code: "JOB-HR-001", department: hrDept._id },
   { upsert: true, new: true }
 );
 const laborerJob = await JobTitle.findOneAndUpdate(
@@ -67,17 +88,20 @@ const laborerJob = await JobTitle.findOneAndUpdate(
 // --- 3. Employees (Users) ---
 const employees = [];
 const empData = [
-  { name: "أحمد محمود", email: "ahmed@zmsco.com", pass: "123456", role: siteEngRole?._id, job: engineerJob._id, status: "AVAILABLE" },
+  { name: "أحمد محمود", email: "ahmed@zmsco.com", pass: "123456", role: siteEngRole?._id, job: siteEngineerJob._id, status: "AVAILABLE" },
+  { name: "مصطفى كامل", email: "mostafa@zmsco.com", pass: "123456", role: siteEngRole?._id, job: civilEngineerJob._id, status: "AVAILABLE" },
+  { name: "إسلام مجدي", email: "islam@zmsco.com", pass: "123456", role: siteEngRole?._id, job: architectJob._id, status: "BUSY" },
+  { name: "نهى سامي", email: "noha@zmsco.com", pass: "123456", role: hrRole?._id, job: hrManagerJob._id, status: "AVAILABLE" },
   { name: "خالد سعيد", email: "khaled@zmsco.com", pass: "123456", role: userRole?._id, job: laborerJob._id, status: "AVAILABLE" },
   { name: "يوسف النجار", email: "youssef@zmsco.com", pass: "123456", role: userRole?._id, job: laborerJob._id, status: "BUSY" },
-  { name: "مروان طارق", email: "marwan@zmsco.com", pass: "123456", role: siteEngRole?._id, job: engineerJob._id, status: "ON_LEAVE" }
+  { name: "مروان طارق", email: "marwan@zmsco.com", pass: "123456", role: siteEngRole?._id, job: siteEngineerJob._id, status: "ON_LEAVE" }
 ];
 
 for (const e of empData) {
   const u = await User.create({
     name: e.name,
     email: e.email,
-    password: e.pass, // normally hashed, but ok for fast seed
+    password: e.pass, // normally hashed
     role: e.role,
     jobTitle: e.job,
     status: e.status,
