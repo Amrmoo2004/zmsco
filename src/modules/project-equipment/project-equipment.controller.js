@@ -42,6 +42,10 @@ const router = Router();
  *         required: true
  *         schema: { type: string }
  *         description: Project ObjectId
+ *       - in: query
+ *         name: phase
+ *         schema: { type: string }
+ *         description: "Filter by Phase ObjectId"
  *     responses:
  *       200:
  *         description: List of project equipment
@@ -156,6 +160,9 @@ const router = Router();
  *                   إذا وُجد: يُجلب الاسم والتكلفة اليومية تلقائياً.
  *                   يُغني عن `name` و `unitCost`.
  *                 example: "64a2f1c3e21b4a0012345678"
+ *               phase:
+ *                 type: string
+ *                 description: "اختياري — Phase ObjectId لربط المعدة بمرحلة معينة"
  *               name:
  *                 type: string
  *                 description: "✍️ **Mode 2** — اسم المعدة. مطلوب إذا لم يُرسَل `equipmentId`."

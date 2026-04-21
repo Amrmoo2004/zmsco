@@ -23,6 +23,10 @@ const router = Router();
  *         name: projectId
  *         required: true
  *         schema: { type: string }
+ *       - in: query
+ *         name: phase
+ *         schema: { type: string }
+ *         description: "Filter by Phase ObjectId"
  *     responses:
  *       200: { description: List of members }
  *   post:
@@ -43,6 +47,7 @@ const router = Router();
  *               user: { type: string, description: "User ObjectId (optional - omit to create a VACANT slot)" }
  *               role: { type: string, description: "Role title e.g. مدير المشروع" }
  *               jobTitle: { type: string, description: "JobTitle ObjectId" }
+ *               phase: { type: string, description: "Phase ObjectId (optional)" }
  *               status: { type: string, enum: [ACTIVE, VACANT], description: "Defaults to ACTIVE if user provided, VACANT otherwise" }
  *               estimatedCost: { type: number, description: "Estimated cost for this role slot" }
  *     responses:
