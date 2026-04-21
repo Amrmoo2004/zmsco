@@ -8,6 +8,12 @@ const projectEquipmentSchema = new mongoose.Schema(
             required: true
         },
 
+        // ─── Phase Reference (optional) ───────────────────────────────────────
+        phase: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "ProjectPhase"
+        },
+
         // ─── Mode 1: Reference from Equipment Fleet (like materials) ──────────
         equipmentRef: {
             type: mongoose.Schema.Types.ObjectId,

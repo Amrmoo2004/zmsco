@@ -69,7 +69,9 @@ export const login = asynchandler(async (req, res, next) => {
 
   const token = generateToken({
     userId: user._id,
-    roleId: user.role._id
+    roleId: user.role._id,
+    role: user.role.name,       // ← needed by Socket.IO to assign role rooms
+    name: user.name             // ← used for presence display
   });
 
   return res.status(200).json({

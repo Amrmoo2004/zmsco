@@ -6,14 +6,20 @@ import { asynchandler } from "../../utils/response/response.js";
 import { createNotification } from "../notifications/notification.service.js";
 import { emitToProject } from "../../utils/socket.js";
 
-/** Get project members */
+/** Get project members — supports optional ?phase={phaseId} filter */
 export const getProjectMembers = asynchandler(async (req, res, next) => {
     const { projectId } = req.params;
+    const { phase } = req.query;
+
     const project = await Project.findById(projectId);
     if (!project) return next(new AppError("Project not found", 404));
 
-    const members = await ProjectMember.find({ project: projectId })
+    const filter = { project: projectId };
+    if (phase) filter.phase = phase;
+
+    const members = await ProjectMember.find(filter)
         .populate("user", "name email")
+        .populate("phase", "name order")
         .sort({ joinedAt: -1 });
 
     return res.status(200).json({ success: true, data: members });
@@ -22,7 +28,7 @@ export const getProjectMembers = asynchandler(async (req, res, next) => {
 /** Add member to project — supports both assigned users and VACANT slots */
 export const addProjectMember = asynchandler(async (req, res, next) => {
     const { projectId } = req.params;
-    const { user, role, jobTitle, status, estimatedCost } = req.body;
+    const { user, role, jobTitle, status, estimatedCost, phase } = req.body;
 
     const project = await Project.findById(projectId);
     if (!project) return next(new AppError("Project not found", 404));
@@ -41,6 +47,7 @@ export const addProjectMember = asynchandler(async (req, res, next) => {
         user: user || null,
         role,
         jobTitle,
+        phase: phase || undefined,
         status: status || (user ? "ACTIVE" : "VACANT"),
         estimatedCost: estimatedCost || 0
     });

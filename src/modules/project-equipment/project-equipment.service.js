@@ -4,14 +4,20 @@ import { Equipment } from "../../db/models/hr/equipment.model.js";
 import { AppError } from "../../utils/appError.js";
 import { asynchandler } from "../../utils/response/response.js";
 
-/** Get project equipment */
+/** Get project equipment — supports optional ?phase={phaseId} filter */
 export const getProjectEquipment = asynchandler(async (req, res, next) => {
     const { projectId } = req.params;
+    const { phase } = req.query;
+
     const project = await Project.findById(projectId);
     if (!project) return next(new AppError("Project not found", 404));
 
-    const equipment = await ProjectEquipment.find({ project: projectId })
+    const filter = { project: projectId };
+    if (phase) filter.phase = phase;
+
+    const equipment = await ProjectEquipment.find(filter)
         .populate("equipmentRef", "name type brand condition dailyCost")
+        .populate("phase", "name order")
         .sort({ createdAt: -1 });
     return res.status(200).json({ success: true, data: equipment });
 });
@@ -34,7 +40,8 @@ export const addProjectEquipment = asynchandler(async (req, res, next) => {
         totalCost,
         startDate,
         endDate,
-        status
+        status,
+        phase          // الـ Phase اللي المعدة متعلقة بيها (اختياري)
     } = req.body;
 
     const project = await Project.findById(projectId);
@@ -66,6 +73,7 @@ export const addProjectEquipment = asynchandler(async (req, res, next) => {
 
     const equipment = await ProjectEquipment.create({
         project: projectId,
+        phase: phase || undefined,
         equipmentRef,
         name: resolvedName,
         count,

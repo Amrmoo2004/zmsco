@@ -41,8 +41,10 @@ export const initSocket = (httpServer) => {
         // ─── Always join the user's private room ─────────────────────────────────
         socket.join(`user:${socket.userId}`);
 
-        // Role room (managers get system alerts)
-        if (socket.userRole === 'admin' || socket.userRole === 'manager') {
+        // Role room — المديرين يستلمون تنبيهات النظام
+        // role names in DB: ADMIN, PROJECT_MANAGER, WAREHOUSE_MANAGER, FINANCIAL_MANAGER
+        const managerRoles = ['ADMIN', 'PROJECT_MANAGER', 'WAREHOUSE_MANAGER', 'FINANCIAL_MANAGER', 'admin', 'manager'];
+        if (managerRoles.includes(socket.userRole)) {
             socket.join('role:manager');
         }
 
