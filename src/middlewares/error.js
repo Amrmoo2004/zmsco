@@ -23,9 +23,14 @@ export const globalErrorHandler = (err, req, res, next) => {
   // Handle Mongoose Duplicate Key Error
   if (err.code === 11000) {
     statusCode = 400;
-    const field = Object.keys(err.keyValue)[0];
-    message = `Duplicate value error for field: ${field}`;
-    errors = [{ field, message: `The value '${err.keyValue[field]}' already exists` }];
+    if (err.keyValue && typeof err.keyValue === 'object') {
+      const field = Object.keys(err.keyValue)[0];
+      message = `Duplicate value error for field: ${field}`;
+      errors = [{ field, message: `The value '${err.keyValue[field]}' already exists` }];
+    } else {
+      message = "Duplicate value error";
+      errors = [{ field: 'unknown', message: 'A duplicate key error occurred' }];
+    }
   }
 
   res.status(statusCode).json({

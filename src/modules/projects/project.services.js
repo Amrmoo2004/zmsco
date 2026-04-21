@@ -150,16 +150,19 @@ export const create_project = asynchandler(async (req, res, next) => {
   }
   if (actualMaterials?.length > 0) {
       const materialsToInsert = actualMaterials.map(m => {
-          const qty = m.plannedQuantity || m.quantity || 0;
-          const cost = m.totalCost || (m.unitCost ? m.unitCost * qty : 0);
+          // Destructure _id out to prevent MongoDB duplicate key error when frontend sends full material objects
+          const { _id, materialId, material: materialRef, ...rest } = m;
+          const resolvedMaterialId = materialRef || _id || materialId;
+          const qty = rest.plannedQuantity || rest.quantity || 0;
+          const cost = rest.totalCost || (rest.unitCost ? rest.unitCost * qty : 0);
           estimatedCost += cost;
           return {
-              ...m,
+              ...rest,
               project: project._id,
-              material: m.material || m._id || m.materialId,
+              material: resolvedMaterialId,
               plannedQuantity: qty,
-              issuedQuantity: 0, // No material is issued at creation step
-              unitCost: m.unitCost || 0,
+              issuedQuantity: 0,
+              unitCost: rest.unitCost || 0,
               totalCost: cost
           };
       });
