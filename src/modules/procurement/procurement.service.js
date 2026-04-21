@@ -91,16 +91,25 @@ export const receiveGoods = asynchandler(async (req, res, next) => {
     if (po.status === "RECEIVED") return next(new AppError("PO already received", 400));
 
     for (const item of po.items) {
+        // Guard: skip if material reference is broken (e.g. material was deleted)
+        if (!item.material) {
+            console.warn(`[receiveGoods] Skipping item — material reference is null in PO ${poId}`);
+            continue;
+        }
+
+        const materialId = item.material._id || item.material;
+        const materialName = item.material.name || 'Unknown';
+
         const inv = await Inventory.findOneAndUpdate(
-            { material: item.material._id || item.material },
+            { material: materialId },
             { $inc: { quantity: item.quantity }, $set: { lastUpdated: new Date() } },
             { upsert: true, new: true }
         );
 
         // 📦 Broadcast live inventory update to all connected clients
         emitInventoryUpdate({
-            materialId: String(item.material._id || item.material),
-            materialName: item.material.name || 'Unknown',
+            materialId: String(materialId),
+            materialName,
             newQuantity: inv?.quantity,
             added: item.quantity,
             source: 'GOODS_RECEIVED',
