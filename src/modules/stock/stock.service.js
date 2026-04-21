@@ -1,7 +1,7 @@
 import MaterialRequest from "../../db/models/metrials/materialRequest.model.js";
 import MaterialTransaction from "../../db/models/metrials/materialTransaction.model.js";
 import Inventory from "../../db/models/inventory.js";
-import ProjectMaterial from "../../db/models/metrials/📁 projectMaterial.model.js";
+import ProjectMaterial from "../../db/models/metrials/projectMaterial.model.js";
 import { AppError } from "../../utils/appError.js";
 import { asynchandler } from "../../utils/response/response.js";
 

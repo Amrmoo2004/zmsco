@@ -4,7 +4,7 @@ import ProjectPhase from "../db/models/projects/project.phase.js";
 import ProjectMember from "../db/models/projects/project.member.js";
 import ProjectDocument from "../db/models/projects/project.document.js";
 import ProjectEquipment from "../db/models/projects/project.equipment.js";
-import ProjectMaterial from "../db/models/metrials/📁 projectMaterial.model.js";
+import ProjectMaterial from "../db/models/metrials/projectMaterial.model.js";
 
 const DRAFT_EXPIRY_HOURS = 48;
 

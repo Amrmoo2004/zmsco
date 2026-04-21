@@ -7,7 +7,7 @@ import User from "../../db/models/user.js";
 import Warehouse from "../../db/models/warehouse.model.js";
 import ProjectPhase from "../../db/models/projects/project.phase.js";
 import ProjectDocument from "../../db/models/projects/project.document.js";
-import ProjectMaterial from "../../db/models/metrials/📁 projectMaterial.model.js";
+import ProjectMaterial from "../../db/models/metrials/projectMaterial.model.js";
 import ProjectEquipment from "../../db/models/projects/project.equipment.js";
 import { Equipment } from "../../db/models/hr/equipment.model.js";
 import ProjectType from "../../db/models/settings/projectType.model.js";

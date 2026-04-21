@@ -3,7 +3,7 @@ import Material from "../../db/models/metrials/metrials.js";
 import Project from "../../db/models/projects/project.js";
 import Inventory from "../../db/models/inventory.js";
 import MaterialTransaction from "../../db/models/metrials/materialTransaction.model.js";
-import ProjectMaterial from "../../db/models/metrials/📁 projectMaterial.model.js";
+import ProjectMaterial from "../../db/models/metrials/projectMaterial.model.js";
 import mongoose from "mongoose";
 import { AppError } from "../../utils/appError.js";
 import { asynchandler } from "../../utils/response/response.js";
