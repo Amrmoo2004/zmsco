@@ -18,7 +18,13 @@ export const getProjectDocuments = asynchandler(async (req, res, next) => {
         return next(new AppError("Project not found", 404));
     }
 
-    const documents = await ProjectDocument.find({ project: projectId })
+    const { phase } = req.query;
+    const query = { project: projectId };
+    if (phase) {
+        query.phase = phase;
+    }
+
+    const documents = await ProjectDocument.find(query)
         .populate("uploadedBy", "name email")
         .sort({ createdAt: -1 });
 
@@ -54,7 +60,7 @@ export const getDocumentById = asynchandler(async (req, res, next) => {
  */
 export const uploadProjectDocument = asynchandler(async (req, res, next) => {
     const { projectId } = req.params;
-    const { name, isRequired } = req.body;
+    const { name, isRequired, phase } = req.body;
 
     const project = await Project.findById(projectId).populate("members.user", "_id");
     if (!project) {
@@ -76,6 +82,7 @@ export const uploadProjectDocument = asynchandler(async (req, res, next) => {
     // 2. Create the ProjectDocument with the Cloudinary URL
     const document = await ProjectDocument.create({
         project: projectId,
+        phase: phase || undefined,
         name: name || req.file.originalname,
         fileUrl: attachment.url,
         isRequired: isRequired !== undefined ? isRequired : true,

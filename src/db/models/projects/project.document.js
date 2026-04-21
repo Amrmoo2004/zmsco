@@ -7,6 +7,7 @@ const projectDocumentSchema = new mongoose.Schema(
             ref: "Project",
             required: true
         },
+        phase: { type: mongoose.Schema.Types.ObjectId, ref: 'ProjectPhase' },
         name: {
             type: String,
             required: true

@@ -24,6 +24,10 @@ const router = Router();
  *         name: projectId
  *         required: true
  *         schema: { type: string }
+ *       - in: query
+ *         name: phase
+ *         schema: { type: string }
+ *         description: "Filter by Phase ObjectId"
  *     responses:
  *       200: { description: List of documents }
  *   post:
@@ -37,17 +41,24 @@ const router = Router();
  *     requestBody:
  *       required: true
  *       content:
- *         application/json:
+ *         multipart/form-data:
  *           schema:
  *             type: object
  *             required:
- *               - name
- *               - url
+ *               - file
  *             properties:
- *               name: { type: string }
- *               url: { type: string }
- *               type: { type: string, description: "MongoDB ObjectId" }
- *               description: { type: string }
+ *               file:
+ *                 type: string
+ *                 format: binary
+ *               name:
+ *                 type: string
+ *                 description: "اسم المرفق (اختياري، هيكتب اسم الملف لو فاضي)"
+ *               phase:
+ *                 type: string
+ *                 description: "Phase ObjectId (اختياري للربط بمرحلة)"
+ *               isRequired:
+ *                 type: boolean
+ *                 default: true
  *     responses:
  *       201: { description: Document uploaded }
  */
