@@ -572,71 +572,96 @@ export const fulfillRequest = asynchandler(async (req, res, next) => {
  */
 export const getProjectMaterialTracking = asynchandler(async (req, res, next) => {
   const { projectId } = req.params;
+  const { phase } = req.query;
 
   const project = await Project.findById(projectId);
   if (!project) return next(new AppError("Project not found", 404));
 
-  // كل ProjectMaterials المرتبطة بالمشروع
+  // كل ProjectMaterials المرتبطة بالمشروع (المخططة)
   const projectMaterials = await ProjectMaterial.find({ project: projectId })
     .populate("material", "name unit standardCost alertQuantity category")
     .lean();
 
+  const matchConditionApproved = {
+    project: new mongoose.Types.ObjectId(projectId),
+    status: { $in: ["APPROVED", "FULFILLED"] }
+  };
+  const matchConditionIssued = {
+    project: new mongoose.Types.ObjectId(projectId),
+    status: "FULFILLED"
+  };
+
+  if (phase) {
+    matchConditionApproved.phase = new mongoose.Types.ObjectId(phase);
+    matchConditionIssued.phase = new mongoose.Types.ObjectId(phase);
+  }
+
   // جمع الكميات من الطلبات المعتمدة/المنجزة
   const approvedAgg = await MaterialRequest.aggregate([
-    {
-      $match: {
-        project: new mongoose.Types.ObjectId(projectId),
-        status:  { $in: ["APPROVED", "FULFILLED"] }
-      }
-    },
+    { $match: matchConditionApproved },
     { $unwind: "$materials" },
     {
       $group: {
-        _id:          "$materials.material",
-        approvedQty:  { $sum: "$materials.quantity" },
+        _id: "$materials.material",
+        approvedQty: { $sum: "$materials.quantity" },
         approvedCost: { $sum: "$materials.totalCost" }
       }
     }
   ]);
 
-  const approvedMap = {};
-  approvedAgg.forEach((a) => { approvedMap[String(a._id)] = a; });
-
   // جمع الكميات المصروفة فعلياً من الطلبات FULFILLED
   const issuedAgg = await MaterialRequest.aggregate([
-    {
-      $match: {
-        project: new mongoose.Types.ObjectId(projectId),
-        status:  "FULFILLED"
-      }
-    },
+    { $match: matchConditionIssued },
     { $unwind: "$materials" },
     {
       $group: {
-        _id:       "$materials.material",
+        _id: "$materials.material",
         issuedQty: { $sum: "$materials.quantity" },
-        issuedCost:{ $sum: "$materials.totalCost" }
+        issuedCost: { $sum: "$materials.totalCost" }
       }
     }
   ]);
+
+  // تجميع كل الـ Materials الفريدة (المخططة + المعتمدة + المصروفة)
+  const allMaterialIds = new Set();
+  projectMaterials.forEach(pm => allMaterialIds.add(String(pm.material?._id || pm.material)));
+  approvedAgg.forEach(a => allMaterialIds.add(String(a._id)));
+  issuedAgg.forEach(i => allMaterialIds.add(String(i._id)));
+
+  const uniqueMatIds = Array.from(allMaterialIds);
+
+  // جلب تفاصيل المواد اللي ممكن تكون اتصرفت بس مش موجودة في الـ ProjectMaterials (غير مخططة)
+  const materialDetails = await mongoose.model("Material").find({ _id: { $in: uniqueMatIds } }).lean();
+  const matDict = {};
+  materialDetails.forEach(m => { matDict[String(m._id)] = m; });
+
+  const pmDict = {};
+  projectMaterials.forEach(pm => { pmDict[String(pm.material?._id || pm.material)] = pm; });
+
+  const approvedMap = {};
+  approvedAgg.forEach((a) => { approvedMap[String(a._id)] = a; });
 
   const issuedMap = {};
   issuedAgg.forEach((i) => { issuedMap[String(i._id)] = i; });
 
   // بناء بيانات كل مادة
-  const trackingData = projectMaterials.map((pm) => {
-    const matId       = String(pm.material?._id || pm.material);
+  const trackingData = uniqueMatIds.map((matId) => {
+    const pm = pmDict[matId];
+    const matInfo = pm?.material || matDict[matId];
+    
     const approvedRec = approvedMap[matId] || { approvedQty: 0, approvedCost: 0 };
-    const issuedRec   = issuedMap[matId]   || { issuedQty:   0, issuedCost: 0 };
+    const issuedRec = issuedMap[matId] || { issuedQty: 0, issuedCost: 0 };
 
-    const plannedQty  = pm.plannedQuantity || 0;
+    // إذا كنا نبحث عن مرحلة معينة، الـ planned تعتبر 0 لهذه المرحلة لأنها تُعرف للمشروع ككل فقط
+    const plannedQty = phase ? 0 : (pm?.plannedQuantity || 0);
     const approvedQty = approvedRec.approvedQty;
-    const issuedQty   = issuedRec.issuedQty;
-    const unitCost    = pm.unitCost || pm.material?.standardCost || 0;
+    const issuedQty = issuedRec.issuedQty;
+    
+    const unitCost = pm?.unitCost || matInfo?.standardCost || 0;
 
-    const plannedCost   = plannedQty  * unitCost;
-    const approvedCost  = approvedRec.approvedCost;
-    const issuedCost    = issuedRec.issuedCost;
+    const plannedCost = phase ? 0 : (plannedQty * unitCost);
+    const approvedCost = approvedRec.approvedCost;
+    const issuedCost = issuedRec.issuedCost;
 
     // نسبة الصرف من المسموح (issued / approved)
     const consumptionRate = approvedQty > 0
@@ -649,17 +674,17 @@ export const getProjectMaterialTracking = asynchandler(async (req, res, next) =>
       : 0;
 
     return {
-      material:        pm.material,
+      material: matInfo,
       unitCost,
       plannedQty,
       approvedQty,
       issuedQty,
-      remainingQty:    Math.max(approvedQty - issuedQty, 0),
+      remainingQty: Math.max(approvedQty - issuedQty, 0),
       plannedCost,
       approvedCost,
       issuedCost,
-      consumptionRate, // نسبة الصرف من المسموح
-      planRate,        // نسبة الصرف من الطلبية
+      consumptionRate,
+      planRate,
       status:
         issuedQty >= approvedQty && approvedQty > 0
           ? "FULLY_CONSUMED"
@@ -669,11 +694,12 @@ export const getProjectMaterialTracking = asynchandler(async (req, res, next) =>
     };
   });
 
-  // إجمالي المشروع
-  const totalPlannedCost  = trackingData.reduce((s, m) => s + m.plannedCost,  0);
+  // إجمالي المشروع أو المرحلة
+  const totalPlannedCost = trackingData.reduce((s, m) => s + m.plannedCost, 0);
   const totalApprovedCost = trackingData.reduce((s, m) => s + m.approvedCost, 0);
-  const totalIssuedCost   = trackingData.reduce((s, m) => s + m.issuedCost,   0);
-  const overallRate       = totalApprovedCost > 0
+  const totalIssuedCost = trackingData.reduce((s, m) => s + m.issuedCost, 0);
+  
+  const overallRate = totalApprovedCost > 0
     ? Math.round((totalIssuedCost / totalApprovedCost) * 100)
     : 0;
 
@@ -681,12 +707,12 @@ export const getProjectMaterialTracking = asynchandler(async (req, res, next) =>
     success: true,
     data: {
       project: {
-        _id:              project._id,
-        name:             project.name,
+        _id: project._id,
+        name: project.name,
         totalPlannedCost,
         totalApprovedCost,
         totalIssuedCost,
-        remainingBudget:  totalApprovedCost - totalIssuedCost,
+        remainingBudget: totalApprovedCost - totalIssuedCost,
         overallRate
       },
       materials: trackingData

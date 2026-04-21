@@ -271,6 +271,10 @@ router.patch("/:id/fulfill", auth, permission("FULFILL_MATERIAL_REQUEST"), mater
  *         name: projectId
  *         required: true
  *         schema: { type: string }
+ *       - in: query
+ *         name: phase
+ *         schema: { type: string }
+ *         description: "MongoDB ObjectId للمرحلة (اختياري للفلترة)"
  *         description: "MongoDB ObjectId للمشروع"
  *     responses:
  *       200:
