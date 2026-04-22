@@ -37,12 +37,11 @@ const quoteSchema = new mongoose.Schema(
 );
 
 // Auto-calculate total
-quoteSchema.pre("save", function (next) {
+quoteSchema.pre("save", async function () {
     this.items.forEach(item => {
         item.totalPrice = item.quantity * item.unitPrice;
     });
     this.totalAmount = this.items.reduce((sum, item) => sum + (item.totalPrice || 0), 0);
-    next();
 });
 
 export default mongoose.model("Quote", quoteSchema);

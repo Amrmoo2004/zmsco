@@ -45,13 +45,12 @@ const certificateSchema = new mongoose.Schema(
 );
 
 // Auto-generate certificate number
-certificateSchema.pre("save", async function (next) {
+certificateSchema.pre("save", async function () {
     if (!this.certificateNumber) {
         const year = new Date().getFullYear();
         const count = await mongoose.model("Certificate").countDocuments();
         this.certificateNumber = `CERT-${year}-${String(count + 1).padStart(3, "0")}`;
     }
-    next();
 });
 
 export default mongoose.model("Certificate", certificateSchema);
