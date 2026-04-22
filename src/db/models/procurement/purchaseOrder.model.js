@@ -32,7 +32,6 @@ const purchaseOrderSchema = new mongoose.Schema(
             default: "PENDING"
         },
 
-        // ─── Additional Context ─────────────────────────────────────────────────
         quote: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "Quote"

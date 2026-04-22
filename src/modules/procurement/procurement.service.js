@@ -129,6 +129,13 @@ export const receiveGoods = asynchandler(async (req, res, next) => {
         timestamp: new Date().toISOString(),
     });
 
+    // Ensure full details are returned to the frontend
+    await po.populate([
+        { path: "items.material", select: "name unit" },
+        { path: "supplier", select: "name contactPerson phone" },
+        { path: "createdBy", select: "name email" }
+    ]);
+
     return res.status(200).json({ success: true, message: "Goods received and Inventory updated", data: po });
 });
 
@@ -265,7 +272,7 @@ export const getRFQQuotes = asynchandler(async (req, res, next) => {
  */
 export const selectQuote = asynchandler(async (req, res, next) => {
     const { rfqId, quoteId } = req.params;
-    const { deliveryDate, paymentTerms, warehouse } = req.body;
+    const { deliveryDate, paymentTerms, warehouse } = req.body || {};
 
     const rfq = await RFQ.findById(rfqId);
     if (!rfq) return next(new AppError("RFQ not found", 404));
@@ -286,6 +293,24 @@ export const selectQuote = asynchandler(async (req, res, next) => {
     selectedQuote.status = "SELECTED";
     await selectedQuote.save();
 
+    // Build PO items — skip any item whose material ref is broken
+    const poItems = selectedQuote.items
+        .filter(item => {
+            if (!item.material) {
+                console.warn(`[selectQuote] Skipping item — material ref is null in Quote ${quoteId}`);
+                return false;
+            }
+            return true;
+        })
+        .map(item => ({
+            material: item.material._id || item.material,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice
+        }));
+
+    if (poItems.length === 0)
+        return next(new AppError("Cannot create PO — all quote items have broken material references", 400));
+
     // Auto-create PO from selected quote
     const po = await PurchaseOrder.create({
         rfq: rfqId,
@@ -293,11 +318,7 @@ export const selectQuote = asynchandler(async (req, res, next) => {
         supplier: selectedQuote.supplier,
         project: rfq.project,
         warehouse: warehouse || rfq.warehouse,
-        items: selectedQuote.items.map(item => ({
-            material: item.material._id || item.material,
-            quantity: item.quantity,
-            unitPrice: item.unitPrice
-        })),
+        items: poItems,
         totalAmount: selectedQuote.totalAmount,
         deliveryDate: deliveryDate || undefined,
         paymentTerms: paymentTerms || selectedQuote.paymentTerms,
