@@ -30,7 +30,7 @@ const attachmentSchema = new mongoose.Schema(
         // Polymorphic reference — optional context
         refModel: {
             type: String,
-            enum: ['ProjectDocument', 'MaterialRequest', 'ProcurementOrder', null],
+            enum: ['ProjectDocument', 'MaterialRequest', 'ProcurementOrder', 'Ticket', null],
             default: null,
         },
         refId: {
