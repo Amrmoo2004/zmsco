@@ -2,61 +2,97 @@ import mongoose from "mongoose";
 
 const ticketSchema = new mongoose.Schema(
     {
+        // Auto-generated: REQ-YYYY-NNN
         requestId: {
             type: String,
             unique: true
-            // Auto-generated in pre-save: REQ-2025-001
         },
 
+        // نوع الطلب — matches UI dropdown
         type: {
             type: String,
             required: true,
             enum: ["MAINTENANCE", "SUPPORT", "INSPECTION", "OTHER"]
         },
 
+        // المشروع
         project: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "Project"
         },
 
+        // مرحلة المشروع
+        projectPhase: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "ProjectPhase"
+        },
+
+        // المعدة / الجهاز
         equipment: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "Equipment"
         },
 
+        // وصف المشكلة
         description: {
             type: String,
             required: true
         },
 
+        // ملاحظات المراجعة (يظهر في صفحة التفاصيل)
+        reviewNotes: {
+            type: String,
+            default: ""
+        },
+
+        // الأولوية
         priority: {
             type: String,
             enum: ["LOW", "MEDIUM", "HIGH", "CRITICAL"],
             default: "MEDIUM"
         },
 
+        // تاريخ الإنجاز المطلوب
         targetDate: Date,
 
+        // حالة الطلب (workflow)
         status: {
             type: String,
             enum: ["NEW", "UNDER_REVIEW", "AWAITING_APPROVAL", "IN_PROGRESS", "COMPLETED", "REJECTED"],
             default: "NEW"
         },
 
+        // مقدم الطلب
         requester: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "User",
             required: true
         },
 
+        // الفريق المعين
         assignedTeam: [{
             type: mongoose.Schema.Types.ObjectId,
             ref: "User"
         }],
 
-        rejectionReason: String,
+        // سبب الرفض
+        rejectionReason: {
+            type: String,
+            default: ""
+        },
 
-        // Workflow History
+        // المرفقات (Cloudinary)
+        attachments: [
+            {
+                url: { type: String, required: true },
+                publicId: { type: String, required: true },
+                originalName: { type: String },
+                mimeType: { type: String },
+                uploadedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" }
+            }
+        ],
+
+        // تاريخ تغييرات الحالة
         history: [
             {
                 status: String,
@@ -66,7 +102,7 @@ const ticketSchema = new mongoose.Schema(
             }
         ],
 
-        // Comments
+        // التعليقات
         comments: [
             {
                 user: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
@@ -78,7 +114,7 @@ const ticketSchema = new mongoose.Schema(
     { timestamps: true }
 );
 
-// Auto-generate requestId
+// Auto-generate requestId: REQ-YYYY-NNN
 ticketSchema.pre("save", async function () {
     if (!this.requestId) {
         const year = new Date().getFullYear();
