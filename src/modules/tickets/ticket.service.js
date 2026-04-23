@@ -162,7 +162,7 @@ export const getTicketStats = asynchandler(async (req, res) => {
     // 4) Per-team member performance
     const byTeam = await Ticket.aggregate([
         { $match: dateMatch },
-        { $unwind: { path: "$assignedTeam", preserveNullAndEmpty: false } },
+        { $unwind: "$assignedTeam" },
         {
             $group: {
                 _id: "$assignedTeam",
