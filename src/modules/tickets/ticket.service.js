@@ -141,7 +141,7 @@ export const getTicketStats = asynchandler(async (req, res) => {
                 as: "project"
             }
         },
-        { $unwind: { path: "$project", preserveNullAndEmpty: true } },
+        { $unwind: { path: "$project", preserveNullAndEmptyArrays: true } },
         {
             $project: {
                 projectName: { $ifNull: ["$project.name", "غير محدد"] },
