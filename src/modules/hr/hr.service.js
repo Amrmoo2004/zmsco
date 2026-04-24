@@ -49,8 +49,8 @@ export const deleteWorkLog = asynchandler(async (req, res, next) => {
 export const getHrRequests = asynchandler(async (req, res) => {
     const filter = req.query.all === "true" ? {} : { user: req.user._id };
     const requests = await HrRequest.find(filter)
-        .populate("user", "firstName lastName email")
-        .populate("processedBy", "firstName lastName email")
+        .populate("user", "name email")
+        .populate("processedBy", "name email")
         .sort({ createdAt: -1 })
         .lean();
 
@@ -60,7 +60,7 @@ export const getHrRequests = asynchandler(async (req, res) => {
         const duration = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) || 1;
         return {
             ...req,
-            userName: req.user ? `${req.user.firstName} ${req.user.lastName}` : "غير معروف",
+            userName: req.user ? req.user.name : "غير معروف",
             duration: `${duration} أيام`
         };
     });
@@ -105,7 +105,6 @@ export const getDashboard = asynchandler(async (req, res) => {
         .populate("role", "name")
         .populate("jobTitle", "nameAr nameEn")
         .lean();
-    
     // Get all active assignments for employees
     const empAssignments = await ProjectMember.find({ status: "ACTIVE" })
         .populate("project", "name")
@@ -119,9 +118,8 @@ export const getDashboard = asynchandler(async (req, res) => {
         const activeAssig = empAssignments.find(a => a.user?.toString() === emp._id.toString());
         const utilizationRate = activeAssig ? (activeAssig.allocationPercentage || 100) : 0;
         
-        // Mock cost and revenue for employees (hourlyRate * 8hrs * 22days)
         const cost = (emp.hourlyRate || 50) * 8 * 22 * (utilizationRate / 100);
-        const revenue = cost * 1.3; // 30% margin assumption
+        const revenue = cost * 1.3;
 
         totalMonthlyCost += cost;
         totalRevenue += revenue;
@@ -129,9 +127,9 @@ export const getDashboard = asynchandler(async (req, res) => {
 
         return {
             id: emp._id,
-            name: `${emp.firstName} ${emp.lastName}`,
+            name: emp.name,
             jobTitle: emp.jobTitle?.nameAr || emp.jobTitle?.nameEn || emp.role?.name,
-            status: emp.hrProfile?.status === "ON_LEAVE" ? "إجازة" : (activeAssig ? "مشغول" : "متاح"),
+            status: emp.status === "ON_LEAVE" ? "إجازة" : (activeAssig ? "مشغول" : "متاح"),
             utilizationRate: utilizationRate > 100 ? 100 : utilizationRate,
             currentProject: activeAssig?.project?.name || "غير معين",
             cost,

@@ -239,7 +239,7 @@ export const get_member_profile = asynchandler(async (req, res, next) => {
     success: true,
     data: {
       ...user,
-      performanceRate: user.hrProfile?.performanceRating ? Math.round((user.hrProfile.performanceRating / 5) * 100) : 0,
+      performanceRate: user.performanceRating ? Math.round((user.performanceRating / 5) * 100) : 0,
       stats: {
         completedProjects: assignments.filter(a => a.status !== "ACTIVE").length,
         activeProjects: activeProjectsCount,

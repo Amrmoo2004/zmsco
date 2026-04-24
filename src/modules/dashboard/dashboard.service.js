@@ -64,13 +64,13 @@ export const getDashboardStats = asynchandler(async (req, res, next) => {
     });
 
     // 4. Employee Performance
-    const users = await UserModel.find({ isDeleted: false }, "firstName lastName hrProfile");
+    const users = await UserModel.find({ isActive: true }, "name status performanceRating hrProfile");
     const employeePerformance = users.map(user => {
         return {
             id: user._id,
-            name: `${user.firstName} ${user.lastName}`,
-            performanceRating: user.hrProfile?.performanceRating || 0,
-            completionRate: user.hrProfile?.performanceRating ? (user.hrProfile.performanceRating / 5) * 100 : 0
+            name: user.name,
+            performanceRating: user.performanceRating || 0,
+            completionRate: user.performanceRating ? (user.performanceRating / 5) * 100 : 0
         };
     }).sort((a, b) => b.completionRate - a.completionRate).slice(0, 5); // top 5 employees
 
@@ -81,8 +81,8 @@ export const getDashboardStats = asynchandler(async (req, res, next) => {
     let onLeaveCount = 0;
     
     users.forEach(user => {
-        if (user.hrProfile?.status === "ON_LEAVE") onLeaveCount++;
-        else if (user.hrProfile?.status === "AVAILABLE" || user.hrProfile?.status === "BUSY") presentCount++;
+        if (user.status === "ON_LEAVE") onLeaveCount++;
+        else if (user.status === "AVAILABLE" || user.status === "BUSY") presentCount++;
         else absentCount++;
     });
 
