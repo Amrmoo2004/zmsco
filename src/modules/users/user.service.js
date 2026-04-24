@@ -187,6 +187,7 @@ export const update_hr_profile = asynchandler(async (req, res, next) => {
 });
 
 import ProjectMember from "../../db/models/projects/project.member.js";
+import ProjectPhase from "../../db/models/projects/project.phase.js";
 
 export const get_member_profile = asynchandler(async (req, res, next) => {
   const user = await UserModel.findById(req.params.id)
@@ -216,16 +217,36 @@ export const get_member_profile = asynchandler(async (req, res, next) => {
 
   const currentProject = assignments.find(a => a.status === "ACTIVE");
 
+  // Get Assigned Tasks
+  const phases = await ProjectPhase.find({ "tasks.assignedTo": user._id }).populate("project", "name");
+  const assignedTasks = [];
+  phases.forEach(phase => {
+      phase.tasks.forEach(task => {
+          if (task.assignedTo?.toString() === user._id.toString()) {
+              assignedTasks.push({
+                  id: task._id,
+                  name: task.name,
+                  project: phase.project?.name,
+                  date: task.dueDate || task.createdAt,
+                  progress: task.status === "COMPLETED" ? 100 : (task.status === "IN_PROGRESS" ? 50 : 0),
+                  status: task.status === "COMPLETED" ? "مكتملة" : (task.status === "IN_PROGRESS" ? "قيد التنفيذ" : "معلقة")
+              });
+          }
+      });
+  });
+
   return res.status(200).json({
     success: true,
     data: {
       ...user,
+      performanceRate: user.hrProfile?.performanceRating ? Math.round((user.hrProfile.performanceRating / 5) * 100) : 0,
       stats: {
         completedProjects: assignments.filter(a => a.status !== "ACTIVE").length,
         activeProjects: activeProjectsCount,
         utilizationRate: utilizationRate > 100 ? 100 : utilizationRate
       },
       currentAssignment: currentProject || null,
+      assignedTasks: assignedTasks.sort((a, b) => new Date(b.date) - new Date(a.date)),
       history: assignments.map(a => ({
         project: a.project?.name,
         date: a.startDate || a.createdAt,

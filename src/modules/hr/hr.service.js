@@ -49,10 +49,21 @@ export const deleteWorkLog = asynchandler(async (req, res, next) => {
 export const getHrRequests = asynchandler(async (req, res) => {
     const filter = req.query.all === "true" ? {} : { user: req.user._id };
     const requests = await HrRequest.find(filter)
-        .populate("user", "name email")
-        .populate("processedBy", "name email")
+        .populate("user", "firstName lastName email")
+        .populate("processedBy", "firstName lastName email")
         .sort({ createdAt: -1 })
         .lean();
+
+    const formattedRequests = requests.map(req => {
+        const start = new Date(req.startDate);
+        const end = new Date(req.endDate);
+        const duration = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) || 1;
+        return {
+            ...req,
+            userName: req.user ? `${req.user.firstName} ${req.user.lastName}` : "غير معروف",
+            duration: `${duration} أيام`
+        };
+    });
 
     const stats = {
         total: requests.length,
@@ -61,7 +72,7 @@ export const getHrRequests = asynchandler(async (req, res) => {
         rejected: requests.filter(r => r.status === "REJECTED").length,
     };
 
-    return res.status(200).json({ success: true, data: requests, stats });
+    return res.status(200).json({ success: true, data: formattedRequests, stats });
 });
 
 export const createHrRequest = asynchandler(async (req, res) => {
@@ -118,15 +129,22 @@ export const getDashboard = asynchandler(async (req, res) => {
 
         return {
             id: emp._id,
-            name: emp.name,
+            name: `${emp.firstName} ${emp.lastName}`,
             jobTitle: emp.jobTitle?.nameAr || emp.jobTitle?.nameEn || emp.role?.name,
-            status: activeAssig ? "مشغول" : "متاح",
+            status: emp.hrProfile?.status === "ON_LEAVE" ? "إجازة" : (activeAssig ? "مشغول" : "متاح"),
             utilizationRate: utilizationRate > 100 ? 100 : utilizationRate,
             currentProject: activeAssig?.project?.name || "غير معين",
             cost,
             revenue
         };
     });
+
+    const employeesStats = {
+        total: employees.length,
+        onLeave: formattedEmployees.filter(e => e.status === "إجازة").length,
+        available: formattedEmployees.filter(e => e.status === "متاح").length,
+        busy: formattedEmployees.filter(e => e.status === "مشغول").length
+    };
 
     // 2. Get Equipments
     const equipments = await Equipment.find({ isActive: true }).lean();
@@ -187,6 +205,11 @@ export const getDashboard = asynchandler(async (req, res) => {
     return res.status(200).json({
         success: true,
         data: {
+            stats: {
+                totalEmployees: employeesStats.total,
+                onLeave: employeesStats.onLeave,
+                jobRequests: 0 // Mocked for UI
+            },
             performanceStats: {
                 totalResources,
                 averageUtilization,

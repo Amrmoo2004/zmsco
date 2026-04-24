@@ -269,35 +269,55 @@ export const create_project = asynchandler(async (req, res, next) => {
 
 });
 export const get_projects = asynchandler(async (req, res, next) => {
-  // If the user is an admin, they can see all active projects
-  if (req.user.role === "ADMIN") {
-    const projects = await ProjectModel.find({ isActive: true })
-      .populate("manager", "username email name")
-      .sort({ createdAt: -1 });
+  let query = { isActive: true };
 
-    return res.status(200).json({
-      success: true,
-      data: projects
-    });
-  }
-
-  // Otherwise, normal users can only see projects they manage OR are explicitly assigned to
-  const assignments = await ProjectMember.find({ user: req.user._id }).select("project");
-  const assignedProjectIds = assignments.map(a => a.project);
-
-  const projects = await ProjectModel.find({
-    isActive: true,
-    $or: [
+  // If normal user, filter by assignments or manager
+  if (req.user.role !== "ADMIN") {
+    const assignments = await ProjectMember.find({ user: req.user._id }).select("project");
+    const assignedProjectIds = assignments.map(a => a.project);
+    query.$or = [
       { _id: { $in: assignedProjectIds } },
       { manager: req.user._id }
-    ]
-  })
+    ];
+  }
+
+  const projects = await ProjectModel.find(query)
     .populate("manager", "username email name")
+    .lean()
     .sort({ createdAt: -1 });
+
+  const projectIds = projects.map(p => p._id);
+  const phases = await ProjectPhase.find({ project: { $in: projectIds } }, "project tasks");
+
+  const formattedProjects = projects.map(project => {
+    const pPhases = phases.filter(ph => ph.project?.toString() === project._id.toString());
+    let totalTasks = 0;
+    let completedTasks = 0;
+    
+    pPhases.forEach(ph => {
+      if (ph.tasks) {
+        totalTasks += ph.tasks.length;
+        completedTasks += ph.tasks.filter(t => t.status === "COMPLETED").length;
+      }
+    });
+    
+    const progress = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+    
+    let displayStatus = project.status;
+    if (project.endDate && new Date(project.endDate) < new Date() && project.status !== "COMPLETED") {
+        displayStatus = "DELAYED";
+    }
+
+    return {
+      ...project,
+      progress,
+      displayStatus
+    };
+  });
 
   return res.status(200).json({
     success: true,
-    data: projects
+    data: formattedProjects
   });
 });
 
