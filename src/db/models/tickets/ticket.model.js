@@ -58,7 +58,7 @@ const ticketSchema = new mongoose.Schema(
         // حالة الطلب (workflow)
         status: {
             type: String,
-            enum: ["NEW", "UNDER_REVIEW", "AWAITING_APPROVAL", "IN_PROGRESS", "COMPLETED", "REJECTED"],
+            enum: ["NEW", "UNDER_REVIEW", "AWAITING_APPROVAL", "APPROVED", "IN_PROGRESS", "COMPLETED", "REJECTED"],
             default: "NEW"
         },
 
