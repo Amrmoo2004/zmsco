@@ -1,6 +1,6 @@
 import ProjectEquipment from "../../db/models/projects/project.equipment.js";
 import Project from "../../db/models/projects/project.js";
-import { Equipment } from "../../db/models/hr/equipment.model.js";
+import { Equipment, EquipmentAssignment } from "../../db/models/hr/equipment.model.js";
 import { AppError } from "../../utils/appError.js";
 import { asynchandler } from "../../utils/response/response.js";
 
@@ -88,6 +88,21 @@ export const addProjectEquipment = asynchandler(async (req, res, next) => {
     // Update project estimatedCost
     project.estimatedCost = (project.estimatedCost || 0) + computedTotal;
     await project.save();
+
+    // ─── SYNC WITH CENTRAL FLEET ─────────────────────────────────────────────
+    // If pulled from fleet, mark it as ACTIVE in EquipmentAssignments
+    if (equipmentRef) {
+        await EquipmentAssignment.create({
+            equipment: equipmentRef,
+            project: projectId,
+            phase: phase || undefined,
+            startDate: startDate || new Date(),
+            endDate: endDate || undefined,
+            status: "ACTIVE",
+            allocationPercentage: 100,
+            dailyCostSnapshot: resolvedUnitCost / Math.max(1, Math.ceil(((endDate ? new Date(endDate) : project.endDate || new Date()) - (startDate ? new Date(startDate) : project.startDate || new Date())) / (1000 * 60 * 60 * 24))) // rough daily cost reverse calculation, or just take from fleetItem.dailyCost
+        });
+    }
 
     await equipment.populate("equipmentRef", "name type brand condition dailyCost");
 

@@ -69,6 +69,7 @@ export const getTickets = asynchandler(async (req, res) => {
                 NEW:              { $sum: { $cond: [{ $eq: ["$status", "NEW"] },              1, 0] } },
                 UNDER_REVIEW:     { $sum: { $cond: [{ $eq: ["$status", "UNDER_REVIEW"] },     1, 0] } },
                 AWAITING_APPROVAL:{ $sum: { $cond: [{ $eq: ["$status", "AWAITING_APPROVAL"] },1, 0] } },
+                APPROVED:         { $sum: { $cond: [{ $eq: ["$status", "APPROVED"] },         1, 0] } },
                 IN_PROGRESS:      { $sum: { $cond: [{ $eq: ["$status", "IN_PROGRESS"] },      1, 0] } },
                 COMPLETED:        { $sum: { $cond: [{ $eq: ["$status", "COMPLETED"] },        1, 0] } },
                 REJECTED:         { $sum: { $cond: [{ $eq: ["$status", "REJECTED"] },         1, 0] } },
@@ -80,7 +81,7 @@ export const getTickets = asynchandler(async (req, res) => {
         success: true,
         summary: summary || {
             total: 0, NEW: 0, UNDER_REVIEW: 0,
-            AWAITING_APPROVAL: 0, IN_PROGRESS: 0,
+            AWAITING_APPROVAL: 0, APPROVED: 0, IN_PROGRESS: 0,
             COMPLETED: 0, REJECTED: 0
         },
         pagination: { total, page: Number(page), limit: Number(limit), pages: Math.ceil(total / Number(limit)) },

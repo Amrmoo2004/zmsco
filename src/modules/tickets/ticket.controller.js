@@ -25,7 +25,7 @@ const router = Router();
  *     parameters:
  *       - { in: query, name: project,  schema: { type: string }, description: "ObjectId المشروع" }
  *       - { in: query, name: type,     schema: { type: string, enum: [MAINTENANCE, SUPPORT, INSPECTION, OTHER] } }
- *       - { in: query, name: status,   schema: { type: string, enum: [NEW, UNDER_REVIEW, AWAITING_APPROVAL, IN_PROGRESS, COMPLETED, REJECTED] } }
+ *       - { in: query, name: status,   schema: { type: string, enum: [NEW, UNDER_REVIEW, AWAITING_APPROVAL, APPROVED, IN_PROGRESS, COMPLETED, REJECTED] } }
  *       - { in: query, name: priority, schema: { type: string, enum: [LOW, MEDIUM, HIGH, CRITICAL] } }
  *       - { in: query, name: from,     schema: { type: string, format: date }, description: "تاريخ البداية" }
  *       - { in: query, name: to,       schema: { type: string, format: date }, description: "تاريخ النهاية" }
@@ -174,7 +174,7 @@ router.delete("/:id", auth, permission("DELETE_PROJECT"), ticketService.deleteTi
  *             properties:
  *               status:
  *                 type: string
- *                 enum: [NEW, UNDER_REVIEW, AWAITING_APPROVAL, IN_PROGRESS, COMPLETED, REJECTED]
+ *                 enum: [NEW, UNDER_REVIEW, AWAITING_APPROVAL, APPROVED, IN_PROGRESS, COMPLETED, REJECTED]
  *               assignedTeam:    { type: array, items: { type: string } }
  *               rejectionReason: { type: string }
  *               reviewNotes:     { type: string }
