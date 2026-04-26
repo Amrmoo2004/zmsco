@@ -21,11 +21,12 @@ function calcDuration(start, end) {
 }
 
 const DEFAULT_CHECKLISTS = [
-    { item: "اكتمال جميع المراحل والمهام", description: "جميع مراحل المشروع مكتملة ومعتمدة وجميع المهام منتهية أو ملغاة", isMandatory: true },
-    { item: "اعتماد المستخلص المالي النهائي", description: "جميع المستخلصات المالية معتمدة ومسددة", isMandatory: true },
-    { item: "تسوية المخزون والمعدات", description: "تم إرجاع أو نقل جميع المواد والمعدات", isMandatory: true },
-    { item: "تسليم جميع الوثائق والمخرجات", description: "تم رفع جميع الوثائق والتسليمات", isMandatory: true },
-    { item: "تقييم الأداء للفريق", description: "تم إجراء تقييم الأداء لجميع الموارد", isMandatory: false }
+    { item: "اكتمال جميع المراحل", description: "جميع مراحل المشروع مكتملة ومعتمدة", isMandatory: true },
+    { item: "إغلاق المهام", description: "جميع المهام منتهية أو ملغاة", isMandatory: true },
+    { item: "تسوية المخزون", description: "تم إرجاع أو نقل جميع المواد والمعدات", isMandatory: true },
+    { item: "اعتماد المستخلصات", description: "جميع المستخلصات المالية معتمدة ومسددة", isMandatory: true },
+    { item: "رفع المرفقات النهائية", description: "تم رفع جميع الوثائق والتسليمات", isMandatory: true },
+    { item: "تقييم الأداء", description: "تم إجراء تقييم الأداء لجميع الموارد", isMandatory: false }
 ];
 
 const DEFAULT_APPROVALS = [
@@ -162,8 +163,9 @@ export const getClosure = asynchandler(async (req, res, next) => {
         ? Math.round((project.estimatedCost || closure.finalExtract?.totalExpenses || 0) / project.budget * 100 * 10) / 10
         : 0;
 
-    const completedCount = closure.checklists.filter(c => c.isCompleted).length;
-    const totalCount = closure.checklists.length;
+    const mandatoryChecklists = closure.checklists.filter(c => c.isMandatory !== false);
+    const completedCount = mandatoryChecklists.filter(c => c.isCompleted).length;
+    const totalCount = mandatoryChecklists.length;
 
     const statusMap = {
         INITIATED: "في انتظار الإغلاق",
@@ -536,46 +538,60 @@ export const getArchivedProject = asynchandler(async (req, res, next) => {
     const savingsPercent = project.budget > 0 ? Math.round(savings / project.budget * 100 * 10) / 10 : 0;
     const duration = calcDuration(project.startDate, project.completionDate || project.endDate);
 
-    // Documents grouped by category
     let documents = [];
     try {
         documents = await ProjectDocument.find({ project: req.params.projectId }).lean();
     } catch (e) { /* ProjectDocument may not exist */ }
 
+    // If no real documents exist, we use the mock ones as fallback for UI testing
     const docCategories = {
-        financial: { 
-            label: "المستندات المالية", 
-            items: [
-                { name: "المستخلص المالي النهائي.pdf", url: "#", size: "2.4 MB" },
-                { name: "تحليل التكاليف الشامل.xlsx", url: "#", size: "1.8 MB" },
-                { name: "محاضر الدفعات المالية.pdf", url: "#", size: "1.2 MB" }
-            ] 
-        },
-        technical: { 
-            label: "التقارير الفنية", 
-            items: [
-                { name: "تقرير الإنجاز النهائي.pdf", url: "#", size: "3.5 MB" },
-                { name: "المخططات الهندسية.dwg", url: "#", size: "15.2 MB" },
-                { name: "تقرير الفحص والجودة.pdf", url: "#", size: "2.1 MB" }
-            ] 
-        },
-        hr: { 
-            label: "الموارد البشرية", 
-            items: [
-                { name: "تقييمات الأداء.pdf", url: "#", size: "1.5 MB" },
-                { name: "سجل الموظفين والحضور.xlsx", url: "#", size: "1.1 MB" },
-                { name: "تقرير استخدام الموارد.pdf", url: "#", size: "1.7 MB" }
-            ] 
-        },
-        certificates: { 
-            label: "الشهادات والتصاريح", 
-            items: [
-                { name: "شهادة إتمام المشروع.pdf", url: "#", size: "0.8 MB" },
-                { name: "محضر الاستلام النهائي.pdf", url: "#", size: "1.4 MB" },
-                { name: "التصاريح والموافقات.pdf", url: "#", size: "2.5 MB" }
-            ] 
-        }
+        financial: { label: "المستندات المالية", items: [] },
+        technical: { label: "التقارير الفنية", items: [] },
+        hr: { label: "الموارد البشرية", items: [] },
+        certificates: { label: "الشهادات والتصاريح", items: [] }
     };
+
+    if (documents && documents.length > 0) {
+        documents.forEach(doc => {
+            const name = doc.name || "";
+            const ext = doc.fileUrl ? doc.fileUrl.split('.').pop() : "pdf";
+            const size = "1.2 MB"; // Mock size as it's not stored in DB
+            
+            let cat = "technical";
+            if (name.includes("مالي") || name.includes("تكاليف") || name.includes("فاتورة") || name.includes("مستخلص")) cat = "financial";
+            else if (name.includes("أداء") || name.includes("موظف") || name.includes("حضور") || name.includes("موارد")) cat = "hr";
+            else if (name.includes("شهادة") || name.includes("استلام") || name.includes("تصريح") || name.includes("موافقة")) cat = "certificates";
+            
+            docCategories[cat].items.push({
+                name: doc.name + (doc.name.includes('.') ? "" : "." + ext),
+                url: doc.fileUrl || "#",
+                size: size,
+                status: doc.status
+            });
+        });
+    } else {
+        // Fallback Mock Data to make UI look good
+        docCategories.financial.items = [
+            { name: "المستخلص المالي النهائي.pdf", url: "#", size: "2.4 MB" },
+            { name: "تحليل التكاليف الشامل.xlsx", url: "#", size: "1.8 MB" },
+            { name: "محاضر الدفعات المالية.pdf", url: "#", size: "1.2 MB" }
+        ];
+        docCategories.technical.items = [
+            { name: "تقرير الإنجاز النهائي.pdf", url: "#", size: "3.5 MB" },
+            { name: "المخططات الهندسية.dwg", url: "#", size: "15.2 MB" },
+            { name: "تقرير الفحص والجودة.pdf", url: "#", size: "2.1 MB" }
+        ];
+        docCategories.hr.items = [
+            { name: "تقييمات الأداء.pdf", url: "#", size: "1.5 MB" },
+            { name: "سجل الموظفين والحضور.xlsx", url: "#", size: "1.1 MB" },
+            { name: "تقرير استخدام الموارد.pdf", url: "#", size: "1.7 MB" }
+        ];
+        docCategories.certificates.items = [
+            { name: "شهادة إتمام المشروع.pdf", url: "#", size: "0.8 MB" },
+            { name: "محضر الاستلام النهائي.pdf", url: "#", size: "1.4 MB" },
+            { name: "التصاريح والموافقات.pdf", url: "#", size: "2.5 MB" }
+        ];
+    }
 
     // Timeline from phases
     const timeline = phases.map(p => ({
