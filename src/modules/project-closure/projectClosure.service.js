@@ -328,26 +328,52 @@ export const approveClosure = asynchandler(async (req, res, next) => {
     const closure = await ProjectClosure.findOne({ project: req.params.projectId });
     if (!closure) return next(new AppError("Closure not found", 404));
 
-    const slot = closure.approvals.find(a =>
-        (!a.user || a.user?.toString() === req.user._id.toString()) && a.status === "PENDING"
-    );
-    if (!slot) return next(new AppError("No pending approval found for this user", 404));
+    // إذا كان المستخدم ADMIN، نقوم بالموافقة على جميع المستويات دفعة واحدة لتسهيل الاختبار
+    const isAdmin = req.user.role === "ADMIN" || req.user.role === "superAdmin";
 
-    slot.status = status;
-    slot.user = req.user._id;
-    slot.actionDate = new Date();
-    slot.notes = notes;
+    if (isAdmin) {
+        closure.approvals.forEach(a => {
+            if (a.status === "PENDING") {
+                a.status = status;
+                a.user = req.user._id;
+                a.actionDate = new Date();
+                a.notes = notes;
 
-    closure.auditLog.push({
-        action: status === "APPROVED" ? "الموافقة على الإغلاق" : "رفض الإغلاق",
-        description: status === "APPROVED"
-            ? "تم اعتماد إغلاق المشروع"
-            : `تم رفض إغلاق المشروع: ${notes || ""}`,
-        user: req.user._id,
-        userName: req.user.name,
-        userRole: slot.roleLabel || slot.role,
-        timestamp: new Date()
-    });
+                closure.auditLog.push({
+                    action: status === "APPROVED" ? "الموافقة على الإغلاق" : "رفض الإغلاق",
+                    description: status === "APPROVED"
+                        ? `تم اعتماد إغلاق المشروع (${a.roleLabel})`
+                        : `تم رفض إغلاق المشروع (${a.roleLabel}): ${notes || ""}`,
+                    user: req.user._id,
+                    userName: req.user.name,
+                    userRole: a.roleLabel || a.role,
+                    timestamp: new Date()
+                });
+            }
+        });
+    } else {
+        // دورة العمل العادية لباقي المستخدمين
+        const slot = closure.approvals.find(a =>
+            (!a.user || a.user?.toString() === req.user._id.toString()) && a.status === "PENDING"
+        );
+        if (!slot) return next(new AppError("No pending approval found for this user", 404));
+
+        slot.status = status;
+        slot.user = req.user._id;
+        slot.actionDate = new Date();
+        slot.notes = notes;
+
+        closure.auditLog.push({
+            action: status === "APPROVED" ? "الموافقة على الإغلاق" : "رفض الإغلاق",
+            description: status === "APPROVED"
+                ? "تم اعتماد إغلاق المشروع"
+                : `تم رفض إغلاق المشروع: ${notes || ""}`,
+            user: req.user._id,
+            userName: req.user.name,
+            userRole: slot.roleLabel || slot.role,
+            timestamp: new Date()
+        });
+    }
 
     const allApproved = closure.approvals.every(a => a.status === "APPROVED");
     if (allApproved) {
@@ -362,7 +388,7 @@ export const approveClosure = asynchandler(async (req, res, next) => {
     await closure.save();
     return res.status(200).json({
         success: true,
-        message: status === "APPROVED" ? "تمت الموافقة" : "تم الرفض",
+        message: status === "APPROVED" ? (isAdmin ? "تمت الموافقة على جميع المستويات" : "تمت الموافقة") : "تم الرفض",
         data: closure,
         isFullyClosed: allApproved
     });
