@@ -44,9 +44,8 @@ export const initiateClosure = asynchandler(async (req, res, next) => {
     const project = await Project.findById(req.params.projectId);
     if (!project) return next(new AppError("Project not found", 404));
 
-    const { checklists, approvals } = req.body;
+    const { checklists, approvals } = req.body || {};
 
-    // Build finalExtract from real project data
     const phases = await ProjectPhase.find({ project: req.params.projectId }).lean();
     const members = await ProjectMember.find({ project: req.params.projectId }).populate("jobTitle", "nameAr").lean();
     const equipment = await ProjectEquipment.find({ project: req.params.projectId }).lean();
@@ -54,7 +53,6 @@ export const initiateClosure = asynchandler(async (req, res, next) => {
     const totalPhaseBudget = phases.reduce((s, p) => s + (p.budget || 0), 0);
     const totalPhaseExpenses = phases.reduce((s, p) => s + (p.expenses || 0), 0);
 
-    // Group members by role category
     const laborGroups = {};
     members.forEach(m => {
         const cat = m.jobTitle?.nameAr || m.role || "أخرى";

@@ -17,6 +17,30 @@ const router = Router({ mergeParams: true });
  *     tags: [Project Closure]
  *     security: [{ bearerAuth: [] }]
  *     parameters: [{ in: path, name: projectId, required: true, schema: { type: string } }]
+ *     requestBody:
+ *       required: false
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               checklists:
+ *                 type: array
+ *                 description: "اختياري — لو فاضي بيستخدم الـ defaults العربية تلقائياً"
+ *                 items:
+ *                   type: object
+ *                   properties:
+ *                     item: { type: string }
+ *                     description: { type: string }
+ *                     isMandatory: { type: boolean }
+ *               approvals:
+ *                 type: array
+ *                 description: "اختياري — لو فاضي بيستخدم 4 مستويات افتراضية"
+ *                 items:
+ *                   type: object
+ *                   properties:
+ *                     role: { type: string, example: "PROJECT_MANAGER" }
+ *                     roleLabel: { type: string, example: "مدير المشروع" }
  *     responses:
  *       201: { description: تم بدء عملية الإغلاق }
  *   get:
