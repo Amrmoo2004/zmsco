@@ -32,12 +32,30 @@ const certificateSchema = new mongoose.Schema(
 
         pdfUrl: String,
 
-        // Signatories captured at certificate time
+        // ─── Project Snapshot (بيانات المشروع وقت الشهادة) ────────────────────
+        projectName: String,
+        projectCode: String,
+        managerName: String,
+        completionDate: Date,
+        duration: String,
+        finalCost: { type: Number, default: 0 },
+        budget: { type: Number, default: 0 },
+
+        // ─── الإنجازات الرئيسية ───────────────────────────────────────────────
+        achievements: [
+            {
+                text: String,
+                icon: { type: String, default: "check" }
+            }
+        ],
+
+        // ─── Signatories ──────────────────────────────────────────────────────
         signatories: [
             {
                 name: String,
                 role: String,
-                signedAt: Date
+                roleEn: String,
+                signedAt: { type: Date, default: Date.now }
             }
         ]
     },

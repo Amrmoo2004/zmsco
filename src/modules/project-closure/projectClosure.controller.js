@@ -9,56 +9,38 @@ const router = Router({ mergeParams: true });
  * @swagger
  * tags:
  *   name: Project Closure
- *   description: Project Closure Process, Checklists, Approvals & Certificates
+ *   description: إغلاق المشروع — Checklists, المستخلص النهائي, الموافقات, الشهادة, التقارير, الأرشفة
  *
  * /projects/{projectId}/closure:
  *   post:
- *     summary: Initiate project closure process (creates default 5-step checklist)
+ *     summary: بدء عملية إغلاق المشروع (ينشئ checklist + approvals + المستخلص النهائي)
  *     tags: [Project Closure]
  *     security: [{ bearerAuth: [] }]
  *     parameters: [{ in: path, name: projectId, required: true, schema: { type: string } }]
- *     requestBody:
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               checklists:
- *                 type: array
- *                 items:
- *                   type: object
- *                   properties:
- *                     item: { type: string }
- *               approvals:
- *                 type: array
- *                 items:
- *                   type: object
- *                   properties:
- *                     role: { type: string, description: "MongoDB ObjectId" }
  *     responses:
- *       201: { description: Closure process initiated }
+ *       201: { description: تم بدء عملية الإغلاق }
  *   get:
- *     summary: Get closure details for a project
+ *     summary: بيانات إغلاق المشروع (ملخص + Checklist + حسابات جاهزة)
  *     tags: [Project Closure]
  *     security: [{ bearerAuth: [] }]
  *     parameters: [{ in: path, name: projectId, required: true, schema: { type: string } }]
  *     responses:
- *       200: { description: Closure details with checklist and approval status }
+ *       200: { description: بيانات الإغلاق مع بيانات المشروع والحسابات }
  *
  * /projects/{projectId}/closure/checklist/{itemId}:
  *   put:
- *     summary: Mark a checklist item as completed
+ *     summary: تأشير بند في قائمة التحقق كمكتمل
  *     tags: [Project Closure]
  *     security: [{ bearerAuth: [] }]
  *     parameters:
  *       - { in: path, name: projectId, required: true, schema: { type: string } }
  *       - { in: path, name: itemId, required: true, schema: { type: string } }
  *     responses:
- *       200: { description: Checklist item completed }
+ *       200: { description: تم التحقق من البند }
  *
  * /projects/{projectId}/closure/approve:
  *   put:
- *     summary: Sign-off closure (role-based, auto-closes project when all approved)
+ *     summary: الموافقة أو رفض إغلاق المشروع (يسجل في سجل التدقيق)
  *     tags: [Project Closure]
  *     security: [{ bearerAuth: [] }]
  *     parameters: [{ in: path, name: projectId, required: true, schema: { type: string } }]
@@ -71,11 +53,29 @@ const router = Router({ mergeParams: true });
  *               status: { type: string, enum: [APPROVED, REJECTED] }
  *               notes: { type: string }
  *     responses:
- *       200: { description: Closure approval recorded }
+ *       200: { description: تم تسجيل الموافقة/الرفض }
+ *
+ * /projects/{projectId}/closure/final-extract:
+ *   get:
+ *     summary: المستخلص النهائي — استهلاك المواد + تكلفة العمالة + المعدات + مصروفات أخرى
+ *     tags: [Project Closure]
+ *     security: [{ bearerAuth: [] }]
+ *     parameters: [{ in: path, name: projectId, required: true, schema: { type: string } }]
+ *     responses:
+ *       200: { description: بيانات المستخلص المالي النهائي مع الحسابات }
+ *
+ * /projects/{projectId}/closure/final-extract/approve:
+ *   put:
+ *     summary: اعتماد المستخلص النهائي
+ *     tags: [Project Closure]
+ *     security: [{ bearerAuth: [] }]
+ *     parameters: [{ in: path, name: projectId, required: true, schema: { type: string } }]
+ *     responses:
+ *       200: { description: تم اعتماد المستخلص }
  *
  * /projects/{projectId}/closure/certificate:
  *   post:
- *     summary: Generate project completion certificate (requires full closure)
+ *     summary: إصدار شهادة إتمام المشروع (CERT-YYYY-NNN) مع الإنجازات والتوقيعات
  *     tags: [Project Closure]
  *     security: [{ bearerAuth: [] }]
  *     parameters: [{ in: path, name: projectId, required: true, schema: { type: string } }]
@@ -91,20 +91,61 @@ const router = Router({ mergeParams: true });
  *                   type: object
  *                   properties:
  *                     name: { type: string }
- *                     role: { type: string, description: "MongoDB ObjectId" }
+ *                     role: { type: string }
+ *                     roleEn: { type: string }
  *     responses:
- *       201: { description: Certificate generated with auto-ID (CERT-YYYY-NNN) }
+ *       201: { description: تم إصدار الشهادة }
+ *
+ * /projects/{projectId}/closure/reports:
+ *   get:
+ *     summary: التقارير النهائية — مالية + موارد + أداء (9 تقارير)
+ *     tags: [Project Closure]
+ *     security: [{ bearerAuth: [] }]
+ *     parameters: [{ in: path, name: projectId, required: true, schema: { type: string } }]
+ *     responses:
+ *       200: { description: قائمة التقارير مصنفة مع ملخص }
+ *
+ * /projects/{projectId}/closure/archive:
+ *   post:
+ *     summary: أرشفة المشروع (نقله لحالة ARCHIVED — للقراءة فقط)
+ *     tags: [Project Closure]
+ *     security: [{ bearerAuth: [] }]
+ *     parameters: [{ in: path, name: projectId, required: true, schema: { type: string } }]
+ *     responses:
+ *       200: { description: تم أرشفة المشروع }
+ *
+ * /projects/{projectId}/closure/archived:
+ *   get:
+ *     summary: بيانات المشروع المؤرشف (4 تابات — نظرة عامة + جدول زمني + مستندات + سجل تدقيق)
+ *     tags: [Project Closure]
+ *     security: [{ bearerAuth: [] }]
+ *     parameters: [{ in: path, name: projectId, required: true, schema: { type: string } }]
+ *     responses:
+ *       200: { description: بيانات المشروع المؤرشف الكاملة }
  */
 
 // Initiate / Get closure
 router.post("/", auth, permission("UPDATE_PROJECT"), closureService.initiateClosure);
 router.get("/", auth, closureService.getClosure);
 
-// Checklist and approvals
+// Checklist
 router.put("/checklist/:itemId", auth, closureService.updateChecklistItem);
+
+// Final Extract (المستخلص النهائي)
+router.get("/final-extract", auth, closureService.getFinalExtract);
+router.put("/final-extract/approve", auth, permission("UPDATE_PROJECT"), closureService.approveFinalExtract);
+
+// Approvals
 router.put("/approve", auth, closureService.approveClosure);
 
-// Certificate generation
+// Certificate
 router.post("/certificate", auth, permission("UPDATE_PROJECT"), closureService.generateCertificate);
+
+// Final Reports (التقارير النهائية)
+router.get("/reports", auth, closureService.getFinalReports);
+
+// Archive
+router.post("/archive", auth, permission("UPDATE_PROJECT"), closureService.archiveProject);
+router.get("/archived", auth, closureService.getArchivedProject);
 
 export default router;

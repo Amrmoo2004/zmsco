@@ -9,13 +9,18 @@ import { asynchandler } from "../../utils/response/response.js";
  * GET DASHBOARD STATS
  */
 export const getDashboardStats = asynchandler(async (req, res, next) => {
-    // 1. Projects Stats
-    const totalProjects = await ProjectModel.countDocuments({ isActive: true });
+    // 1. Projects Stats (ARCHIVED projects are treated separately — read-only)
+    const totalProjects = await ProjectModel.countDocuments({
+        isActive: true,
+        status: { $ne: "ARCHIVED" }
+    });
     const completedProjects = await ProjectModel.countDocuments({ isActive: true, status: "COMPLETED" });
+    const archivedProjects = await ProjectModel.countDocuments({ isActive: true, status: "ARCHIVED" });
     const activeProjects = await ProjectModel.countDocuments({
         isActive: true,
         status: { $in: ["PLANNING", "EXECUTION"] }
     });
+    const onHoldProjects = await ProjectModel.countDocuments({ isActive: true, status: "ON_HOLD" });
 
     // 2. Budget Stats
     const budgetAgg = await ProjectModel.aggregate([
@@ -109,7 +114,9 @@ export const getDashboardStats = asynchandler(async (req, res, next) => {
                 total: totalProjects,
                 active: activeProjects,
                 completed: completedProjects,
-                projectPerformance: [] // Can be populated with historical data if tracked
+                onHold: onHoldProjects,
+                archived: archivedProjects,
+                projectPerformance: []
             },
             tasks: {
                 total: totalTasks,

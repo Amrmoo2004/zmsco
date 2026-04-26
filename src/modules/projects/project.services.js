@@ -269,7 +269,8 @@ export const create_project = asynchandler(async (req, res, next) => {
 
 });
 export const get_projects = asynchandler(async (req, res, next) => {
-  let query = { isActive: true };
+  // ARCHIVED projects are excluded from the normal listing — use GET /projects/archived instead
+  let query = { isActive: true, status: { $ne: "ARCHIVED" } };
 
   // If normal user, filter by assignments or manager
   if (req.user.role !== "ADMIN") {
@@ -650,3 +651,63 @@ export const get_phase_details = asynchandler(async (req, res, next) => {
     }
   });
 });
+
+/**
+ * GET ARCHIVED PROJECTS
+ * Returns only projects with status === ARCHIVED for the archive listing screen.
+ */
+export const get_archived_projects = asynchandler(async (req, res, next) => {
+  const projects = await ProjectModel.find({
+    isActive: true,
+    status: "ARCHIVED"
+  })
+    .populate("manager", "name email")
+    .lean()
+    .sort({ archivedAt: -1 });
+
+  const projectIds = projects.map(p => p._id);
+
+  // Fetch phases for progress calculation
+  const phases = await ProjectPhase.find({ project: { $in: projectIds } }, "project tasks").lean();
+
+  const formatted = projects.map(project => {
+    const pPhases = phases.filter(ph => ph.project?.toString() === project._id.toString());
+    let totalTasks = 0;
+    let completedTasks = 0;
+    pPhases.forEach(ph => {
+      if (ph.tasks) {
+        totalTasks += ph.tasks.length;
+        completedTasks += ph.tasks.filter(t => t.status === "COMPLETED").length;
+      }
+    });
+    const progress = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 100;
+
+    const finalCost = project.estimatedCost || 0;
+    const savings = (project.budget || 0) - finalCost;
+    const savingsPercent = project.budget > 0 ? Math.round(savings / project.budget * 100) : 0;
+
+    return {
+      _id: project._id,
+      name: project.name,
+      code: project.code,
+      status: "ARCHIVED",
+      archivedAt: project.archivedAt,
+      startDate: project.startDate,
+      endDate: project.endDate,
+      budget: project.budget,
+      finalCost,
+      savings,
+      savingsPercent: `${savingsPercent}%`,
+      manager: project.manager,
+      progress,
+      client: project.client
+    };
+  });
+
+  return res.status(200).json({
+    success: true,
+    total: formatted.length,
+    data: formatted
+  });
+});
+

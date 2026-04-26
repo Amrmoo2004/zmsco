@@ -34,13 +34,16 @@ const projectSchema = new mongoose.Schema(
         "EXECUTION",
         "ON_HOLD",
         "COMPLETED",
-        "CANCELLED"
+        "CANCELLED",
+        "ARCHIVED"
       ],
       default: "DRAFT"
     },
 
     startDate: Date,
     endDate: Date,
+    completionDate: Date,
+    archivedAt: Date,
 
     department: {
       type: mongoose.Schema.Types.ObjectId,

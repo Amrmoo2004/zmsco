@@ -290,6 +290,19 @@ router.route("/")
 
 /**
  * @swagger
+ * /projects/archived:
+ *   get:
+ *     summary: قائمة المشاريع المؤرشفة (archive listing screen)
+ *     tags: [Projects]
+ *     security: [{ bearerAuth: [] }]
+ *     responses:
+ *       200:
+ *         description: قائمة المشاريع المؤرشفة مع ملخص مالي لكل مشروع
+ */
+router.get("/archived", auth, permission("VIEW_PROJECT"), projectService.get_archived_projects);
+
+/**
+ * @swagger
  * /projects/{id}:
  *   get:
  *     summary: Get project details
