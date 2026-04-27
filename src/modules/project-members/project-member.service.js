@@ -28,7 +28,7 @@ export const getProjectMembers = asynchandler(async (req, res, next) => {
 /** Add member to project — supports both assigned users and VACANT slots */
 export const addProjectMember = asynchandler(async (req, res, next) => {
     const { projectId } = req.params;
-    const { user, role, jobTitle, status, estimatedCost, phase } = req.body;
+    const { user, role, jobTitle, status, estimatedCost, phase, startDate, endDate, allocationPercentage, notes } = req.body;
 
     const project = await Project.findById(projectId);
     if (!project) return next(new AppError("Project not found", 404));
@@ -48,6 +48,10 @@ export const addProjectMember = asynchandler(async (req, res, next) => {
         role,
         jobTitle,
         phase: phase || undefined,
+        startDate,
+        endDate,
+        allocationPercentage: allocationPercentage !== undefined ? allocationPercentage : 100,
+        notes,
         status: status || (user ? "ACTIVE" : "VACANT"),
         estimatedCost: estimatedCost || 0
     });

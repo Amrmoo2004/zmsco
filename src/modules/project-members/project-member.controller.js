@@ -48,6 +48,10 @@ const router = Router();
  *               role: { type: string, description: "Role title e.g. مدير المشروع" }
  *               jobTitle: { type: string, description: "JobTitle ObjectId" }
  *               phase: { type: string, description: "Phase ObjectId (optional)" }
+ *               startDate: { type: string, format: date, description: "Assignment start date" }
+ *               endDate: { type: string, format: date, description: "Assignment end date" }
+ *               allocationPercentage: { type: number, description: "Resource allocation percentage (e.g. 80)" }
+ *               notes: { type: string, description: "Optional notes about this assignment" }
  *               status: { type: string, enum: [ACTIVE, VACANT], description: "Defaults to ACTIVE if user provided, VACANT otherwise" }
  *               estimatedCost: { type: number, description: "Estimated cost for this role slot" }
  *     responses:
