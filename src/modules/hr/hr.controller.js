@@ -125,6 +125,20 @@ router.delete("/work-logs/:id", auth, hrService.deleteWorkLog);
 // HR Dashboard
 router.get("/dashboard", auth, permission("VIEW_REPORTS"), hrService.getDashboard);
 
+/**
+ * @swagger
+ * /hr/profile/{userId}:
+ *   get:
+ *     summary: Get Employee HR Profile
+ *     tags: [HR]
+ *     security: [{ bearerAuth: [] }]
+ *     parameters: [{ in: path, name: userId, required: true, schema: { type: string } }]
+ *     responses:
+ *       200:
+ *         description: Returns employee overview, active projects, and work history (tasks).
+ */
+router.get("/profile/:userId", auth, hrService.getEmployeeProfile);
+
 // HR Requests
 router.get("/requests", auth, hrService.getHrRequests);
 router.post("/requests", auth, hrService.createHrRequest);

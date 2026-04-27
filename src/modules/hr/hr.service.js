@@ -225,3 +225,79 @@ export const getDashboard = asynchandler(async (req, res) => {
         }
     });
 });
+
+import ProjectPhase from "../../db/models/projects/project.phase.js";
+
+// ─── Employee Profile ────────────────────────────────────────────────────────
+export const getEmployeeProfile = asynchandler(async (req, res, next) => {
+    const { userId } = req.params;
+
+    const employee = await User.findById(userId).populate("jobTitle", "nameAr nameEn").lean();
+    if (!employee) return next(new AppError("Employee not found", 404));
+
+    // Get Active Assignments
+    const assignments = await ProjectMember.find({ user: userId })
+        .populate("project", "name code")
+        .populate("phase", "name")
+        .lean();
+
+    const currentAssignment = assignments.find(a => a.status === "ACTIVE");
+    const utilizationRate = currentAssignment ? (currentAssignment.allocationPercentage || 100) : 0;
+
+    // Overview data
+    const overview = {
+        name: employee.name,
+        email: employee.email,
+        jobTitle: employee.jobTitle?.nameAr || employee.jobTitle?.nameEn || employee.role?.name,
+        status: employee.status === "ON_LEAVE" ? "إجازة" : (currentAssignment ? "مشغول" : "متاح"),
+        utilizationRate
+    };
+
+    // Projects list
+    const projects = assignments.map(a => ({
+        id: a.project?._id,
+        name: a.project?.name,
+        code: a.project?.code,
+        role: a.role,
+        status: a.status,
+        startDate: a.startDate,
+        endDate: a.endDate,
+        allocationPercentage: a.allocationPercentage
+    }));
+
+    // Work History (سجل العمل) - From Tasks assigned to this user across all phases
+    const phases = await ProjectPhase.find({ "tasks.assignedTo": userId })
+        .populate("project", "name")
+        .lean();
+
+    let workHistory = [];
+    phases.forEach(phase => {
+        const userTasks = phase.tasks.filter(t => t.assignedTo?.toString() === userId.toString());
+        userTasks.forEach(task => {
+            let percentage = 0;
+            if (task.status === "COMPLETED") percentage = 100;
+            else if (task.status === "IN_PROGRESS") percentage = 50;
+
+            workHistory.push({
+                id: task._id,
+                date: task.completedAt || task.updatedAt || task.createdAt,
+                project: phase.project?.name || "مشروع غير معروف",
+                activity: task.name,
+                completionPercentage: percentage,
+                status: task.status
+            });
+        });
+    });
+
+    // Sort work history by date descending
+    workHistory.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+    return res.status(200).json({
+        success: true,
+        data: {
+            overview,
+            projects,
+            workHistory
+        }
+    });
+});
