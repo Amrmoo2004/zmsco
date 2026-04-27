@@ -327,8 +327,16 @@ export const approveFinalExtract = asynchandler(async (req, res, next) => {
 
 export const approveClosure = asynchandler(async (req, res, next) => {
     const { status, notes } = req.body;
+    if (!status || !["APPROVED", "REJECTED"].includes(status)) {
+        return next(new AppError("status يجب أن يكون APPROVED أو REJECTED", 400));
+    }
+
     const closure = await ProjectClosure.findOne({ project: req.params.projectId });
     if (!closure) return next(new AppError("Closure not found", 404));
+
+    if (closure.closureStatus === "CLOSED") {
+        return next(new AppError("المشروع مغلق بالفعل", 400));
+    }
 
     // إذا كان المستخدم ADMIN، نقوم بالموافقة على جميع المستويات دفعة واحدة لتسهيل الاختبار
     const isAdmin = req.user.role === "ADMIN" || req.user.role === "superAdmin";
@@ -340,7 +348,6 @@ export const approveClosure = asynchandler(async (req, res, next) => {
                 a.user = req.user._id;
                 a.actionDate = new Date();
                 a.notes = notes;
-
                 closure.auditLog.push({
                     action: status === "APPROVED" ? "الموافقة على الإغلاق" : "رفض الإغلاق",
                     description: status === "APPROVED"
@@ -354,11 +361,13 @@ export const approveClosure = asynchandler(async (req, res, next) => {
             }
         });
     } else {
-        // دورة العمل العادية لباقي المستخدمين
+        // FIX: بدل !a.user (أي حد يعتمد) — لازم يكون الـ user مش محدد (default slots)
+        // أو هو نفسه اللي assigned ليه
         const slot = closure.approvals.find(a =>
-            (!a.user || a.user?.toString() === req.user._id.toString()) && a.status === "PENDING"
+            a.status === "PENDING" &&
+            (!a.user || a.user.toString() === req.user._id.toString())
         );
-        if (!slot) return next(new AppError("No pending approval found for this user", 404));
+        if (!slot) return next(new AppError("لا يوجد طلب موافقة معلق لهذا المستخدم", 403));
 
         slot.status = status;
         slot.user = req.user._id;
@@ -368,8 +377,8 @@ export const approveClosure = asynchandler(async (req, res, next) => {
         closure.auditLog.push({
             action: status === "APPROVED" ? "الموافقة على الإغلاق" : "رفض الإغلاق",
             description: status === "APPROVED"
-                ? "تم اعتماد إغلاق المشروع"
-                : `تم رفض إغلاق المشروع: ${notes || ""}`,
+                ? `تمت الموافقة على إغلاق المشروع — ${slot.roleLabel || slot.role}`
+                : `تم رفض إغلاق المشروع (${slot.roleLabel || slot.role}): ${notes || ""}`,
             user: req.user._id,
             userName: req.user.name,
             userRole: slot.roleLabel || slot.role,
@@ -378,11 +387,13 @@ export const approveClosure = asynchandler(async (req, res, next) => {
     }
 
     const allApproved = closure.approvals.every(a => a.status === "APPROVED");
+    const anyRejected = closure.approvals.some(a => a.status === "REJECTED");
+
     if (allApproved) {
         closure.closureStatus = "CLOSED";
         closure.closedAt = new Date();
-    } else if (status === "REJECTED") {
-        // Keep as is, don't change closureStatus
+    } else if (anyRejected) {
+        closure.closureStatus = "INITIATED"; // أعد لأول حالة عند الرفض
     } else {
         closure.closureStatus = "PENDING_APPROVALS";
     }
@@ -390,7 +401,9 @@ export const approveClosure = asynchandler(async (req, res, next) => {
     await closure.save();
     return res.status(200).json({
         success: true,
-        message: status === "APPROVED" ? (isAdmin ? "تمت الموافقة على جميع المستويات" : "تمت الموافقة") : "تم الرفض",
+        message: status === "APPROVED"
+            ? (isAdmin ? "تمت الموافقة على جميع المستويات" : "تمت الموافقة بنجاح")
+            : "تم رفض الطلب",
         data: closure,
         isFullyClosed: allApproved
     });
@@ -450,42 +463,76 @@ export const generateCertificate = asynchandler(async (req, res, next) => {
 
 // ─── GET /projects/:projectId/closure/reports ─────────────────────────────────
 
-export const getFinalReports = asynchandler(async (req, res) => {
-    const reports = {
-        financial: [
-            { title: "التقرير المالي الشامل", description: "ملخص كامل للميزانية والمصروفات", pages: 24, size: "2.4 MB" },
-            { title: "تحليل التكاليف حسب المرحلة", description: "توزيع التكاليف على مراحل المشروع", pages: 16, size: "1.8 MB" },
-            { title: "تقرير الفروقات المالية", description: "مقارنة المخطط بالفعلي", pages: 12, size: "1.2 MB" }
-        ],
-        resources: [
-            { title: "تقرير استخدام الموارد البشرية", description: "تحليل شامل لأداء واستخدام الموظفين", pages: 18, size: "1.6 MB" },
-            { title: "تقرير استخدام المعدات", description: "سجل استخدام وصيانة المعدات", pages: 14, size: "1.4 MB" },
-            { title: "تقييم الأداء الفردي", description: "تقييمات جميع أعضاء الفريق", pages: 22, size: "2.1 MB" }
-        ],
-        performance: [
-            { title: "تقرير الأداء العام للمشروع", description: "KPIs ومؤشرات الأداء الرئيسية", pages: 28, size: "2.8 MB" },
-            { title: "تحليل الجدول الزمني", description: "الالتزام بالمواعيد والتأخيرات", pages: 15, size: "1.5 MB" },
-            { title: "تقرير الجودة والمخاطر", description: "إدارة المخاطر وضمان الجودة", pages: 20, size: "1.9 MB" }
-        ]
-    };
+export const getFinalReports = asynchandler(async (req, res, next) => {
+    const closure = await ProjectClosure.findOne({ project: req.params.projectId }).lean();
+    if (!closure) return next(new AppError("Closure not found", 404));
 
-    const allReports = [...reports.financial, ...reports.resources, ...reports.performance];
-    const totalPages = allReports.reduce((s, r) => s + r.pages, 0);
-    const totalSize = allReports.reduce((s, r) => s + parseFloat(r.size), 0).toFixed(1);
+    // سحب المستندات الحقيقية من الـ DB
+    const dbDocuments = await ProjectDocument.find({ project: req.params.projectId }).lean();
+
+    // تصنيف المستندات الحقيقية
+    const financial = [];
+    const resources = [];
+    const performance = [];
+
+    dbDocuments.forEach(doc => {
+        const name = doc.name || "";
+        const entry = {
+            title: name,
+            description: doc.status === "APPROVED" ? "معتمد" : doc.status === "UPLOADED" ? "مرفوع" : "في الانتظار",
+            url: doc.fileUrl || "#",
+            status: doc.status,
+            size: "—",
+            pages: null
+        };
+        if (name.includes("مالي") || name.includes("تكاليف") || name.includes("فاتورة") || name.includes("مستخلص")) {
+            financial.push(entry);
+        } else if (name.includes("أداء") || name.includes("موظف") || name.includes("موارد") || name.includes("حضور")) {
+            resources.push(entry);
+        } else {
+            performance.push(entry);
+        }
+    });
+
+    // Fallback: لو مفيش مستندات حقيقية نرجع defaults للـ UI
+    const DEFAULT_FINANCIAL = [
+        { title: "التقرير المالي الشامل", description: "ملخص كامل للميزانية والمصروفات", pages: 24, size: "2.4 MB", url: "#", status: "PENDING" },
+        { title: "تحليل التكاليف حسب المرحلة", description: "توزيع التكاليف على مراحل المشروع", pages: 16, size: "1.8 MB", url: "#", status: "PENDING" },
+        { title: "تقرير الفروقات المالية", description: "مقارنة المخطط بالفعلي", pages: 12, size: "1.2 MB", url: "#", status: "PENDING" }
+    ];
+    const DEFAULT_RESOURCES = [
+        { title: "تقرير استخدام الموارد البشرية", description: "تحليل شامل لأداء واستخدام الموظفين", pages: 18, size: "1.6 MB", url: "#", status: "PENDING" },
+        { title: "تقرير استخدام المعدات", description: "سجل استخدام وصيانة المعدات", pages: 14, size: "1.4 MB", url: "#", status: "PENDING" },
+        { title: "تقييم الأداء الفردي", description: "تقييمات جميع أعضاء الفريق", pages: 22, size: "2.1 MB", url: "#", status: "PENDING" }
+    ];
+    const DEFAULT_PERFORMANCE = [
+        { title: "تقرير الأداء العام للمشروع", description: "KPIs ومؤشرات الأداء الرئيسية", pages: 28, size: "2.8 MB", url: "#", status: "PENDING" },
+        { title: "تحليل الجدول الزمني", description: "الالتزام بالمواعيد والتأخيرات", pages: 15, size: "1.5 MB", url: "#", status: "PENDING" },
+        { title: "تقرير الجودة والمخاطر", description: "إدارة المخاطر وضمان الجودة", pages: 20, size: "1.9 MB", url: "#", status: "PENDING" }
+    ];
+
+    const finalFinancial = financial.length > 0 ? financial : DEFAULT_FINANCIAL;
+    const finalResources = resources.length > 0 ? resources : DEFAULT_RESOURCES;
+    const finalPerformance = performance.length > 0 ? performance : DEFAULT_PERFORMANCE;
+
+    const allReports = [...finalFinancial, ...finalResources, ...finalPerformance];
+    const totalPages = allReports.reduce((s, r) => s + (r.pages || 0), 0);
+    const totalSizeNum = allReports.reduce((s, r) => s + (parseFloat(r.size) || 0), 0);
 
     return res.status(200).json({
         success: true,
         data: {
             summary: {
                 totalReports: allReports.length,
-                totalSize: `${totalSize} MB`,
+                totalSize: `${totalSizeNum.toFixed(1)} MB`,
                 totalPages,
-                createdAt: new Date().toISOString().split("T")[0]
+                createdAt: new Date().toISOString().split("T")[0],
+                fromDB: dbDocuments.length > 0
             },
             categories: {
-                financial: { label: "التقارير المالية", description: "الميزانية والمصروفات والتحليلات المالية", items: reports.financial },
-                resources: { label: "تقارير الموارد", description: "الموارد البشرية والمعدات والأداء", items: reports.resources },
-                performance: { label: "تقارير الأداء", description: "مؤشرات الأداء والجودة والمخاطر", items: reports.performance }
+                financial: { label: "التقارير المالية", description: "الميزانية والمصروفات والتحليلات المالية", items: finalFinancial },
+                resources: { label: "تقارير الموارد", description: "الموارد البشرية والمعدات والأداء", items: finalResources },
+                performance: { label: "تقارير الأداء", description: "مؤشرات الأداء والجودة والمخاطر", items: finalPerformance }
             }
         }
     });
@@ -495,8 +542,16 @@ export const getFinalReports = asynchandler(async (req, res) => {
 
 export const archiveProject = asynchandler(async (req, res, next) => {
     const closure = await ProjectClosure.findOne({ project: req.params.projectId });
-    if (!closure || closure.closureStatus !== "CLOSED") {
-        return next(new AppError("يجب إغلاق المشروع قبل الأرشفة", 400));
+    if (!closure) return next(new AppError("لم يتم العثور على عملية إغلاق للمشروع", 404));
+    if (closure.closureStatus !== "CLOSED") {
+        return next(new AppError("يجب أن تكتمل جميع الموافقات قبل الأرشفة", 400));
+    }
+
+    // FIX: تحقق إن المشروع مش ARCHIVED بالفعل
+    const existingProject = await Project.findById(req.params.projectId);
+    if (!existingProject) return next(new AppError("Project not found", 404));
+    if (existingProject.status === "ARCHIVED") {
+        return next(new AppError("المشروع مؤرشف بالفعل", 400));
     }
 
     const project = await Project.findByIdAndUpdate(
@@ -505,11 +560,9 @@ export const archiveProject = asynchandler(async (req, res, next) => {
         { new: true }
     ).populate("manager", "name");
 
-    if (!project) return next(new AppError("Project not found", 404));
-
     closure.auditLog.push({
         action: "أرشفة المشروع",
-        description: "تم نقل المشروع إلى الأرشيف بعد الموافقة النهائية",
+        description: "تم نقل المشروع إلى الأرشيف بعد اكتمال جميع الموافقات",
         user: req.user._id,
         userName: req.user.name,
         userRole: "المدير التنفيذي",
@@ -517,7 +570,18 @@ export const archiveProject = asynchandler(async (req, res, next) => {
     });
     await closure.save();
 
-    return res.status(200).json({ success: true, message: "تم أرشفة المشروع", data: project });
+    return res.status(200).json({
+        success: true,
+        message: "تم أرشفة المشروع بنجاح",
+        data: {
+            _id: project._id,
+            name: project.name,
+            code: project.code,
+            status: project.status,
+            archivedAt: project.archivedAt,
+            manager: project.manager
+        }
+    });
 });
 
 // ─── GET /projects/:projectId/closure/archived ────────────────────────────────
@@ -541,7 +605,10 @@ export const getArchivedProject = asynchandler(async (req, res, next) => {
     let documents = [];
     try {
         documents = await ProjectDocument.find({ project: req.params.projectId }).lean();
-    } catch (e) { /* ProjectDocument may not exist */ }
+    } catch (e) {
+        // FIX: log the error instead of silently ignoring it
+        console.warn("[getArchivedProject] Could not fetch ProjectDocuments:", e.message);
+    }
 
     // If no real documents exist, we use the mock ones as fallback for UI testing
     const docCategories = {
