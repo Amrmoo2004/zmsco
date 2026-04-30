@@ -179,21 +179,33 @@ export const getMyDashboard = asynchandler(async (req, res) => {
 
     const myProjectIds = myProjects.map(p => p._id);
 
-    // ── 2. كل مراحل هذه المشاريع ────────────────────────────────────────────
+    // ── 2. كل مراحل المشاريع الخاصة بالمستخدم (للـ projects section) ──────────
     const allPhases = await ProjectPhaseModel.find(
         { project: { $in: myProjectIds } },
         "project name nameAr status order tasks"
     ).lean();
 
-    // ── 3. إحصائيات المهام الخاصة بالمستخدم ────────────────────────────────
+    // ── 2b. البحث عن التاسكات عبر كل الـ phases (مش مقيّد بالمشاريع)
+    //       يضمن ظهور التاسك حتى لو المستخدم ADMIN وليس member رسمي
+    const taskPhases = await ProjectPhaseModel.find(
+        { "tasks.assignedTo": userId },
+        "project name nameAr tasks"
+    ).lean();
+
+    // ── 3. إحصائيات المهام — من taskPhases (كل الـ phases التي فيها تاسك له) ──
     let delayedCount         = 0;
     let pendingApprovalCount = 0;
     let inProgressCount      = 0;
     const myTasks = [];
 
-    allPhases.forEach(phase => {
+    // جلب أسماء المشاريع لكل تاسك
+    const taskProjectIds = [...new Set(taskPhases.map(ph => ph.project.toString()))];
+    const taskProjects   = taskProjectIds.length > 0
+        ? await ProjectModel.find({ _id: { $in: taskProjectIds } }, "name code").lean()
+        : [];
+
+    taskPhases.forEach(phase => {
         (phase.tasks || []).forEach(task => {
-            // نأخذ المهام المسندة للمستخدم فقط
             if (!task.assignedTo || task.assignedTo.toString() !== userId.toString()) return;
 
             const isDelayed = !!(task.dueDate && new Date(task.dueDate) < now && task.status !== "COMPLETED");
@@ -202,7 +214,7 @@ export const getMyDashboard = asynchandler(async (req, res) => {
             if (task.status === "IN_PROGRESS") inProgressCount++;
             if (task.status === "PENDING")     pendingApprovalCount++;
 
-            const relatedProject = myProjects.find(
+            const relatedProject = taskProjects.find(
                 p => p._id.toString() === phase.project.toString()
             );
 
