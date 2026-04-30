@@ -15,11 +15,41 @@ const router = express.Router();
  * @swagger
  * /dashboard/stats:
  *   get:
- *     summary: Get home dashboard statistics
+ *     summary: إحصائيات لوحة التحكم العامة (Admin)
  *     tags: [Dashboard]
+ *     security: [{ bearerAuth: [] }]
  *     responses:
  *       200:
- *         description: Dashboard stats (Projects, Budget, Inventory)
+ *         description: إحصائيات المشاريع والميزانية والموظفين والمخزون
+ */
+router.get("/stats", auth, dashboardService.getDashboardStats);
+
+/**
+ * @swagger
+ * /dashboard/my:
+ *   get:
+ *     summary: لوحة التحكم الشخصية للمستخدم الحالي
+ *     description: |
+ *       يُرجع بيانات مخصصة للمستخدم المسجّل:
+ *
+ *       ### `stats` — البطاقات العلوية (4 بطاقات في UI)
+ *       | الحقل | الوصف | البطاقة في UI |
+ *       |---|---|---|
+ *       | `delayed` | عدد المهام المتأخرة | 🔴 مهام متأخرة |
+ *       | `pendingApproval` | مهام حالتها PENDING | 🟡 بانتظار موافقة |
+ *       | `inProgress` | مهام حالتها IN_PROGRESS | 🔵 مهام قيد التنفيذ |
+ *       | `myProjectsCount` | إجمالي مشاريعه | 🟢 مشاريعي |
+ *
+ *       ### `tasks[]` — قائمة المهام (مرتبة: متأخرة أولاً)
+ *       كل مهمة تحتوي: `name, status, priority, dueDate, isDelayed, projectId, projectName, phaseId, phaseName`
+ *
+ *       ### `projects[]` — مشاريعي
+ *       كل مشروع يحتوي: `name, status, progress, myRole, currentPhase, phases[], totalTasks, activeTasks`
+ *     tags: [Dashboard]
+ *     security: [{ bearerAuth: [] }]
+ *     responses:
+ *       200:
+ *         description: بيانات لوحة التحكم الشخصية
  *         content:
  *           application/json:
  *             schema:
@@ -27,33 +57,59 @@ const router = express.Router();
  *               properties:
  *                 success:
  *                   type: boolean
+ *                   example: true
  *                 data:
  *                   type: object
  *                   properties:
+ *                     stats:
+ *                       type: object
+ *                       properties:
+ *                         delayed:         { type: integer, example: 1 }
+ *                         pendingApproval: { type: integer, example: 1 }
+ *                         inProgress:      { type: integer, example: 2 }
+ *                         myProjectsCount: { type: integer, example: 3 }
+ *                     tasks:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           _id:         { type: string }
+ *                           name:        { type: string }
+ *                           status:      { type: string, enum: [PENDING, IN_PROGRESS, COMPLETED, CANCELLED] }
+ *                           priority:    { type: string, enum: [LOW, MEDIUM, HIGH] }
+ *                           dueDate:     { type: string, format: date }
+ *                           isDelayed:   { type: boolean }
+ *                           projectId:   { type: string }
+ *                           projectName: { type: string }
+ *                           phaseId:     { type: string }
+ *                           phaseName:   { type: string }
  *                     projects:
- *                       type: object
- *                       properties:
- *                         total:
- *                           type: integer
- *                         active:
- *                           type: integer
- *                         completed:
- *                           type: integer
- *                     financials:
- *                       type: object
- *                       properties:
- *                         totalBudget:
- *                           type: number
- *                         currency:
- *                           type: string
- *                     inventory:
- *                       type: object
- *                       properties:
- *                         lowStockCount:
- *                           type: integer
- *                         status:
- *                           type: string
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           _id:      { type: string }
+ *                           name:     { type: string }
+ *                           status:   { type: string }
+ *                           progress: { type: integer, example: 65 }
+ *                           myRole:   { type: string, example: "مهندس تنفيذ" }
+ *                           currentPhase:
+ *                             type: object
+ *                             properties:
+ *                               _id:    { type: string }
+ *                               name:   { type: string }
+ *                               status: { type: string }
+ *                               order:  { type: integer }
+ *                           phases:
+ *                             type: array
+ *                             items:
+ *                               type: object
+ *                               properties:
+ *                                 _id:    { type: string }
+ *                                 name:   { type: string }
+ *                                 status: { type: string }
+ *                                 order:  { type: integer }
  */
-router.get("/stats", auth, dashboardService.getDashboardStats);
+router.get("/my", auth, dashboardService.getMyDashboard);
 
 export default router;

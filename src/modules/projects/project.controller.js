@@ -626,4 +626,82 @@ router.get(
   projectService.get_phase_details
 );
 
+/**
+ * @swagger
+ * /projects/{id}/phases/{phaseId}/complete:
+ *   patch:
+ *     summary: إكمال مرحلة وفتح المرحلة التالية تلقائياً (زر "الانتقال إلى المرحلة")
+ *     description: |
+ *       يتحقق من 3 شروط قبل الإكمال:
+ *       1. كل المهام الإلزامية مكتملة
+ *       2. كل الموافقات الإلزامية تم منحها
+ *       3. كل المرفقات الإلزامية تمت الموافقة عليها
+ *
+ *       بعد النجاح:
+ *       - يضع المرحلة الحالية COMPLETED
+ *       - يفتح المرحلة التالية IN_PROGRESS تلقائياً
+ *       - إذا لا توجد مراحل متبقية → يُكمل المشروع كله
+ *
+ *       يمكن إرسال `force: true` لتجاوز التحقق (للمدراء فقط)
+ *     tags: [Projects]
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *       - in: path
+ *         name: phaseId
+ *         required: true
+ *         schema: { type: string }
+ *     requestBody:
+ *       required: false
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               force:
+ *                 type: boolean
+ *                 default: false
+ *                 description: "تجاوز التحقق من المهام والموافقات والمرفقات"
+ *     responses:
+ *       200:
+ *         description: تم إكمال المرحلة
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean }
+ *                 message: { type: string }
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     completedPhase:
+ *                       type: object
+ *                       properties:
+ *                         _id:    { type: string }
+ *                         name:   { type: string }
+ *                         status: { type: string, example: COMPLETED }
+ *                     nextPhase:
+ *                       type: object
+ *                       nullable: true
+ *                       properties:
+ *                         _id:   { type: string }
+ *                         name:  { type: string }
+ *                         order: { type: integer }
+ *                     projectCompleted: { type: boolean }
+ *       400:
+ *         description: "مهام / موافقات / مرفقات معلقة"
+ *       404:
+ *         description: المرحلة غير موجودة
+ */
+router.patch(
+  "/:id/phases/:phaseId/complete",
+  auth,
+  permission("EDIT_PROJECT"),
+  projectService.completePhase
+);
+
 export default router;

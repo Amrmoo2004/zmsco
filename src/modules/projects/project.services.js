@@ -619,34 +619,57 @@ export const update_phase_status = asynchandler(async (req, res, next) => {
 });
 
 /**
- * GET PHASE DETAILS
- * Used by the Phase Details screen to render header widgets
+ * GET PHASE DETAILS (Screen 2 — شاشة تفاصيل المرحلة)
+ * يُرجع إحصائيات محسوبة للـ UI:
+ *   statistics.tasks       → { completed, total }   ← "التزامات المكتملة"
+ *   statistics.attachments → { uploaded, total }    ← "المرفقات المضافة"
+ *   statistics.approvals   → { approved, total }    ← "اشتراك الأدوار"
+ *   statistics.progress    → نسبة الإنجاز الكلية %
+ *   statistics.canComplete → هل يمكن الضغط على "الانتقال إلى المرحلة"؟
  */
 export const get_phase_details = asynchandler(async (req, res, next) => {
   const { id: projectId, phaseId } = req.params;
 
-  const phase = await ProjectPhase.findOne({ _id: phaseId, project: projectId }).lean();
-  
-  if (!phase) {
-      return next(new AppError("Phase not found.", 404));
-  }
+  const phase = await ProjectPhase.findOne({ _id: phaseId, project: projectId })
+      .populate('requiredApprovals.user', 'name')
+      .populate('requiredAttachments.attachmentId', 'url name')
+      .lean();
 
-  // Calculate task statistics
-  const totalTasks = phase.tasks ? phase.tasks.length : 0;
-  const completedTasks = phase.tasks ? phase.tasks.filter(t => t.status === "COMPLETED").length : 0;
-  const progressPercentage = totalTasks === 0 ? 0 : Math.round((completedTasks / totalTasks) * 100);
+  if (!phase) return next(new AppError('Phase not found.', 404));
 
-  // We rely on phase.budget and phase.expenses stored in the document.
-  // In a robust scenario, we could sum MaterialTransactions here.
-  
+  // ── إحصائيات المهام
+  const totalTasks     = (phase.tasks || []).length;
+  const completedTasks = (phase.tasks || []).filter(t => t.status === 'COMPLETED').length;
+
+  // ── إحصائيات المرفقات
+  const totalAttachments    = (phase.requiredAttachments || []).length;
+  const uploadedAttachments = (phase.requiredAttachments || []).filter(a => !!a.attachmentId).length;
+
+  // ── إحصائيات الموافقات
+  const totalApprovals    = (phase.requiredApprovals || []).length;
+  const approvedApprovals = (phase.requiredApprovals || []).filter(a => a.status === 'APPROVED').length;
+
+  // ── نسبة الإنجاز (مهام 60% + مرفقات 20% + موافقات 20%)
+  const taskPct     = totalTasks       > 0 ? (completedTasks      / totalTasks)       * 100 : 0;
+  const attachPct   = totalAttachments > 0 ? (uploadedAttachments / totalAttachments) * 100 : 100;
+  const approvalPct = totalApprovals   > 0 ? (approvedApprovals   / totalApprovals)   * 100 : 100;
+  const progress    = Math.round(taskPct * 0.6 + attachPct * 0.2 + approvalPct * 0.2);
+
+  const canComplete =
+      completedTasks      === totalTasks       &&
+      uploadedAttachments === totalAttachments &&
+      approvedApprovals   === totalApprovals;
+
   return res.status(200).json({
     success: true,
     data: {
       ...phase,
       statistics: {
-        totalTasks,
-        completedTasks,
-        progressPercentage
+        progress,
+        canComplete,
+        tasks:       { completed: completedTasks,      total: totalTasks },
+        attachments: { uploaded:  uploadedAttachments, total: totalAttachments },
+        approvals:   { approved:  approvedApprovals,   total: totalApprovals }
       }
     }
   });
@@ -711,3 +734,94 @@ export const get_archived_projects = asynchandler(async (req, res, next) => {
   });
 });
 
+/**
+ * COMPLETE PHASE  (Screen 2 — زر "الانتقال إلى المرحلة")
+ * يتحقق من المهام + الموافقات + المرفقات ثم يكمل المرحلة ويفتح التالية
+ */
+export const completePhase = asynchandler(async (req, res, next) => {
+    const { id: projectId, phaseId } = req.params;
+    const { force = false } = req.body;
+
+    const phase = await ProjectPhase.findOne({ _id: phaseId, project: projectId });
+    if (!phase) return next(new AppError("المرحلة غير موجودة", 404));
+    if (phase.status === "COMPLETED") return next(new AppError("المرحلة مكتملة بالفعل", 400));
+
+    if (!force) {
+        // ── التحقق من المهام الإلزامية ────────────────────────────────────
+        const incompleteTasks = (phase.tasks || []).filter(
+            t => t.isRequired !== false && t.status !== "COMPLETED" && t.status !== "CANCELLED"
+        );
+        if (incompleteTasks.length > 0) {
+            return next(new AppError(
+                `لا يمكن إكمال المرحلة — يوجد ${incompleteTasks.length} مهمة غير مكتملة`, 400
+            ));
+        }
+
+        // ── التحقق من الموافقات الإلزامية ─────────────────────────────────
+        const pendingApprovals = (phase.requiredApprovals || []).filter(
+            a => a.isMandatory !== false && a.status !== "APPROVED"
+        );
+        if (pendingApprovals.length > 0) {
+            return next(new AppError(
+                `لا يمكن إكمال المرحلة — يوجد ${pendingApprovals.length} موافقة معلقة`, 400
+            ));
+        }
+
+        // ── التحقق من المرفقات الإلزامية ──────────────────────────────────
+        const pendingAttachments = (phase.requiredAttachments || []).filter(
+            a => a.isMandatory !== false && a.reviewStatus !== "APPROVED"
+        );
+        if (pendingAttachments.length > 0) {
+            return next(new AppError(
+                `لا يمكن إكمال المرحلة — يوجد ${pendingAttachments.length} مرفق لم تتم مراجعته`, 400
+            ));
+        }
+    }
+
+    // ── إكمال المرحلة الحالية ────────────────────────────────────────────
+    phase.status  = "COMPLETED";
+    phase.endDate = phase.endDate || new Date();
+    await phase.save();
+
+    // ── فتح المرحلة التالية تلقائياً ─────────────────────────────────────
+    const nextPhase = await ProjectPhase.findOne({
+        project: projectId,
+        order:   phase.order + 1,
+        status:  { $in: ["PENDING", "IN_PROGRESS"] }
+    }).sort({ order: 1 });
+
+    let nextPhaseData = null;
+    if (nextPhase && nextPhase.status === "PENDING") {
+        nextPhase.status    = "IN_PROGRESS";
+        nextPhase.startDate = nextPhase.startDate || new Date();
+        await nextPhase.save();
+        nextPhaseData = { _id: nextPhase._id, name: nextPhase.nameAr || nextPhase.name, order: nextPhase.order };
+    } else if (nextPhase) {
+        nextPhaseData = { _id: nextPhase._id, name: nextPhase.nameAr || nextPhase.name, order: nextPhase.order };
+    }
+
+    // ── هل اكتملت كل المراحل؟ ────────────────────────────────────────────
+    const remainingPhases = await ProjectPhase.countDocuments({
+        project: projectId,
+        status:  { $ne: "COMPLETED" }
+    });
+
+    if (remainingPhases === 0) {
+        await ProjectModel.findByIdAndUpdate(projectId, {
+            status: "COMPLETED",
+            completionDate: new Date()
+        });
+    }
+
+    return res.status(200).json({
+        success: true,
+        message: nextPhaseData
+            ? `تم إكمال المرحلة وفتح المرحلة التالية: ${nextPhaseData.name}`
+            : "تم إكمال آخر مرحلة في المشروع",
+        data: {
+            completedPhase: { _id: phase._id, name: phase.nameAr || phase.name, status: phase.status },
+            nextPhase:        nextPhaseData,
+            projectCompleted: remainingPhases === 0
+        }
+    });
+});

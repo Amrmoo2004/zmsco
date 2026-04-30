@@ -79,7 +79,7 @@ app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 app.use(cookieParser());
 
-export const bootstrap = async () => {
+export const bootstrap = async () => { 
   app.get('/', (req, res) => {
     res.send('API is working!');
   });
