@@ -66,21 +66,35 @@ export const deleteTask = asynchandler(async (req, res, next) => {
     return res.status(200).json({ success: true, message: "Task deleted successfully" });
 });
 
-// POST /api/projects/:projectId/phases/:phaseId/approve-requirement  
+// POST /api/projects/:projectId/phases/:phaseId/approve-requirement
 export const submitPhaseAttachment = asynchandler(async (req, res, next) => {
     const { phaseId } = req.params;
-    const { documentType, attachmentId } = req.body;
+    const { documentType, attachmentId, isMandatory } = req.body;
+
+    if (!documentType || !attachmentId) {
+        return next(new AppError("documentType و attachmentId مطلوبان", 400));
+    }
 
     const phase = await ProjectPhase.findById(phaseId);
     if (!phase) return next(new AppError("Phase not found", 404));
 
-    const reqDoc = phase.requiredAttachments.find(a => a.documentType === documentType);
-    if (!reqDoc) return next(new AppError("Document type not found in required attachments", 404));
+    let reqDoc = phase.requiredAttachments.find(a => a.documentType === documentType);
 
-    reqDoc.attachmentId = attachmentId;
-    reqDoc.reviewStatus = "PENDING";
+    if (!reqDoc) {
+        // لو مفيش slot مسبق → ننشئه تلقائياً (مرفق اختياري)
+        phase.requiredAttachments.push({
+            documentType,
+            attachmentId,
+            reviewStatus: "PENDING",
+            isMandatory: isMandatory ?? false
+        });
+    } else {
+        // slot موجود → نحدّثه
+        reqDoc.attachmentId = attachmentId;
+        reqDoc.reviewStatus = "PENDING";
+    }
+
     await phase.save();
-
     return res.status(200).json({ success: true, message: "Document submitted for review", data: phase });
 });
 
