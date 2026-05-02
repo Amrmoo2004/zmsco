@@ -40,9 +40,17 @@ const phaseTemplateSchema = new mongoose.Schema(
     {
         nameAr: {
             type: String,
+            required: function () {
+                return !this.nameEn; // إذا ما فيه nameEn، يجب أن يكون nameAr موجود
+            },
+            trim: true,
         },
         nameEn: {
             type: String,
+            required: function () {
+                return !this.nameAr; // إذا ما فيه nameAr، يجب أن يكون nameEn موجود
+            },
+            trim: true,
         },
         color: {
             type: String,

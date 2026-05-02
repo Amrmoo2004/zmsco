@@ -35,10 +35,21 @@ export const createProjectType = asynchandler(async (req, res, next) => {
 });
 
 export const updateProjectType = asynchandler(async (req, res, next) => {
+    // Validate phases have names before updating
+    if (req.body.phases && Array.isArray(req.body.phases)) {
+        for (let i = 0; i < req.body.phases.length; i++) {
+            const phase = req.body.phases[i];
+            if (!phase.nameAr && !phase.nameEn) {
+                return next(new AppError(`Phase at index ${i} must have at least nameAr or nameEn`, 400));
+            }
+        }
+    }
+
     const pt = await ProjectType.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
     if (!pt) return next(new AppError("Project Type not found", 404));
     return res.status(200).json({ success: true, message: "Project Type updated successfully", data: pt });
 });
+
 
 export const deleteProjectType = asynchandler(async (req, res, next) => {
     const pt = await ProjectType.findByIdAndDelete(req.params.id);
