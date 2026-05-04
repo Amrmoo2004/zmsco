@@ -12,7 +12,7 @@ const phaseFieldSchema = new mongoose.Schema(
 const phaseAttachmentSchema = new mongoose.Schema(
     {
         name: { type: String, required: true },
-        type: { type: String, enum: ['PDF', 'IMAGE', 'ANY'], default: 'ANY' },
+        type: { type: String, enum: ['PDF', 'IMAGE', 'file', 'text'], default: 'file' }, 
         isRequired: { type: Boolean, default: false }
     },
     { _id: false }
@@ -21,7 +21,8 @@ const phaseAttachmentSchema = new mongoose.Schema(
 
 const phaseApprovalSchema = new mongoose.Schema(
     {
-        entity: { type: mongoose.Schema.Types.ObjectId, ref: "Role", required: true },
+        name: { type: String }, // To hold the text entered in frontend
+        entity: { type: mongoose.Schema.Types.ObjectId, ref: "Role" }, // Optional at creation
         isRequired: { type: Boolean, default: false }
     },
     { _id: false }
