@@ -19,8 +19,8 @@ const measurementUnitSchema = new mongoose.Schema(
         type: {
             type: String,
             required: true,
-            enum: ["طول", "وزن", "حجم", "عدد"], // Length, Weight, Volume, Count
-        },
+            enum: ["Length", "Weight", "Volume", "Count"], 
+                },
         isActive: {
             type: Boolean,
             default: true,
