@@ -3,6 +3,7 @@ import HrRequest from "../../db/models/hr/hrRequest.model.js";
 import User from "../../db/models/user.js";
 import { AppError } from "../../utils/appError.js";
 import { asynchandler } from "../../utils/response/response.js";
+import { createNotification } from "../notifications/notification.service.js";
 
 // ─── Work Logs (Timesheets) ───────────────────────────────────────────────────
 
@@ -47,27 +48,59 @@ export const deleteWorkLog = asynchandler(async (req, res, next) => {
 // ─── HR Requests ───────────────────────────────────────────────────────────────
 
 export const getHrRequests = asynchandler(async (req, res) => {
-    const filter = req.query.all === "true" ? {} : { user: req.user._id };
+    const isAdmin = ["ADMIN", "superAdmin"].includes(req.user.role);
+    let filter = {};
+
+    if (isAdmin) {
+        // ── Admin: يشوف كل الطلبات ──────────────────────────────────────
+        filter = {};
+    } else {
+        // ── مش Admin: لازم نحدد مين يشوف إيه ────────────────────────────
+        // 1. الطلبات اللي قدمها هو بنفسه
+        const ownFilter = { user: req.user._id };
+
+        // 2. لو هو مدير مشروع → يشوف الطلبات المرتبطة بمشاريعه
+        const Project = (await import("../../db/models/projects/project.js")).default;
+        const managedProjects = await Project.find({ manager: req.user._id, isActive: true })
+            .select("_id").lean();
+        const managedProjectIds = managedProjects.map(p => p._id);
+
+        if (managedProjectIds.length > 0) {
+            // يشوف طلباته هو + طلبات مشاريعه
+            filter = {
+                $or: [
+                    { user: req.user._id },
+                    { relatedProject: { $in: managedProjectIds } }
+                ]
+            };
+        } else {
+            // موظف عادي: طلباته بس
+            filter = ownFilter;
+        }
+    }
+
     const requests = await HrRequest.find(filter)
         .populate("user", "name email")
+        .populate("relatedProject", "name")
         .populate("processedBy", "name email")
         .sort({ createdAt: -1 })
         .lean();
 
-    const formattedRequests = requests.map(req => {
-        const start = new Date(req.startDate);
-        const end = new Date(req.endDate);
+    const formattedRequests = requests.map(r => {
+        const start    = new Date(r.startDate);
+        const end      = new Date(r.endDate);
         const duration = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) || 1;
         return {
-            ...req,
-            userName: req.user ? req.user.name : "غير معروف",
-            duration: `${duration} أيام`
+            ...r,
+            userName:    r.user ? r.user.name : "غير معروف",
+            projectName: r.relatedProject?.name || null,
+            duration:    `${duration} أيام`
         };
     });
 
     const stats = {
-        total: requests.length,
-        pending: requests.filter(r => r.status === "PENDING").length,
+        total:    requests.length,
+        pending:  requests.filter(r => r.status === "PENDING").length,
         approved: requests.filter(r => r.status === "APPROVED").length,
         rejected: requests.filter(r => r.status === "REJECTED").length,
     };
@@ -77,18 +110,96 @@ export const getHrRequests = asynchandler(async (req, res) => {
 
 export const createHrRequest = asynchandler(async (req, res) => {
     const request = await HrRequest.create({ ...req.body, user: req.user._id, status: "PENDING" });
+
+    const typeLabels = { LEAVE: "إجازة", REPLACEMENT: "بديل", OVERTIME: "عمل إضافي", ADVANCE: "سلفة" };
+    const typeLabel = typeLabels[request.requestType] || request.requestType;
+    const dateStr   = request.startDate ? new Date(request.startDate).toLocaleDateString("ar") : "";
+    const notifBody = `أرسل ${req.user.name || "موظف"} طلب ${typeLabel} بتاريخ ${dateStr} — يرجى المراجعة.`;
+    const notifData = { requestId: request._id, requestType: request.requestType };
+
+    // ── إشعار جميع الادمنز ───────────────────────────────────────────────
+    const admins = await User.find({
+        $or: [{ role: "ADMIN" }, { role: "superAdmin" }],
+        isActive: true
+    }).select("_id").lean();
+
+    await Promise.all(
+        admins.map(admin =>
+            createNotification(admin._id, `📋 طلب ${typeLabel} جديد`, notifBody, "INFO", notifData).catch(() => {})
+        )
+    );
+
+    // ── إشعار مدير المشروع إن كان الطلب مرتبطاً بمشروع ──────────────────────────
+    if (request.relatedProject) {
+        const projectDoc = await (await import("../../db/models/projects/project.js")).default
+            .findById(request.relatedProject).select("manager name").lean();
+
+        if (projectDoc?.manager) {
+            const managerId = String(projectDoc.manager);
+            // Don't double-notify if manager is also an admin
+            const alreadyNotified = admins.some(a => String(a._id) === managerId);
+            if (!alreadyNotified) {
+                await createNotification(
+                    projectDoc.manager,
+                    `📋 طلب ${typeLabel} جديد — مشروع "${projectDoc.name}"`,
+                    notifBody,
+                    "INFO",
+                    notifData
+                ).catch(() => {});
+            }
+        }
+    }
+
     return res.status(201).json({ success: true, message: "HR request submitted", data: request });
 });
 
 export const processHrRequest = asynchandler(async (req, res, next) => {
     const { status, rejectionReason } = req.body;
-    const request = await HrRequest.findById(req.params.id);
+
+    if (!["APPROVED", "REJECTED"].includes(status))
+        return next(new AppError("status يجب أن يكون APPROVED أو REJECTED", 400));
+
+    // ── Authorization: ADMIN/superAdmin أو مدير المشروع المرتبط ──────────
+    const isAdmin = ["ADMIN", "superAdmin"].includes(req.user.role);
+    let isProjectManager = false;
+
+    const request = await HrRequest.findById(req.params.id)
+        .populate("user", "name email _id")
+        .populate("relatedProject", "manager name");
     if (!request) return next(new AppError("HR request not found", 404));
-    request.status = status;
+
+    if (!isAdmin && request.relatedProject?.manager) {
+        isProjectManager = String(request.relatedProject.manager) === String(req.user._id);
+    }
+
+    if (!isAdmin && !isProjectManager)
+        return next(new AppError("غير مصرح لك — فقط الادمن أو مدير المشروع يمكنهما معالجة هذا الطلب", 403));
+    if (request.status !== "PENDING")
+        return next(new AppError("الطلب تمت معالجته بالفعل", 400));
+
+    request.status      = status;
     request.processedBy = req.user._id;
     request.processedAt = new Date();
     if (status === "REJECTED") request.rejectionReason = rejectionReason;
     await request.save();
+
+    // ── إشعار مقدم الطلب بالنتيجة ────────────────────────────────────
+    const typeLabels = { LEAVE: "إجازة", REPLACEMENT: "بديل", OVERTIME: "عمل إضافي", ADVANCE: "سلفة" };
+    const typeLabel = typeLabels[request.requestType] || request.requestType;
+
+    if (request.user?._id) {
+        const isApproved = status === "APPROVED";
+        await createNotification(
+            request.user._id,
+            isApproved ? `✅ تمت الموافقة على طلب ${typeLabel}` : `❌ تم رفض طلب ${typeLabel}`,
+            isApproved
+                ? `تمت الموافقة على طلب ${typeLabel} الخاص بك بتاريخ ${request.startDate ? new Date(request.startDate).toLocaleDateString("ar") : ""}.`
+                : `تم رفض طلب ${typeLabel} الخاص بك.${rejectionReason ? " السبب: " + rejectionReason : ""}`,
+            isApproved ? "SUCCESS" : "ERROR",
+            { requestId: request._id, requestType: request.requestType }
+        );
+    }
+
     return res.status(200).json({ success: true, message: `HR Request ${status}`, data: request });
 });
 

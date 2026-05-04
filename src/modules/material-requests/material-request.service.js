@@ -291,10 +291,20 @@ export const approveRequest = asynchandler(async (req, res, next) => {
 
   // ── No workflow — direct approval ───────────────────────────────────────
   if (request.status === "PENDING") {
+    // ── Authorization: only ADMIN or the project's manager can approve ──
+    const projectDoc = await Project.findById(request.project?._id || request.project).lean();
+    const isAdmin    = ["ADMIN", "superAdmin"].includes(req.user.role);
+    const isManager  = projectDoc?.manager && String(projectDoc.manager) === String(req.user._id);
+
+    if (!isAdmin && !isManager) {
+      return next(new AppError("غير مصرح لك — فقط الـ Admin أو مدير المشروع يمكنهم الموافقة على هذا الطلب", 403));
+    }
+
     request.status     = "APPROVED";
     request.approvedBy = req.user._id;
     await request.save();
 
+    // Notify requester
     await createNotification(
       request.requestedBy._id,
       "✅ طلب المواد تم قبوله",
@@ -392,6 +402,16 @@ export const rejectRequest = asynchandler(async (req, res, next) => {
   if (!request) return next(new AppError("Material request not found", 404));
   if (!["PENDING", "PENDING_APPROVAL"].includes(request.status))
     return next(new AppError(`Cannot reject request with status: ${request.status}`, 400));
+
+  // ── For PENDING (no workflow): only ADMIN or project manager can reject ──
+  if (request.status === "PENDING") {
+    const projectDoc = await Project.findById(request.project?._id || request.project).lean();
+    const isAdmin    = ["ADMIN", "superAdmin"].includes(req.user.role);
+    const isManager  = projectDoc?.manager && String(projectDoc.manager) === String(req.user._id);
+    if (!isAdmin && !isManager) {
+      return next(new AppError("غير مصرح لك — فقط الـ Admin أو مدير المشروع يمكنهم رفض هذا الطلب", 403));
+    }
+  }
 
   if (request.status === "PENDING_APPROVAL") {
     // Workflow step auth check
