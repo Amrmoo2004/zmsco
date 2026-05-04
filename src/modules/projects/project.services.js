@@ -85,51 +85,52 @@ export const create_project = asynchandler(async (req, res, next) => {
   } else if (projectTypeBlueprint && projectTypeBlueprint.phases && projectTypeBlueprint.phases.length > 0) {
     // Auto-generate phases from ProjectType blueprint if frontend didn't send any
     const autoPhases = projectTypeBlueprint.phases.map(phase => {
-        const requiredApprovals = phase.approvals ? phase.approvals.map(app => ({
-          role: app.entity,
-          isMandatory: app.isRequired
-        })) : [];
+      const requiredApprovals = phase.approvals ? phase.approvals.map(app => ({
+        role: app.entity,
+        isMandatory: app.isRequired
+      })) : [];
 
-        const requiredAttachments = phase.attachments ? phase.attachments.map(att => ({
-          documentType: att.name,
-          isMandatory: att.isRequired
-        })) : [];
+      const requiredAttachments = phase.attachments ? phase.attachments.map(att => ({
+        documentType: att.name,
+        isMandatory: att.isRequired
+      })) : [];
 
-        const customFields = {};
-        if (phase.fields) {
-            phase.fields.forEach(f => {
-                customFields[f.name] = ""; 
-            });
-        }
+      const customFields = {};
+      if (phase.fields) {
+        phase.fields.forEach(f => {
+          customFields[f.name] = "";
+        });
+      }
 
-        const tasks = phase.tasks ? phase.tasks.map(t => ({
-           name: t.name,
-           description: t.description,
-           status: "PENDING"
-        })) : [];
+      const tasks = phase.tasks ? phase.tasks.map(t => ({
+        name: t.name,
+        description: t.description,
+        status: "PENDING"
+      })) : [];
 
-        const requiredPermits = phase.permits ? phase.permits.map(p => ({
-          name: p.name,
-          isMandatory: p.isRequired
-        })) : [];
+      const requiredPermits = phase.permits ? phase.permits.map(p => ({
+        name: p.name,
+        isMandatory: p.isRequired
+      })) : [];
 
-        return {
-          project: project._id,
-          name: phase.nameAr || phase.nameEn || "مرحلة",
-          nameAr: phase.nameAr,
-          nameEn: phase.nameEn,
-          color: phase.color,
-          order: phase.order,
-          expectedDays: phase.expectedDays,
-          isRequired: phase.isRequired,
-          customFields,
-          requiredAttachments,
-          requiredApprovals,
-          requiredPermits,
-          tasks
-        };
-      });
-      await ProjectPhase.insertMany(autoPhases);
+      return {
+        project: project._id,
+        name: phase.nameAr || phase.nameEn || "مرحلة",
+        nameAr: phase.nameAr,
+        nameEn: phase.nameEn,
+        color: phase.color,
+        order: phase.order,
+        expectedDays: phase.expectedDays,
+        status: phase.order === 1 ? "IN_PROGRESS" : "PENDING", // First phase opens automatically, others stay locked
+        isRequired: phase.isRequired,
+        customFields,
+        requiredAttachments,
+        requiredApprovals,
+        requiredPermits,
+        tasks
+      };
+    });
+    await ProjectPhase.insertMany(autoPhases);
   }
 
   let estimatedCost = 0;
@@ -137,36 +138,36 @@ export const create_project = asynchandler(async (req, res, next) => {
   // Process Materials
   let actualMaterials = materials;
   if ((!actualMaterials || actualMaterials.length === 0) && projectTypeBlueprint?.defaultResources?.materials) {
-      actualMaterials = projectTypeBlueprint.defaultResources.materials.map(mat => {
-          const materialObj = mat.material || {};
-          const baseCost = materialObj.standardCost || 0;
-          return {
-              material: materialObj._id || mat.material,
-              plannedQuantity: mat.quantity,
-              unitCost: baseCost,
-              totalCost: baseCost * mat.quantity
-          };
-      });
+    actualMaterials = projectTypeBlueprint.defaultResources.materials.map(mat => {
+      const materialObj = mat.material || {};
+      const baseCost = materialObj.standardCost || 0;
+      return {
+        material: materialObj._id || mat.material,
+        plannedQuantity: mat.quantity,
+        unitCost: baseCost,
+        totalCost: baseCost * mat.quantity
+      };
+    });
   }
   if (actualMaterials?.length > 0) {
-      const materialsToInsert = actualMaterials.map(m => {
-          // Destructure _id out to prevent MongoDB duplicate key error when frontend sends full material objects
-          const { _id, materialId, material: materialRef, ...rest } = m;
-          const resolvedMaterialId = materialRef || _id || materialId;
-          const qty = rest.plannedQuantity || rest.quantity || 0;
-          const cost = rest.totalCost || (rest.unitCost ? rest.unitCost * qty : 0);
-          estimatedCost += cost;
-          return {
-              ...rest,
-              project: project._id,
-              material: resolvedMaterialId,
-              plannedQuantity: qty,
-              issuedQuantity: 0,
-              unitCost: rest.unitCost || 0,
-              totalCost: cost
-          };
-      });
-      await ProjectMaterial.insertMany(materialsToInsert);
+    const materialsToInsert = actualMaterials.map(m => {
+      // Destructure _id out to prevent MongoDB duplicate key error when frontend sends full material objects
+      const { _id, materialId, material: materialRef, ...rest } = m;
+      const resolvedMaterialId = materialRef || _id || materialId;
+      const qty = rest.plannedQuantity || rest.quantity || 0;
+      const cost = rest.totalCost || (rest.unitCost ? rest.unitCost * qty : 0);
+      estimatedCost += cost;
+      return {
+        ...rest,
+        project: project._id,
+        material: resolvedMaterialId,
+        plannedQuantity: qty,
+        issuedQuantity: 0,
+        unitCost: rest.unitCost || 0,
+        totalCost: cost
+      };
+    });
+    await ProjectMaterial.insertMany(materialsToInsert);
   }
 
   const projectDurationDays = Math.ceil((new Date(endDate) - new Date(startDate)) / (1000 * 60 * 60 * 24)) || 1;
@@ -176,47 +177,47 @@ export const create_project = asynchandler(async (req, res, next) => {
   // Mode 2: { name, count, unitCost }  → Free-form manual entry
   let actualEquipments = equipments;
   if ((!actualEquipments || actualEquipments.length === 0) && projectTypeBlueprint?.defaultResources?.equipments) {
-      actualEquipments = projectTypeBlueprint.defaultResources.equipments.map(eq => ({
-          name: eq.name,
-          count: eq.count || 1,
-          unit: eq.unit || "وحدة",
-          ownershipType: "OWNED",
-          unitCost: (eq.estimatedDailyCost || 0) * projectDurationDays,
-          totalCost: (eq.estimatedDailyCost || 0) * projectDurationDays * (eq.count || 1)
-      }));
+    actualEquipments = projectTypeBlueprint.defaultResources.equipments.map(eq => ({
+      name: eq.name,
+      count: eq.count || 1,
+      unit: eq.unit || "وحدة",
+      ownershipType: "OWNED",
+      unitCost: (eq.estimatedDailyCost || 0) * projectDurationDays,
+      totalCost: (eq.estimatedDailyCost || 0) * projectDurationDays * (eq.count || 1)
+    }));
   }
   if (actualEquipments?.length > 0) {
-      const equipmentDocs = await Promise.all(actualEquipments.map(async e => {
-          let resolvedName = e.name;
-          let resolvedUnitCost = e.unitCost || 0;
-          let equipmentRef = null;
+    const equipmentDocs = await Promise.all(actualEquipments.map(async e => {
+      let resolvedName = e.name;
+      let resolvedUnitCost = e.unitCost || 0;
+      let equipmentRef = null;
 
-          // Mode 1: lookup from fleet
-          if (e.equipmentId) {
-              const fleetItem = await Equipment.findById(e.equipmentId);
-              if (fleetItem) {
-                  equipmentRef = fleetItem._id;
-                  resolvedName = fleetItem.name;
-                  resolvedUnitCost = e.unitCost ?? (fleetItem.dailyCost * projectDurationDays);
-              }
-          }
+      // Mode 1: lookup from fleet
+      if (e.equipmentId) {
+        const fleetItem = await Equipment.findById(e.equipmentId);
+        if (fleetItem) {
+          equipmentRef = fleetItem._id;
+          resolvedName = fleetItem.name;
+          resolvedUnitCost = e.unitCost ?? (fleetItem.dailyCost * projectDurationDays);
+        }
+      }
 
-          const qty = e.count || 1;
-          const cost = e.totalCost ?? (resolvedUnitCost * qty);
-          estimatedCost += cost;
+      const qty = e.count || 1;
+      const cost = e.totalCost ?? (resolvedUnitCost * qty);
+      estimatedCost += cost;
 
-          return {
-              project: project._id,
-              equipmentRef,
-              name: resolvedName || "معدة",
-              count: qty,
-              unit: e.unit || "وحدة",
-              ownershipType: e.ownershipType || "OWNED",
-              unitCost: resolvedUnitCost,
-              totalCost: cost
-          };
-      }));
-      await ProjectEquipment.insertMany(equipmentDocs);
+      return {
+        project: project._id,
+        equipmentRef,
+        name: resolvedName || "معدة",
+        count: qty,
+        unit: e.unit || "وحدة",
+        ownershipType: e.ownershipType || "OWNED",
+        unitCost: resolvedUnitCost,
+        totalCost: cost
+      };
+    }));
+    await ProjectEquipment.insertMany(equipmentDocs);
   }
 
   if (documents?.length > 0) {
@@ -226,32 +227,32 @@ export const create_project = asynchandler(async (req, res, next) => {
   // Process Members (Vacancies)
   let actualMembers = members;
   if ((!actualMembers || actualMembers.length === 0) && projectTypeBlueprint?.defaultResources?.employees) {
-      actualMembers = [];
-      projectTypeBlueprint.defaultResources.employees.forEach(emp => {
-          const jobTitleDoc = emp.jobTitle || {};
-          const dailyCost = jobTitleDoc.estimatedDailyCost || 0;
-          const estCost = dailyCost * projectDurationDays;
+    actualMembers = [];
+    projectTypeBlueprint.defaultResources.employees.forEach(emp => {
+      const jobTitleDoc = emp.jobTitle || {};
+      const dailyCost = jobTitleDoc.estimatedDailyCost || 0;
+      const estCost = dailyCost * projectDurationDays;
 
-          for (let i = 0; i < emp.count; i++) {
-              actualMembers.push({
-                  jobTitle: jobTitleDoc._id || emp.jobTitle,
-                  role: "Project Member",
-                  status: "VACANT",
-                  estimatedCost: estCost,
-                  actualCost: 0
-              });
-          }
-      });
+      for (let i = 0; i < emp.count; i++) {
+        actualMembers.push({
+          jobTitle: jobTitleDoc._id || emp.jobTitle,
+          role: "Project Member",
+          status: "VACANT",
+          estimatedCost: estCost,
+          actualCost: 0
+        });
+      }
+    });
   }
   if (actualMembers?.length > 0) {
-      await ProjectMember.insertMany(actualMembers.map(m => {
-          estimatedCost += (m.estimatedCost || 0);
-          return { ...m, project: project._id, status: m.status || "VACANT" };
-      }));
+    await ProjectMember.insertMany(actualMembers.map(m => {
+      estimatedCost += (m.estimatedCost || 0);
+      return { ...m, project: project._id, status: m.status || "VACANT" };
+    }));
   }
 
   project.estimatedCost = estimatedCost;
-  
+
   // If frontend sends skipActivation: true and warehouseType is SHARED → go directly to PLANNING
   if (req.body.skipActivation && (!warehouseType || warehouseType === "SHARED")) {
     project.status = "PLANNING";
@@ -301,19 +302,19 @@ export const get_projects = asynchandler(async (req, res, next) => {
     const pPhases = phases.filter(ph => ph.project?.toString() === project._id.toString());
     let totalTasks = 0;
     let completedTasks = 0;
-    
+
     pPhases.forEach(ph => {
       if (ph.tasks) {
         totalTasks += ph.tasks.length;
         completedTasks += ph.tasks.filter(t => t.status === "COMPLETED").length;
       }
     });
-    
+
     const progress = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
-    
+
     let displayStatus = project.status;
     if (project.endDate && new Date(project.endDate) < new Date() && project.status !== "COMPLETED") {
-        displayStatus = "DELAYED";
+      displayStatus = "DELAYED";
     }
 
     return {
@@ -353,8 +354,8 @@ export const get_project = asynchandler(async (req, res, next) => {
 
   return res.status(200).json({
     success: true,
-    data: { 
-      ...project.toObject(), 
+    data: {
+      ...project.toObject(),
       members,
       materials,
       equipments,
@@ -432,8 +433,8 @@ export const assign_member = asynchandler(async (req, res, next) => {
   // 3. assign and calculate cost
   const project = await ProjectModel.findById(projectId);
   let durationDays = 30; // default assumption
-  if(project && project.startDate && project.endDate) {
-      durationDays = Math.max(1, Math.ceil((new Date(project.endDate) - new Date(project.startDate)) / (1000 * 60 * 60 * 24)));
+  if (project && project.startDate && project.endDate) {
+    durationDays = Math.max(1, Math.ceil((new Date(project.endDate) - new Date(project.startDate)) / (1000 * 60 * 60 * 24)));
   }
 
   const newCost = (user.hourlyRate || 0) * 8 * durationDays;
@@ -445,9 +446,9 @@ export const assign_member = asynchandler(async (req, res, next) => {
   memberSlot.actualCost = newCost;
   await memberSlot.save();
 
-  if(project) {
-      project.budget = (project.budget || 0) + costDiff;
-      await project.save();
+  if (project) {
+    project.budget = (project.budget || 0) + costDiff;
+    await project.save();
   }
 
   res.status(200).json({
@@ -510,7 +511,7 @@ export const activate_project = asynchandler(async (req, res, next) => {
   }
 
   const { initialTransfers: reqTransfers } = req.body;
-  
+
   // Handle Dedicated Warehouse (if not already created)
   if (project.warehouseType === "DEDICATED" && !project.dedicatedWarehouse) {
     const warehouse = await Warehouse.create({
@@ -529,64 +530,64 @@ export const activate_project = asynchandler(async (req, res, next) => {
   const transfersToProcess = reqTransfers || project.initialTransfers || [];
 
   if (transfersToProcess.length > 0 && targetWarehouseId) {
-      for (const transfer of transfersToProcess) {
-          const { material, quantity, fromWarehouse } = transfer;
-          if (!material || !quantity || !fromWarehouse) continue;
+    for (const transfer of transfersToProcess) {
+      const { material, quantity, fromWarehouse } = transfer;
+      if (!material || !quantity || !fromWarehouse) continue;
 
-          // 1. Deduct from Source Warehouse Inventory
-          let sourceInv = await Inventory.findOne({ warehouse: fromWarehouse, material });
-          if (!sourceInv || sourceInv.quantity < quantity) {
-              const deficit = quantity - (sourceInv ? sourceInv.quantity : 0);
-              
-              // Skip the transfer and notify manager instead of crashing project creation
-              await Notification.create({
-                  user: project.manager || req.user.id,
-                  title: "عجز في المخزون لنقل المواد الأولية",
-                  body: `تم تجاوز نقل ${quantity} وحدة من المادة (${material}) بسبب عجز قدره ${deficit} وحدة في المستودع المغذي. يرجى مراجعة المخزون لإتمام النقل يدوياً.`,
-                  type: "WARNING",
-                  data: { projectId: project._id, materialId: material, deficit }
-              });
+      // 1. Deduct from Source Warehouse Inventory
+      let sourceInv = await Inventory.findOne({ warehouse: fromWarehouse, material });
+      if (!sourceInv || sourceInv.quantity < quantity) {
+        const deficit = quantity - (sourceInv ? sourceInv.quantity : 0);
 
-              continue; // Skip this specific transfer and process the rest
-          }
-          sourceInv.quantity -= quantity;
-          await sourceInv.save();
+        // Skip the transfer and notify manager instead of crashing project creation
+        await Notification.create({
+          user: project.manager || req.user.id,
+          title: "عجز في المخزون لنقل المواد الأولية",
+          body: `تم تجاوز نقل ${quantity} وحدة من المادة (${material}) بسبب عجز قدره ${deficit} وحدة في المستودع المغذي. يرجى مراجعة المخزون لإتمام النقل يدوياً.`,
+          type: "WARNING",
+          data: { projectId: project._id, materialId: material, deficit }
+        });
 
-          // 2. Add to Target (Project) Warehouse Inventory
-          let targetInv = await Inventory.findOne({ warehouse: targetWarehouseId, material });
-          if (!targetInv) {
-              targetInv = new Inventory({
-                  warehouse: targetWarehouseId,
-                  material,
-                  quantity: 0
-              });
-          }
-          targetInv.quantity += quantity;
-          await targetInv.save();
-
-          // 3. Log the Transaction
-          await MaterialTransaction.create({
-              material,
-              project: project._id,
-              type: "TRANSFER",
-              quantity,
-              fromWarehouse,
-              toWarehouse: targetWarehouseId,
-              processedBy: req.user.id,
-              reference: `Initial transfer for project ${project.code}`,
-              status: "COMPLETED"
-          });
+        continue; // Skip this specific transfer and process the rest
       }
+      sourceInv.quantity -= quantity;
+      await sourceInv.save();
+
+      // 2. Add to Target (Project) Warehouse Inventory
+      let targetInv = await Inventory.findOne({ warehouse: targetWarehouseId, material });
+      if (!targetInv) {
+        targetInv = new Inventory({
+          warehouse: targetWarehouseId,
+          material,
+          quantity: 0
+        });
+      }
+      targetInv.quantity += quantity;
+      await targetInv.save();
+
+      // 3. Log the Transaction
+      await MaterialTransaction.create({
+        material,
+        project: project._id,
+        type: "TRANSFER",
+        quantity,
+        fromWarehouse,
+        toWarehouse: targetWarehouseId,
+        processedBy: req.user.id,
+        reference: `Initial transfer for project ${project.code}`,
+        status: "COMPLETED"
+      });
+    }
   }
 
   // Activate
   project.status = "PLANNING";
   await project.save();
 
-  // 4. Auto-Open all phases to remove manual gating workload from the frontend
+  // 4. Open only the first phase to enforce sequential (one-by-one) workflow
   await ProjectPhase.updateMany(
-      { project: project._id },
-      { $set: { status: "IN_PROGRESS" } }
+    { project: project._id, order: 1 },
+    { $set: { status: "IN_PROGRESS", startDate: new Date() } }
   );
 
   return res.status(200).json({
@@ -605,23 +606,23 @@ export const update_phase_status = asynchandler(async (req, res, next) => {
   const { status } = req.body;
 
   if (!["PENDING", "IN_PROGRESS", "COMPLETED"].includes(status)) {
-      return next(new AppError("Invalid status value.", 400));
+    return next(new AppError("Invalid status value.", 400));
   }
 
   const phase = await ProjectPhase.findOneAndUpdate(
-      { _id: phaseId, project: projectId },
-      { status },
-      { new: true }
+    { _id: phaseId, project: projectId },
+    { status },
+    { new: true }
   );
 
   if (!phase) {
-      return next(new AppError("Phase not found.", 404));
+    return next(new AppError("Phase not found.", 404));
   }
 
   return res.status(200).json({
-      success: true,
-      message: `Phase status updated to ${status}`,
-      data: phase
+    success: true,
+    message: `Phase status updated to ${status}`,
+    data: phase
   });
 });
 
@@ -638,34 +639,34 @@ export const get_phase_details = asynchandler(async (req, res, next) => {
   const { id: projectId, phaseId } = req.params;
 
   const phase = await ProjectPhase.findOne({ _id: phaseId, project: projectId })
-      .populate('requiredApprovals.user', 'name')
-      .populate('requiredAttachments.attachmentId', 'url name')
-      .lean();
+    .populate('requiredApprovals.user', 'name')
+    .populate('requiredAttachments.attachmentId', 'url name')
+    .lean();
 
   if (!phase) return next(new AppError('Phase not found.', 404));
 
   // ── إحصائيات المهام
-  const totalTasks     = (phase.tasks || []).length;
+  const totalTasks = (phase.tasks || []).length;
   const completedTasks = (phase.tasks || []).filter(t => t.status === 'COMPLETED').length;
 
   // ── إحصائيات المرفقات
-  const totalAttachments    = (phase.requiredAttachments || []).length;
+  const totalAttachments = (phase.requiredAttachments || []).length;
   const uploadedAttachments = (phase.requiredAttachments || []).filter(a => !!a.attachmentId).length;
 
   // ── إحصائيات الموافقات
-  const totalApprovals    = (phase.requiredApprovals || []).length;
+  const totalApprovals = (phase.requiredApprovals || []).length;
   const approvedApprovals = (phase.requiredApprovals || []).filter(a => a.status === 'APPROVED').length;
 
   // ── نسبة الإنجاز (مهام 60% + مرفقات 20% + موافقات 20%)
-  const taskPct     = totalTasks       > 0 ? (completedTasks      / totalTasks)       * 100 : 0;
-  const attachPct   = totalAttachments > 0 ? (uploadedAttachments / totalAttachments) * 100 : 100;
-  const approvalPct = totalApprovals   > 0 ? (approvedApprovals   / totalApprovals)   * 100 : 100;
-  const progress    = Math.round(taskPct * 0.6 + attachPct * 0.2 + approvalPct * 0.2);
+  const taskPct = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
+  const attachPct = totalAttachments > 0 ? (uploadedAttachments / totalAttachments) * 100 : 100;
+  const approvalPct = totalApprovals > 0 ? (approvedApprovals / totalApprovals) * 100 : 100;
+  const progress = Math.round(taskPct * 0.6 + attachPct * 0.2 + approvalPct * 0.2);
 
   const canComplete =
-      completedTasks      === totalTasks       &&
-      uploadedAttachments === totalAttachments &&
-      approvedApprovals   === totalApprovals;
+    completedTasks === totalTasks &&
+    uploadedAttachments === totalAttachments &&
+    approvedApprovals === totalApprovals;
 
   return res.status(200).json({
     success: true,
@@ -674,9 +675,9 @@ export const get_phase_details = asynchandler(async (req, res, next) => {
       statistics: {
         progress,
         canComplete,
-        tasks:       { completed: completedTasks,      total: totalTasks },
-        attachments: { uploaded:  uploadedAttachments, total: totalAttachments },
-        approvals:   { approved:  approvedApprovals,   total: totalApprovals }
+        tasks: { completed: completedTasks, total: totalTasks },
+        attachments: { uploaded: uploadedAttachments, total: totalAttachments },
+        approvals: { approved: approvedApprovals, total: totalApprovals }
       }
     }
   });
@@ -746,89 +747,89 @@ export const get_archived_projects = asynchandler(async (req, res, next) => {
  * يتحقق من المهام + الموافقات + المرفقات ثم يكمل المرحلة ويفتح التالية
  */
 export const completePhase = asynchandler(async (req, res, next) => {
-    const { id: projectId, phaseId } = req.params;
-    const { force = false } = req.body;
+  const { id: projectId, phaseId } = req.params;
+  const { force = false } = req.body;
 
-    const phase = await ProjectPhase.findOne({ _id: phaseId, project: projectId });
-    if (!phase) return next(new AppError("المرحلة غير موجودة", 404));
-    if (phase.status === "COMPLETED") return next(new AppError("المرحلة مكتملة بالفعل", 400));
+  const phase = await ProjectPhase.findOne({ _id: phaseId, project: projectId });
+  if (!phase) return next(new AppError("المرحلة غير موجودة", 404));
+  if (phase.status === "COMPLETED") return next(new AppError("المرحلة مكتملة بالفعل", 400));
 
-    if (!force) {
-        // ── التحقق من المهام الإلزامية ────────────────────────────────────
-        const incompleteTasks = (phase.tasks || []).filter(
-            t => t.isRequired !== false && t.status !== "COMPLETED" && t.status !== "CANCELLED"
-        );
-        if (incompleteTasks.length > 0) {
-            return next(new AppError(
-                `لا يمكن إكمال المرحلة — يوجد ${incompleteTasks.length} مهمة غير مكتملة`, 400
-            ));
-        }
-
-        // ── التحقق من الموافقات الإلزامية ─────────────────────────────────
-        const pendingApprovals = (phase.requiredApprovals || []).filter(
-            a => a.isMandatory !== false && a.status !== "APPROVED"
-        );
-        if (pendingApprovals.length > 0) {
-            return next(new AppError(
-                `لا يمكن إكمال المرحلة — يوجد ${pendingApprovals.length} موافقة معلقة`, 400
-            ));
-        }
-
-        // ── التحقق من المرفقات الإلزامية ──────────────────────────────────
-        const pendingAttachments = (phase.requiredAttachments || []).filter(
-            a => a.isMandatory !== false && a.reviewStatus !== "APPROVED"
-        );
-        if (pendingAttachments.length > 0) {
-            return next(new AppError(
-                `لا يمكن إكمال المرحلة — يوجد ${pendingAttachments.length} مرفق لم تتم مراجعته`, 400
-            ));
-        }
+  if (!force) {
+    // ── التحقق من المهام الإلزامية ────────────────────────────────────
+    const incompleteTasks = (phase.tasks || []).filter(
+      t => t.isRequired !== false && t.status !== "COMPLETED" && t.status !== "CANCELLED"
+    );
+    if (incompleteTasks.length > 0) {
+      return next(new AppError(
+        `لا يمكن إكمال المرحلة — يوجد ${incompleteTasks.length} مهمة غير مكتملة`, 400
+      ));
     }
 
-    // ── إكمال المرحلة الحالية ────────────────────────────────────────────
-    phase.status  = "COMPLETED";
-    phase.endDate = phase.endDate || new Date();
-    await phase.save();
-
-    // ── فتح المرحلة التالية تلقائياً ─────────────────────────────────────
-    const nextPhase = await ProjectPhase.findOne({
-        project: projectId,
-        order:   phase.order + 1,
-        status:  { $in: ["PENDING", "IN_PROGRESS"] }
-    }).sort({ order: 1 });
-
-    let nextPhaseData = null;
-    if (nextPhase && nextPhase.status === "PENDING") {
-        nextPhase.status    = "IN_PROGRESS";
-        nextPhase.startDate = nextPhase.startDate || new Date();
-        await nextPhase.save();
-        nextPhaseData = { _id: nextPhase._id, name: nextPhase.nameAr || nextPhase.name, order: nextPhase.order };
-    } else if (nextPhase) {
-        nextPhaseData = { _id: nextPhase._id, name: nextPhase.nameAr || nextPhase.name, order: nextPhase.order };
+    // ── التحقق من الموافقات الإلزامية ─────────────────────────────────
+    const pendingApprovals = (phase.requiredApprovals || []).filter(
+      a => a.isMandatory !== false && a.status !== "APPROVED"
+    );
+    if (pendingApprovals.length > 0) {
+      return next(new AppError(
+        `لا يمكن إكمال المرحلة — يوجد ${pendingApprovals.length} موافقة معلقة`, 400
+      ));
     }
 
-    // ── هل اكتملت كل المراحل؟ ────────────────────────────────────────────
-    const remainingPhases = await ProjectPhase.countDocuments({
-        project: projectId,
-        status:  { $ne: "COMPLETED" }
+    // ── التحقق من المرفقات الإلزامية ──────────────────────────────────
+    const pendingAttachments = (phase.requiredAttachments || []).filter(
+      a => a.isMandatory !== false && a.reviewStatus !== "APPROVED"
+    );
+    if (pendingAttachments.length > 0) {
+      return next(new AppError(
+        `لا يمكن إكمال المرحلة — يوجد ${pendingAttachments.length} مرفق لم تتم مراجعته`, 400
+      ));
+    }
+  }
+
+  // ── إكمال المرحلة الحالية ────────────────────────────────────────────
+  phase.status = "COMPLETED";
+  phase.endDate = phase.endDate || new Date();
+  await phase.save();
+
+  // ── فتح المرحلة التالية تلقائياً ─────────────────────────────────────
+  const nextPhase = await ProjectPhase.findOne({
+    project: projectId,
+    order: phase.order + 1,
+    status: { $in: ["PENDING", "IN_PROGRESS"] }
+  }).sort({ order: 1 });
+
+  let nextPhaseData = null;
+  if (nextPhase && nextPhase.status === "PENDING") {
+    nextPhase.status = "IN_PROGRESS";
+    nextPhase.startDate = nextPhase.startDate || new Date();
+    await nextPhase.save();
+    nextPhaseData = { _id: nextPhase._id, name: nextPhase.nameAr || nextPhase.name, order: nextPhase.order };
+  } else if (nextPhase) {
+    nextPhaseData = { _id: nextPhase._id, name: nextPhase.nameAr || nextPhase.name, order: nextPhase.order };
+  }
+
+  // ── هل اكتملت كل المراحل؟ ────────────────────────────────────────────
+  const remainingPhases = await ProjectPhase.countDocuments({
+    project: projectId,
+    status: { $ne: "COMPLETED" }
+  });
+
+  if (remainingPhases === 0) {
+    await ProjectModel.findByIdAndUpdate(projectId, {
+      status: "COMPLETED",
+      completionDate: new Date()
     });
+  }
 
-    if (remainingPhases === 0) {
-        await ProjectModel.findByIdAndUpdate(projectId, {
-            status: "COMPLETED",
-            completionDate: new Date()
-        });
+  return res.status(200).json({
+    success: true,
+    message: nextPhaseData
+      ? `تم إكمال المرحلة وفتح المرحلة التالية: ${nextPhaseData.name}`
+      : "تم إكمال آخر مرحلة في المشروع",
+    data: {
+      completedPhase: { _id: phase._id, name: phase.nameAr || phase.name, status: phase.status },
+      nextPhase: nextPhaseData,
+      projectCompleted: remainingPhases === 0
     }
-
-    return res.status(200).json({
-        success: true,
-        message: nextPhaseData
-            ? `تم إكمال المرحلة وفتح المرحلة التالية: ${nextPhaseData.name}`
-            : "تم إكمال آخر مرحلة في المشروع",
-        data: {
-            completedPhase: { _id: phase._id, name: phase.nameAr || phase.name, status: phase.status },
-            nextPhase:        nextPhaseData,
-            projectCompleted: remainingPhases === 0
-        }
-    });
+  });
 });

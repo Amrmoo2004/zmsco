@@ -2,6 +2,7 @@
 import ProjectPhase from "../../db/models/projects/project.phase.js";
 import { AppError } from "../../utils/appError.js";
 import { asynchandler } from "../../utils/response/response.js";
+import { createNotification } from "../notifications/notification.service.js";
 
 // GET /api/projects/:projectId/phases/:phaseId/tasks
 export const getTasksByPhase = asynchandler(async (req, res) => {
@@ -26,6 +27,18 @@ export const createTask = asynchandler(async (req, res, next) => {
     await phase.save();
 
     const task = phase.tasks[phase.tasks.length - 1];
+
+    // Notify the assigned user
+    if (assignedTo) {
+        await createNotification(
+            assignedTo,
+            "تم تعيينك في مهمة جديدة",
+            `تم إسناد مهمة "${name}" إليك في مرحلة ${phase.nameAr || phase.name || 'جديدة'}.`,
+            "INFO",
+            { taskId: task._id, phaseId: phase._id }
+        );
+    }
+
     return res.status(201).json({ success: true, message: "Task created successfully", data: task });
 });
 
@@ -39,6 +52,7 @@ export const updateTask = asynchandler(async (req, res, next) => {
     const task = phase.tasks.id(taskId);
     if (!task) return next(new AppError("Task not found", 404));
 
+    const oldAssignedTo = task.assignedTo?.toString();
     Object.assign(task, req.body);
 
     // If task is now completed, record completedAt
@@ -47,6 +61,18 @@ export const updateTask = asynchandler(async (req, res, next) => {
     }
 
     await phase.save();
+
+    // Notify if a NEW user was assigned to this task during update
+    if (req.body.assignedTo && req.body.assignedTo.toString() !== oldAssignedTo) {
+        await createNotification(
+            req.body.assignedTo,
+            "تم تعيينك في مهمة",
+            `تم إسناد مهمة "${task.name}" إليك في مرحلة ${phase.nameAr || phase.name || 'حالية'}.`,
+            "INFO",
+            { taskId: task._id, phaseId: phase._id }
+        );
+    }
+
     return res.status(200).json({ success: true, message: "Task updated successfully", data: task });
 });
 
