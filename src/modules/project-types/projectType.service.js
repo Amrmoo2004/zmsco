@@ -3,6 +3,55 @@ import ProjectType from "../../db/models/settings/projectType.model.js";
 import { AppError } from "../../utils/appError.js";
 import { asynchandler } from "../../utils/response/response.js";
 
+/**
+ * Transform raw frontend phases payload → model-compatible shape.
+ * Frontend sends: { id, name, type, required } for fields/attachments/approvals
+ * Model expects:  { name, type, isRequired } and approvals have { entity, isRequired }
+ */
+const sanitizePhases = (phases = []) =>
+    phases.map(phase => ({
+        nameAr:       phase.nameAr,
+        nameEn:       phase.nameEn,
+        color:        phase.color,
+        order:        phase.order,
+        expectedDays: phase.expectedDays,
+        isRequired:   phase.isRequired ?? true,
+
+        // fields: { name, type, isRequired }
+        fields: (phase.fields || []).map(f => ({
+            name:       f.name,
+            type:       f.type || 'text',
+            isRequired: f.isRequired ?? f.required ?? false,
+        })),
+
+        // attachments: { name, type, isRequired }
+        attachments: (phase.attachments || []).map(a => ({
+            name:       a.name,
+            type:       a.type || 'ANY',
+            isRequired: a.isRequired ?? a.required ?? false,
+        })),
+
+        // approvals: { entity (optional), isRequired }
+        // Frontend only sends name/type — entity (Role) can be set later
+        approvals: (phase.approvals || []).map(a => ({
+            entity:     a.entity || undefined,
+            isRequired: a.isRequired ?? a.required ?? false,
+        })),
+
+        // permits: { name, isRequired }
+        permits: (phase.permits || []).map(p => ({
+            name:       p.name,
+            isRequired: p.isRequired ?? p.required ?? false,
+        })),
+
+        // tasks: { name, description, isRequired }
+        tasks: (phase.tasks || []).map(t => ({
+            name:        t.name,
+            description: t.description,
+            isRequired:  t.isRequired ?? t.required ?? true,
+        })),
+    }));
+
 export const getAllProjectTypes = asynchandler(async (req, res) => {
     const types = await ProjectType.find().sort({ createdAt: -1 });
     return res.status(200).json({ success: true, data: types });
@@ -24,18 +73,15 @@ export const createProjectType = asynchandler(async (req, res, next) => {
     const existing = await ProjectType.findOne({ $or: [{ nameAr: nameAr || "N/A" }, { nameEn: nameEn || "N/A" }, { code }] });
     if (existing) return next(new AppError("Project Type with this name or code already exists", 400));
 
-    // The Frontend handles fetching the default global phases and populating the UI.
-    // If the frontend sends an empty array, it means the user explicitly deleted all phases.
-    if (!phases) {
-        phases = []; // Ensure it's passed as an empty array if undefined
-    }
+    // Sanitize phases — transform frontend payload → model shape
+    const cleanPhases = sanitizePhases(phases);
 
-    const pt = await ProjectType.create({ nameAr, nameEn, code, description, category, phases, defaultResources });
+    const pt = await ProjectType.create({ nameAr, nameEn, code, description, category, phases: cleanPhases, defaultResources });
     return res.status(201).json({ success: true, message: "Project Type created successfully", data: pt });
 });
 
 export const updateProjectType = asynchandler(async (req, res, next) => {
-    // Validate phases have names before updating
+    // Sanitize phases before update
     if (req.body.phases && Array.isArray(req.body.phases)) {
         for (let i = 0; i < req.body.phases.length; i++) {
             const phase = req.body.phases[i];
@@ -43,6 +89,7 @@ export const updateProjectType = asynchandler(async (req, res, next) => {
                 return next(new AppError(`Phase at index ${i} must have at least nameAr or nameEn`, 400));
             }
         }
+        req.body.phases = sanitizePhases(req.body.phases);
     }
 
     const pt = await ProjectType.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
