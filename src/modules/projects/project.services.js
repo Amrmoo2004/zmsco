@@ -255,9 +255,16 @@ export const create_project = asynchandler(async (req, res, next) => {
   // If frontend sends skipActivation: true and warehouseType is SHARED → go directly to PLANNING
   if (req.body.skipActivation && (!warehouseType || warehouseType === "SHARED")) {
     project.status = "PLANNING";
+    await project.save();
+
+    // Auto-open all phases so they appear unlocked in the UI (same as activate_project behavior)
+    await ProjectPhase.updateMany(
+      { project: project._id },
+      { $set: { status: "IN_PROGRESS" } }
+    );
+  } else {
+    await project.save();
   }
-  
-  await project.save();
 
   return res.status(201).json({
     success: true,
