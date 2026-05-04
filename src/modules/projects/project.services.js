@@ -1,6 +1,5 @@
 import ProjectModel from "../../db/models/projects/project.js";
 import { asynchandler } from "../../utils/response/response.js";
-
 import { AppError } from "../../utils/appError.js";
 import ProjectMember from "../../db/models/projects/project.member.js";
 import User from "../../db/models/user.js";
@@ -14,6 +13,7 @@ import ProjectType from "../../db/models/settings/projectType.model.js";
 import Inventory from "../../db/models/inventory.js";
 import MaterialTransaction from "../../db/models/metrials/materialTransaction.model.js";
 import Notification from "../../db/models/notification.model.js";
+import { createNotification } from "../notifications/notification.service.js";
 
 /**
  * CREATE PROJECT
@@ -280,14 +280,32 @@ export const get_projects = asynchandler(async (req, res, next) => {
   // ARCHIVED projects are excluded from the normal listing — use GET /projects/archived instead
   let query = { isActive: true, status: { $ne: "ARCHIVED" } };
 
-  // If normal user, filter by assignments or manager
+  // ── Search & Filter from query params ──────────────────────────────────────
+  const { search, status, priority, manager, type } = req.query;
+  if (search) {
+    query.$or = [
+      { name:  { $regex: search, $options: "i" } },
+      { code:  { $regex: search, $options: "i" } },
+      { client:{ $regex: search, $options: "i" } },
+    ];
+  }
+  if (status)   query.status   = status;
+  if (priority) query.priority  = priority;
+  if (manager)  query.manager   = manager;
+  if (type)     query.type      = type;
+
+  // If normal user, limit to their projects
   if (req.user.role !== "ADMIN") {
     const assignments = await ProjectMember.find({ user: req.user._id }).select("project");
     const assignedProjectIds = assignments.map(a => a.project);
-    query.$or = [
+    const roleFilter = [
       { _id: { $in: assignedProjectIds } },
       { manager: req.user._id }
     ];
+    // Merge with existing $or if search is used
+    query.$and = query.$and || [];
+    query.$and.push({ $or: roleFilter });
+    delete query.$or;
   }
 
   const projects = await ProjectModel.find(query)
@@ -324,8 +342,20 @@ export const get_projects = asynchandler(async (req, res, next) => {
     };
   });
 
+  // ── Summary stats for Dashboard cards ────────────────────────────────────
+  const stats = {
+    total:     formattedProjects.length,
+    active:    formattedProjects.filter(p => p.status === "PLANNING" || p.displayStatus === "DELAYED").length,
+    planning:  formattedProjects.filter(p => p.status === "PLANNING").length,
+    completed: formattedProjects.filter(p => p.status === "COMPLETED").length,
+    onHold:    formattedProjects.filter(p => p.status === "ON_HOLD").length,
+    delayed:   formattedProjects.filter(p => p.displayStatus === "DELAYED").length,
+    draft:     formattedProjects.filter(p => p.status === "DRAFT").length,
+  };
+
   return res.status(200).json({
     success: true,
+    stats,
     data: formattedProjects
   });
 });
@@ -501,8 +531,9 @@ export const activate_project = asynchandler(async (req, res, next) => {
 
   if (!project) return next(new AppError("Project not found", 404));
 
-  if (project.status !== "DRAFT") {
-    return next(new AppError("Project is not in DRAFT status", 400));
+  // Allow activation from DRAFT or re-activation to fix locked phases on PLANNING projects
+  if (!['DRAFT', 'PLANNING'].includes(project.status)) {
+    return next(new AppError("يمكن تفعيل المشروع فقط من حالة DRAFT أو PLANNING", 400));
   }
 
   // Validate required fields before activation
@@ -755,52 +786,43 @@ export const completePhase = asynchandler(async (req, res, next) => {
   if (phase.status === "COMPLETED") return next(new AppError("المرحلة مكتملة بالفعل", 400));
 
   if (!force) {
-    // ── التحقق من المهام الإلزامية ────────────────────────────────────
     const incompleteTasks = (phase.tasks || []).filter(
       t => t.isRequired !== false && t.status !== "COMPLETED" && t.status !== "CANCELLED"
     );
     if (incompleteTasks.length > 0) {
-      return next(new AppError(
-        `لا يمكن إكمال المرحلة — يوجد ${incompleteTasks.length} مهمة غير مكتملة`, 400
-      ));
+      return next(new AppError(`لا يمكن إكمال المرحلة — يوجد ${incompleteTasks.length} مهمة غير مكتملة`, 400));
     }
 
-    // ── التحقق من الموافقات الإلزامية ─────────────────────────────────
     const pendingApprovals = (phase.requiredApprovals || []).filter(
       a => a.isMandatory !== false && a.status !== "APPROVED"
     );
     if (pendingApprovals.length > 0) {
-      return next(new AppError(
-        `لا يمكن إكمال المرحلة — يوجد ${pendingApprovals.length} موافقة معلقة`, 400
-      ));
+      return next(new AppError(`لا يمكن إكمال المرحلة — يوجد ${pendingApprovals.length} موافقة معلقة`, 400));
     }
 
-    // ── التحقق من المرفقات الإلزامية ──────────────────────────────────
     const pendingAttachments = (phase.requiredAttachments || []).filter(
       a => a.isMandatory !== false && a.reviewStatus !== "APPROVED"
     );
     if (pendingAttachments.length > 0) {
-      return next(new AppError(
-        `لا يمكن إكمال المرحلة — يوجد ${pendingAttachments.length} مرفق لم تتم مراجعته`, 400
-      ));
+      return next(new AppError(`لا يمكن إكمال المرحلة — يوجد ${pendingAttachments.length} مرفق لم تتم مراجعته`, 400));
     }
   }
 
   // ── إكمال المرحلة الحالية ────────────────────────────────────────────
-  phase.status = "COMPLETED";
+  phase.status  = "COMPLETED";
   phase.endDate = phase.endDate || new Date();
   await phase.save();
 
   // ── فتح المرحلة التالية تلقائياً ─────────────────────────────────────
   const nextPhase = await ProjectPhase.findOne({
     project: projectId,
-    order: phase.order + 1,
-    status: { $in: ["PENDING", "IN_PROGRESS"] }
+    order:   phase.order + 1,
+    status:  { $in: ["PENDING", "IN_PROGRESS"] }
   }).sort({ order: 1 });
 
   let nextPhaseData = null;
   if (nextPhase && nextPhase.status === "PENDING") {
-    nextPhase.status = "IN_PROGRESS";
+    nextPhase.status    = "IN_PROGRESS";
     nextPhase.startDate = nextPhase.startDate || new Date();
     await nextPhase.save();
     nextPhaseData = { _id: nextPhase._id, name: nextPhase.nameAr || nextPhase.name, order: nextPhase.order };
@@ -811,8 +833,34 @@ export const completePhase = asynchandler(async (req, res, next) => {
   // ── هل اكتملت كل المراحل؟ ────────────────────────────────────────────
   const remainingPhases = await ProjectPhase.countDocuments({
     project: projectId,
-    status: { $ne: "COMPLETED" }
+    status:  { $ne: "COMPLETED" }
   });
+
+  // ── Notifications ─────────────────────────────────────────────────────
+  const project = await ProjectModel.findById(projectId).lean();
+  const managerId = project?.manager;
+
+  if (managerId) {
+    if (remainingPhases === 0) {
+      // 🎉 المشروع كله اتكمل
+      await createNotification(
+        managerId,
+        "🎉 اكتمل المشروع بنجاح!",
+        `تم إكمال جميع مراحل مشروع "${project.name}" بنجاح. يمكنك الآن بدء إجراءات الإغلاق.`,
+        "SUCCESS",
+        { projectId, type: "PROJECT_COMPLETED" }
+      );
+    } else if (nextPhaseData) {
+      // ➡️ مرحلة اتكملت ومرحلة جديدة فتحت
+      await createNotification(
+        managerId,
+        `✅ اكتملت مرحلة: ${phase.nameAr || phase.name}`,
+        `تم إكمال المرحلة وفتح المرحلة التالية "${nextPhaseData.name}" في مشروع "${project.name}".`,
+        "INFO",
+        { projectId, phaseId: phase._id, nextPhaseId: nextPhaseData._id, type: "PHASE_COMPLETED" }
+      );
+    }
+  }
 
   if (remainingPhases === 0) {
     await ProjectModel.findByIdAndUpdate(projectId, {
@@ -827,8 +875,8 @@ export const completePhase = asynchandler(async (req, res, next) => {
       ? `تم إكمال المرحلة وفتح المرحلة التالية: ${nextPhaseData.name}`
       : "تم إكمال آخر مرحلة في المشروع",
     data: {
-      completedPhase: { _id: phase._id, name: phase.nameAr || phase.name, status: phase.status },
-      nextPhase: nextPhaseData,
+      completedPhase:   { _id: phase._id, name: phase.nameAr || phase.name, status: phase.status },
+      nextPhase:        nextPhaseData,
       projectCompleted: remainingPhases === 0
     }
   });
