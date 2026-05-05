@@ -76,12 +76,22 @@ export const create_project = asynchandler(async (req, res, next) => {
 
   // 3. Create Nested Entities (Frontend-driven OR Auto-generator)
   if (phases && phases.length > 0) {
-    await ProjectPhase.insertMany(phases.map(p => ({
-      ...p,
-      project: project._id,
-      name: p.name || p.nameAr || p.nameEn || "مرحلة",  // ensure name is always set
-      order: p.order ?? 1
-    })));
+    // ── Find the lowest order to auto-open that phase ──
+    const orders     = phases.map(p => p.order ?? 1);
+    const firstOrder = Math.min(...orders);
+
+    await ProjectPhase.insertMany(phases.map(p => {
+      const phaseOrder = p.order ?? 1;
+      return {
+        ...p,
+        project:   project._id,
+        name:      p.name || p.nameAr || p.nameEn || "مرحلة",
+        order:     phaseOrder,
+        // ── أوتوماتيك: أفتح أول مرحلة فقط ──
+        status:    phaseOrder === firstOrder ? "IN_PROGRESS" : "PENDING",
+        startDate: phaseOrder === firstOrder ? (p.startDate || new Date()) : p.startDate
+      };
+    }));
   } else if (projectTypeBlueprint && projectTypeBlueprint.phases && projectTypeBlueprint.phases.length > 0) {
     // Auto-generate phases from ProjectType blueprint if frontend didn't send any
     const autoPhases = projectTypeBlueprint.phases.map(phase => {
@@ -113,15 +123,19 @@ export const create_project = asynchandler(async (req, res, next) => {
         isMandatory: p.isRequired
       })) : [];
 
+      const phaseOrders = projectTypeBlueprint.phases.map(ph => ph.order ?? 1);
+      const firstBlueprintOrder = Math.min(...phaseOrders);
+
       return {
-        project: project._id,
-        name: phase.nameAr || phase.nameEn || "مرحلة",
-        nameAr: phase.nameAr,
-        nameEn: phase.nameEn,
-        color: phase.color,
-        order: phase.order,
+        project:    project._id,
+        name:       phase.nameAr || phase.nameEn || "مرحلة",
+        nameAr:     phase.nameAr,
+        nameEn:     phase.nameEn,
+        color:      phase.color,
+        order:      phase.order,
         expectedDays: phase.expectedDays,
-        status: phase.order === 1 ? "IN_PROGRESS" : "PENDING", // First phase opens automatically, others stay locked
+        // ── أفتح أول مرحلة (الأصغر order) فقط ──
+        status:     phase.order === firstBlueprintOrder ? "IN_PROGRESS" : "PENDING",
         isRequired: phase.isRequired,
         customFields,
         requiredAttachments,
@@ -615,11 +629,15 @@ export const activate_project = asynchandler(async (req, res, next) => {
   project.status = "PLANNING";
   await project.save();
 
-  // 4. Open only the first phase to enforce sequential (one-by-one) workflow
-  await ProjectPhase.updateMany(
-    { project: project._id, order: 1 },
-    { $set: { status: "IN_PROGRESS", startDate: new Date() } }
-  );
+  // 4. Open only the FIRST phase (lowest order) — don't hardcode order:1
+  const firstPhase = await ProjectPhase.findOne({ project: project._id, status: "PENDING" })
+    .sort({ order: 1 });
+
+  if (firstPhase) {
+    firstPhase.status    = "IN_PROGRESS";
+    firstPhase.startDate = firstPhase.startDate || new Date();
+    await firstPhase.save();
+  }
 
   return res.status(200).json({
     success: true,
