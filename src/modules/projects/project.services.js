@@ -272,11 +272,20 @@ export const create_project = asynchandler(async (req, res, next) => {
     project.status = "PLANNING";
     await project.save();
 
-    // Auto-open all phases so they appear unlocked in the UI (same as activate_project behavior)
-    await ProjectPhase.updateMany(
-      { project: project._id },
-      { $set: { status: "IN_PROGRESS" } }
-    );
+    // ── عند skipActivation: افتح أول مرحلة فقط (Gating) ──────────────
+    const veryFirst = await ProjectPhase.findOne({ project: project._id })
+      .sort({ order: 1 });
+    if (veryFirst) {
+      await ProjectPhase.updateOne(
+        { _id: veryFirst._id },
+        { $set: { status: "IN_PROGRESS", startDate: veryFirst.startDate || new Date() } }
+      );
+      // Make sure all OTHER phases stay PENDING
+      await ProjectPhase.updateMany(
+        { project: project._id, _id: { $ne: veryFirst._id } },
+        { $set: { status: "PENDING" } }
+      );
+    }
   } else {
     await project.save();
   }
