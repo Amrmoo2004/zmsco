@@ -1,9 +1,13 @@
 import WorkLog from "../../db/models/hr/workLog.model.js";
 import HrRequest from "../../db/models/hr/hrRequest.model.js";
 import User from "../../db/models/user.js";
+import Project from "../../db/models/projects/project.js";
 import { AppError } from "../../utils/appError.js";
 import { asynchandler } from "../../utils/response/response.js";
 import { createNotification } from "../notifications/notification.service.js";
+
+// ─── HR_TYPE_LABELS shared constant ──────────────────────────────────────────────────
+const HR_TYPE_LABELS = { LEAVE: "إجازة", REPLACEMENT: "بديل", OVERTIME: "عمل إضافي", ADVANCE: "سلفة" };
 
 // ─── Work Logs (Timesheets) ───────────────────────────────────────────────────
 
@@ -111,8 +115,7 @@ export const getHrRequests = asynchandler(async (req, res) => {
 export const createHrRequest = asynchandler(async (req, res) => {
     const request = await HrRequest.create({ ...req.body, user: req.user._id, status: "PENDING" });
 
-    const typeLabels = { LEAVE: "إجازة", REPLACEMENT: "بديل", OVERTIME: "عمل إضافي", ADVANCE: "سلفة" };
-    const typeLabel = typeLabels[request.requestType] || request.requestType;
+    const typeLabel = HR_TYPE_LABELS[request.requestType] || request.requestType;
     const dateStr   = request.startDate ? new Date(request.startDate).toLocaleDateString("ar") : "";
     const notifBody = `أرسل ${req.user.name || "موظف"} طلب ${typeLabel} بتاريخ ${dateStr} — يرجى المراجعة.`;
     const notifData = { requestId: request._id, requestType: request.requestType };
@@ -131,7 +134,7 @@ export const createHrRequest = asynchandler(async (req, res) => {
 
     // ── إشعار مدير المشروع إن كان الطلب مرتبطاً بمشروع ──────────────────────────
     if (request.relatedProject) {
-        const projectDoc = await (await import("../../db/models/projects/project.js")).default
+        const projectDoc = await Project
             .findById(request.relatedProject).select("manager name").lean();
 
         if (projectDoc?.manager) {
@@ -184,8 +187,7 @@ export const processHrRequest = asynchandler(async (req, res, next) => {
     await request.save();
 
     // ── إشعار مقدم الطلب بالنتيجة ────────────────────────────────────
-    const typeLabels = { LEAVE: "إجازة", REPLACEMENT: "بديل", OVERTIME: "عمل إضافي", ADVANCE: "سلفة" };
-    const typeLabel = typeLabels[request.requestType] || request.requestType;
+    const typeLabel = HR_TYPE_LABELS[request.requestType] || request.requestType;
 
     if (request.user?._id) {
         const isApproved = status === "APPROVED";
@@ -203,12 +205,12 @@ export const processHrRequest = asynchandler(async (req, res, next) => {
     return res.status(200).json({ success: true, message: `HR Request ${status}`, data: request });
 });
 
-// ─── Dashboard ─────────────────────────────────────────────────────────────────
+// ─── Dashboard ───────────────────────────────────────────────────────────────────
 
 import { Equipment, EquipmentAssignment } from "../../db/models/hr/equipment.model.js";
 import ProjectMember from "../../db/models/projects/project.member.js";
 
-import Project from "../../db/models/projects/project.js";
+// Note: Project is imported at the top of the file
 
 export const getDashboard = asynchandler(async (req, res) => {
     // 1. Get Employees except admins maybe, let's just get active employees

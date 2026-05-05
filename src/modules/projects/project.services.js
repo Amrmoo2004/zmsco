@@ -77,18 +77,18 @@ export const create_project = asynchandler(async (req, res, next) => {
   // 3. Create Nested Entities (Frontend-driven OR Auto-generator)
   if (phases && phases.length > 0) {
     // ── Find the lowest order to auto-open that phase ──
-    const orders     = phases.map(p => p.order ?? 1);
+    const orders = phases.map(p => p.order ?? 1);
     const firstOrder = Math.min(...orders);
 
     await ProjectPhase.insertMany(phases.map(p => {
       const phaseOrder = p.order ?? 1;
       return {
         ...p,
-        project:   project._id,
-        name:      p.name || p.nameAr || p.nameEn || "مرحلة",
-        order:     phaseOrder,
+        project: project._id,
+        name: p.name || p.nameAr || p.nameEn || "مرحلة",
+        order: phaseOrder,
         // ── أوتوماتيك: أفتح أول مرحلة فقط ──
-        status:    phaseOrder === firstOrder ? "IN_PROGRESS" : "PENDING",
+        status: phaseOrder === firstOrder ? "IN_PROGRESS" : "PENDING",
         startDate: phaseOrder === firstOrder ? (p.startDate || new Date()) : p.startDate
       };
     }));
@@ -127,15 +127,15 @@ export const create_project = asynchandler(async (req, res, next) => {
       const firstBlueprintOrder = Math.min(...phaseOrders);
 
       return {
-        project:    project._id,
-        name:       phase.nameAr || phase.nameEn || "مرحلة",
-        nameAr:     phase.nameAr,
-        nameEn:     phase.nameEn,
-        color:      phase.color,
-        order:      phase.order,
+        project: project._id,
+        name: phase.nameAr || phase.nameEn || "مرحلة",
+        nameAr: phase.nameAr,
+        nameEn: phase.nameEn,
+        color: phase.color,
+        order: phase.order,
         expectedDays: phase.expectedDays,
         // ── أفتح أول مرحلة (الأصغر order) فقط ──
-        status:     phase.order === firstBlueprintOrder ? "IN_PROGRESS" : "PENDING",
+        status: phase.order === firstBlueprintOrder ? "IN_PROGRESS" : "PENDING",
         isRequired: phase.isRequired,
         customFields,
         requiredAttachments,
@@ -307,15 +307,15 @@ export const get_projects = asynchandler(async (req, res, next) => {
   const { search, status, priority, manager, type } = req.query;
   if (search) {
     query.$or = [
-      { name:  { $regex: search, $options: "i" } },
-      { code:  { $regex: search, $options: "i" } },
-      { client:{ $regex: search, $options: "i" } },
+      { name: { $regex: search, $options: "i" } },
+      { code: { $regex: search, $options: "i" } },
+      { client: { $regex: search, $options: "i" } },
     ];
   }
-  if (status)   query.status   = status;
-  if (priority) query.priority  = priority;
-  if (manager)  query.manager   = manager;
-  if (type)     query.type      = type;
+  if (status) query.status = status;
+  if (priority) query.priority = priority;
+  if (manager) query.manager = manager;
+  if (type) query.type = type;
 
   // If normal user, limit to their projects
   if (req.user.role !== "ADMIN") {
@@ -367,13 +367,13 @@ export const get_projects = asynchandler(async (req, res, next) => {
 
   // ── Summary stats for Dashboard cards ────────────────────────────────────
   const stats = {
-    total:     formattedProjects.length,
-    active:    formattedProjects.filter(p => p.status === "PLANNING" || p.displayStatus === "DELAYED").length,
-    planning:  formattedProjects.filter(p => p.status === "PLANNING").length,
+    total: formattedProjects.length,
+    active: formattedProjects.filter(p => p.status === "PLANNING" || p.displayStatus === "DELAYED").length,
+    planning: formattedProjects.filter(p => p.status === "PLANNING").length,
     completed: formattedProjects.filter(p => p.status === "COMPLETED").length,
-    onHold:    formattedProjects.filter(p => p.status === "ON_HOLD").length,
-    delayed:   formattedProjects.filter(p => p.displayStatus === "DELAYED").length,
-    draft:     formattedProjects.filter(p => p.status === "DRAFT").length,
+    onHold: formattedProjects.filter(p => p.status === "ON_HOLD").length,
+    delayed: formattedProjects.filter(p => p.displayStatus === "DELAYED").length,
+    draft: formattedProjects.filter(p => p.status === "DRAFT").length,
   };
 
   return res.status(200).json({
@@ -643,7 +643,7 @@ export const activate_project = asynchandler(async (req, res, next) => {
     .sort({ order: 1 });
 
   if (firstPhase) {
-    firstPhase.status    = "IN_PROGRESS";
+    firstPhase.status = "IN_PROGRESS";
     firstPhase.startDate = firstPhase.startDate || new Date();
     await firstPhase.save();
   }
@@ -836,7 +836,7 @@ export const completePhase = asynchandler(async (req, res, next) => {
   }
 
   // ── إكمال المرحلة الحالية ────────────────────────────────────────────
-  phase.status  = "COMPLETED";
+  phase.status = "COMPLETED";
   phase.endDate = phase.endDate || new Date();
   await phase.save();
 
@@ -844,13 +844,13 @@ export const completePhase = asynchandler(async (req, res, next) => {
   // Use $gt to handle non-consecutive order numbers (0,2,4 or 1,3,5 etc.)
   const nextPhase = await ProjectPhase.findOne({
     project: projectId,
-    order:   { $gt: phase.order },
-    status:  { $in: ["PENDING", "IN_PROGRESS"] }
+    order: { $gt: phase.order },
+    status: { $in: ["PENDING", "IN_PROGRESS"] }
   }).sort({ order: 1 });
 
   let nextPhaseData = null;
   if (nextPhase && nextPhase.status === "PENDING") {
-    nextPhase.status    = "IN_PROGRESS";
+    nextPhase.status = "IN_PROGRESS";
     nextPhase.startDate = nextPhase.startDate || new Date();
     await nextPhase.save();
     nextPhaseData = { _id: nextPhase._id, name: nextPhase.nameAr || nextPhase.name, order: nextPhase.order };
@@ -861,7 +861,7 @@ export const completePhase = asynchandler(async (req, res, next) => {
   // ── هل اكتملت كل المراحل؟ ────────────────────────────────────────────
   const remainingPhases = await ProjectPhase.countDocuments({
     project: projectId,
-    status:  { $ne: "COMPLETED" }
+    status: { $ne: "COMPLETED" }
   });
 
   // ── Notifications ─────────────────────────────────────────────────────
@@ -903,8 +903,8 @@ export const completePhase = asynchandler(async (req, res, next) => {
       ? `تم إكمال المرحلة وفتح المرحلة التالية: ${nextPhaseData.name}`
       : "تم إكمال آخر مرحلة في المشروع",
     data: {
-      completedPhase:   { _id: phase._id, name: phase.nameAr || phase.name, status: phase.status },
-      nextPhase:        nextPhaseData,
+      completedPhase: { _id: phase._id, name: phase.nameAr || phase.name, status: phase.status },
+      nextPhase: nextPhaseData,
       projectCompleted: remainingPhases === 0
     }
   });

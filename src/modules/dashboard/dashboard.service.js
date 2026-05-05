@@ -16,10 +16,10 @@ export const getDashboardStats = asynchandler(async (req, res, next) => {
         status: { $ne: "ARCHIVED" }
     });
     const completedProjects = await ProjectModel.countDocuments({ isActive: true, status: "COMPLETED" });
-    const archivedProjects  = await ProjectModel.countDocuments({ isActive: true, status: "ARCHIVED" });
-    const activeProjects    = await ProjectModel.countDocuments({
+    const archivedProjects = await ProjectModel.countDocuments({ isActive: true, status: "ARCHIVED" });
+    const activeProjects = await ProjectModel.countDocuments({
         isActive: true,
-        status: { $in: ["PLANNING", "EXECUTION"] }
+        status: { $in: ["PLANNING", "IN_PROGRESS"] }
     });
     const onHoldProjects = await ProjectModel.countDocuments({ isActive: true, status: "ON_HOLD" });
 
@@ -33,11 +33,11 @@ export const getDashboardStats = asynchandler(async (req, res, next) => {
 
     // 3. Tasks Stats from ProjectPhases
     const phases = await ProjectPhaseModel.find({}, "tasks project");
-    let totalTasks     = 0;
-    let pendingTasks   = 0;
+    let totalTasks = 0;
+    let pendingTasks = 0;
     let inProgressTasks = 0;
     let completedTasks = 0;
-    let delayedTasks   = 0;
+    let delayedTasks = 0;
 
     const tasksByProjectMap = {};
 
@@ -81,7 +81,7 @@ export const getDashboardStats = asynchandler(async (req, res, next) => {
     // 5. Attendance Stats
     const totalEmployees = users.length;
     let presentCount = 0;
-    let absentCount  = 0;
+    let absentCount = 0;
     let onLeaveCount = 0;
 
     users.forEach(user => {
@@ -94,7 +94,7 @@ export const getDashboardStats = asynchandler(async (req, res, next) => {
     const inventoryConfig = await getActiveConfig();
     let lowStockCount = 0;
     if (inventoryConfig.lowStockAlerts) {
-        const threshold    = inventoryConfig.lowStockThreshold;
+        const threshold = inventoryConfig.lowStockThreshold;
         const allInventory = await InventoryModel.find().populate("material", "alertQuantity");
 
         allInventory.forEach(item => {
@@ -159,21 +159,21 @@ export const getDashboardStats = asynchandler(async (req, res, next) => {
  */
 export const getMyDashboard = asynchandler(async (req, res) => {
     const userId = req.user._id;
-    const now    = new Date();
+    const now = new Date();
 
     // ── 1. مشاريع المستخدم (عضو أو مدير) ─────────────────────────────────────
-    const memberDocs       = await ProjectMember.find({ user: userId }).select("project role").lean();
+    const memberDocs = await ProjectMember.find({ user: userId }).select("project role").lean();
     const memberProjectIds = memberDocs.map(m => m.project);
 
     const myProjects = await ProjectModel.find({
         isActive: true,
-        status:   { $ne: "ARCHIVED" },
+        status: { $ne: "ARCHIVED" },
         $or: [
-            { _id:     { $in: memberProjectIds } },
+            { _id: { $in: memberProjectIds } },
             { manager: userId }
         ]
     })
-        .populate("type",    "name nameAr")
+        .populate("type", "name nameAr")
         .populate("manager", "name")
         .lean();
 
@@ -193,14 +193,14 @@ export const getMyDashboard = asynchandler(async (req, res) => {
     ).lean();
 
     // ── 3. إحصائيات المهام — من taskPhases (كل الـ phases التي فيها تاسك له) ──
-    let delayedCount         = 0;
+    let delayedCount = 0;
     let pendingApprovalCount = 0;
-    let inProgressCount      = 0;
+    let inProgressCount = 0;
     const myTasks = [];
 
     // جلب أسماء المشاريع لكل تاسك
     const taskProjectIds = [...new Set(taskPhases.map(ph => ph.project.toString()))];
-    const taskProjects   = taskProjectIds.length > 0
+    const taskProjects = taskProjectIds.length > 0
         ? await ProjectModel.find({ _id: { $in: taskProjectIds } }, "name code").lean()
         : [];
 
@@ -210,26 +210,26 @@ export const getMyDashboard = asynchandler(async (req, res) => {
 
             const isDelayed = !!(task.dueDate && new Date(task.dueDate) < now && task.status !== "COMPLETED");
 
-            if (isDelayed)                     delayedCount++;
+            if (isDelayed) delayedCount++;
             if (task.status === "IN_PROGRESS") inProgressCount++;
-            if (task.status === "PENDING")     pendingApprovalCount++;
+            if (task.status === "PENDING") pendingApprovalCount++;
 
             const relatedProject = taskProjects.find(
                 p => p._id.toString() === phase.project.toString()
             );
 
             myTasks.push({
-                _id:         task._id,
-                name:        task.name,
+                _id: task._id,
+                name: task.name,
                 description: task.description,
-                status:      task.status,
-                priority:    task.priority,
-                dueDate:     task.dueDate,
+                status: task.status,
+                priority: task.priority,
+                dueDate: task.dueDate,
                 isDelayed,
-                projectId:   phase.project,
+                projectId: phase.project,
                 projectName: relatedProject?.name || "",
-                phaseId:     phase._id,
-                phaseName:   phase.nameAr || phase.name
+                phaseId: phase._id,
+                phaseName: phase.nameAr || phase.name
             });
         });
     });
@@ -244,7 +244,7 @@ export const getMyDashboard = asynchandler(async (req, res) => {
         phases.forEach(ph => {
             (ph.tasks || []).forEach(t => {
                 totalTasks++;
-                if (t.status === "COMPLETED")  completedTasksCount++;
+                if (t.status === "COMPLETED") completedTasksCount++;
                 if (t.status === "IN_PROGRESS") activeTasks++;
             });
         });
@@ -254,7 +254,7 @@ export const getMyDashboard = asynchandler(async (req, res) => {
         // المرحلة الحالية النشطة
         const currentPhase =
             phases.find(ph => ph.status === "IN_PROGRESS") ||
-            phases.find(ph => ph.status === "PENDING")     ||
+            phases.find(ph => ph.status === "PENDING") ||
             phases[phases.length - 1];
 
         // دور المستخدم في هذا المشروع
@@ -262,37 +262,37 @@ export const getMyDashboard = asynchandler(async (req, res) => {
             m => m.project.toString() === project._id.toString()
         );
         const managerId = project.manager?._id?.toString() || project.manager?.toString();
-        const myRole    = managerId === userId.toString()
+        const myRole = managerId === userId.toString()
             ? "مدير المشروع"
             : (memberDoc?.role || "عضو فريق");
 
         return {
-            _id:           project._id,
-            name:          project.name,
-            code:          project.code,
-            status:        project.status,
-            priority:      project.priority,
-            startDate:     project.startDate,
-            endDate:       project.endDate,
-            location:      project.location,
-            type:          project.type,
-            manager:       project.manager,
+            _id: project._id,
+            name: project.name,
+            code: project.code,
+            status: project.status,
+            priority: project.priority,
+            startDate: project.startDate,
+            endDate: project.endDate,
+            location: project.location,
+            type: project.type,
+            manager: project.manager,
             progress,
             totalTasks,
             activeTasks,
             completedTasks: completedTasksCount,
             myRole,
             currentPhase: currentPhase ? {
-                _id:    currentPhase._id,
-                name:   currentPhase.nameAr || currentPhase.name,
+                _id: currentPhase._id,
+                name: currentPhase.nameAr || currentPhase.name,
                 status: currentPhase.status,
-                order:  currentPhase.order
+                order: currentPhase.order
             } : null,
             phases: phases.map(ph => ({
-                _id:    ph._id,
-                name:   ph.nameAr || ph.name,
+                _id: ph._id,
+                name: ph.nameAr || ph.name,
                 status: ph.status,
-                order:  ph.order
+                order: ph.order
             }))
         };
     });
@@ -308,12 +308,12 @@ export const getMyDashboard = asynchandler(async (req, res) => {
         success: true,
         data: {
             stats: {
-                delayed:         delayedCount,
+                delayed: delayedCount,
                 pendingApproval: pendingApprovalCount,
-                inProgress:      inProgressCount,
+                inProgress: inProgressCount,
                 myProjectsCount: myProjects.length
             },
-            tasks:    sortedTasks,
+            tasks: sortedTasks,
             projects: projectsFormatted
         }
     });

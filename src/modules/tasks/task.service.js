@@ -17,11 +17,12 @@ export const getTasksByPhase = asynchandler(async (req, res) => {
 
 // POST /api/projects/:projectId/phases/:phaseId/tasks
 export const createTask = asynchandler(async (req, res, next) => {
-    const { phaseId } = req.params;
+    const { projectId, phaseId } = req.params;
     const { name, description, assignedTo, priority, dueDate } = req.body;
     
-    const phase = await ProjectPhase.findById(phaseId);
-    if (!phase) return next(new AppError("Phase not found", 404));
+    // ── Validate phase belongs to this project ──
+    const phase = await ProjectPhase.findOne({ _id: phaseId, project: projectId });
+    if (!phase) return next(new AppError("Phase not found in this project", 404));
 
     phase.tasks.push({ name, description, assignedTo, priority, dueDate });
     await phase.save();
@@ -44,10 +45,11 @@ export const createTask = asynchandler(async (req, res, next) => {
 
 // PUT /api/projects/:projectId/phases/:phaseId/tasks/:taskId
 export const updateTask = asynchandler(async (req, res, next) => {
-    const { phaseId, taskId } = req.params;
+    const { projectId, phaseId, taskId } = req.params;
     
-    const phase = await ProjectPhase.findById(phaseId);
-    if (!phase) return next(new AppError("Phase not found", 404));
+    // ── Validate phase belongs to this project ──
+    const phase = await ProjectPhase.findOne({ _id: phaseId, project: projectId });
+    if (!phase) return next(new AppError("Phase not found in this project", 404));
 
     const task = phase.tasks.id(taskId);
     if (!task) return next(new AppError("Task not found", 404));
@@ -78,10 +80,11 @@ export const updateTask = asynchandler(async (req, res, next) => {
 
 // DELETE /api/projects/:projectId/phases/:phaseId/tasks/:taskId
 export const deleteTask = asynchandler(async (req, res, next) => {
-    const { phaseId, taskId } = req.params;
+    const { projectId, phaseId, taskId } = req.params;
     
-    const phase = await ProjectPhase.findById(phaseId);
-    if (!phase) return next(new AppError("Phase not found", 404));
+    // ── Validate phase belongs to this project ──
+    const phase = await ProjectPhase.findOne({ _id: phaseId, project: projectId });
+    if (!phase) return next(new AppError("Phase not found in this project", 404));
 
     const task = phase.tasks.id(taskId);
     if (!task) return next(new AppError("Task not found", 404));
