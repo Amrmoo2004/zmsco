@@ -841,9 +841,10 @@ export const completePhase = asynchandler(async (req, res, next) => {
   await phase.save();
 
   // ── فتح المرحلة التالية تلقائياً ─────────────────────────────────────
+  // Use $gt to handle non-consecutive order numbers (0,2,4 or 1,3,5 etc.)
   const nextPhase = await ProjectPhase.findOne({
     project: projectId,
-    order:   phase.order + 1,
+    order:   { $gt: phase.order },
     status:  { $in: ["PENDING", "IN_PROGRESS"] }
   }).sort({ order: 1 });
 
