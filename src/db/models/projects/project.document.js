@@ -7,7 +7,7 @@ const projectDocumentSchema = new mongoose.Schema(
             ref: "Project",
             required: true
         },
-        phase: { type: mongoose.Schema.Types.ObjectId, ref: 'ProjectPhase' },
+        phase: { type: mongoose.Schema.Types.ObjectId, ref: "ProjectPhase" },
         name: {
             type: String,
             required: true
@@ -19,6 +19,10 @@ const projectDocumentSchema = new mongoose.Schema(
         },
         fileUrl: {
             type: String
+        },
+        uploadedBy: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "User"
         },
         isRequired: {
             type: Boolean,
