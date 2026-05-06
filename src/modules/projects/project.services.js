@@ -268,12 +268,9 @@ export const create_project = asynchandler(async (req, res, next) => {
   project.estimatedCost = estimatedCost;
 
   // ── Activation Logic ─────────────────────────────────────────────────────
-  // By default, projects go straight to PLANNING with the first phase opened.
-  // Only stay as DRAFT when:
-  //   1. The frontend explicitly sends `skipActivation: false`, OR
-  //   2. A DEDICATED warehouse still needs to be provisioned (use /activate)
-  const needsDedicatedWarehouse = warehouseType === "DEDICATED" && !req.body.dedicatedWarehouse;
-  const stayDraft = req.body.skipActivation === false || needsDedicatedWarehouse;
+  // Projects go straight to PLANNING by default (first phase → IN_PROGRESS).
+  // Only stays DRAFT when the frontend explicitly sends: skipActivation: false
+  const stayDraft = req.body.skipActivation === false;
 
   if (!stayDraft) {
     project.status = "PLANNING";
@@ -296,6 +293,7 @@ export const create_project = asynchandler(async (req, res, next) => {
   } else {
     await project.save();
   }
+
 
   return res.status(201).json({
     success: true,
@@ -324,7 +322,6 @@ export const get_projects = asynchandler(async (req, res, next) => {
   if (manager) query.manager = manager;
   if (type) query.type = type;
 
-  // If normal user, limit to their projects
   if (req.user.role !== "ADMIN") {
     const assignments = await ProjectMember.find({ user: req.user._id }).select("project");
     const assignedProjectIds = assignments.map(a => a.project);
@@ -332,7 +329,6 @@ export const get_projects = asynchandler(async (req, res, next) => {
       { _id: { $in: assignedProjectIds } },
       { manager: req.user._id }
     ];
-    // Merge with existing $or if search is used
     query.$and = query.$and || [];
     query.$and.push({ $or: roleFilter });
     delete query.$or;
