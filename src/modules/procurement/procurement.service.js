@@ -142,7 +142,8 @@ export const receiveGoods = asynchandler(async (req, res, next) => {
 export const getRFQs = asynchandler(async (req, res, next) => {
     const rfqs = await RFQ.find()
         .populate("createdBy", "name email")
-        .populate("items.material", "name unit");
+        .populate("items.material", "name unit")
+        .populate("suppliers", "name contactPerson phone email");
 
     // Attach quotes count to each RFQ
     const rfqIds = rfqs.map(r => r._id);
