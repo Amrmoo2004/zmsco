@@ -916,3 +916,132 @@ export const completePhase = asynchandler(async (req, res, next) => {
     }
   });
 });
+
+/**
+ * UPDATE TASK STATUS / ASSIGNEE
+ * PATCH /projects/:id/phases/:phaseId/tasks/:taskId
+ * Body: { status?, assignedTo?, notes? }
+ */
+export const updateTask = asynchandler(async (req, res, next) => {
+  const { id: projectId, phaseId, taskId } = req.params;
+  const { status, assignedTo, notes, priority } = req.body;
+
+  const VALID_STATUSES = ["PENDING", "IN_PROGRESS", "COMPLETED", "CANCELLED"];
+  if (status && !VALID_STATUSES.includes(status)) {
+    return next(new AppError(`حالة غير صالحة. القيم المتاحة: ${VALID_STATUSES.join(", ")}`, 400));
+  }
+
+  const phase = await ProjectPhase.findOne({ _id: phaseId, project: projectId });
+  if (!phase) return next(new AppError("المرحلة غير موجودة", 404));
+
+  const task = phase.tasks.id(taskId);
+  if (!task) return next(new AppError("المهمة غير موجودة", 404));
+
+  const prevAssignee = task.assignedTo?.toString();
+
+  if (status) task.status = status;
+  if (status === "COMPLETED") task.completedAt = new Date();
+  if (assignedTo !== undefined) task.assignedTo = assignedTo || null;
+  if (notes !== undefined) task.description = notes;
+  if (priority) task.priority = priority;
+
+  await phase.save();
+
+  // 🔔 Notify new assignee if changed
+  if (assignedTo && assignedTo !== prevAssignee) {
+    const project = await ProjectModel.findById(projectId).lean();
+    await createNotification(
+      assignedTo,
+      `📋 تم تعيينك على مهمة`,
+      `تم تعيينك على مهمة "${task.name}" في مرحلة "${phase.nameAr || phase.name}" بمشروع "${project?.name}".`,
+      "INFO",
+      { projectId, phaseId, taskId }
+    ).catch(() => {});
+  }
+
+  return res.status(200).json({
+    success: true,
+    message: "تم تحديث المهمة بنجاح",
+    data: task
+  });
+});
+
+/**
+ * REVIEW ATTACHMENT (manager approve / reject)
+ * PATCH /projects/:id/phases/:phaseId/attachments/:slotId/review
+ * Body: { reviewStatus: "APPROVED"|"REJECTED", rejectionReason? }
+ */
+export const reviewAttachment = asynchandler(async (req, res, next) => {
+  const { id: projectId, phaseId, slotId } = req.params;
+  const { reviewStatus, rejectionReason } = req.body;
+
+  if (!["APPROVED", "REJECTED"].includes(reviewStatus)) {
+    return next(new AppError("reviewStatus يجب أن يكون APPROVED أو REJECTED", 400));
+  }
+
+  const phase = await ProjectPhase.findOne({ _id: phaseId, project: projectId });
+  if (!phase) return next(new AppError("المرحلة غير موجودة", 404));
+
+  const slot = phase.requiredAttachments.id(slotId);
+  if (!slot) return next(new AppError("المرفق غير موجود", 404));
+
+  if (!slot.attachmentId) {
+    return next(new AppError("لا يمكن مراجعة مرفق لم يُرفع بعد", 400));
+  }
+
+  slot.reviewStatus = reviewStatus;
+  if (rejectionReason) slot.rejectionReason = rejectionReason;
+
+  await phase.save();
+
+  return res.status(200).json({
+    success: true,
+    message: reviewStatus === "APPROVED" ? "تمت الموافقة على المرفق" : "تم رفض المرفق",
+    data: slot
+  });
+});
+
+/**
+ * APPROVE / REJECT PHASE APPROVAL SLOT (inline requiredApprovals[])
+ * PATCH /projects/:id/phases/:phaseId/approvals/:slotId
+ * Body: { status: "APPROVED"|"REJECTED", notes? }
+ */
+export const approvePhaseSlot = asynchandler(async (req, res, next) => {
+  const { id: projectId, phaseId, slotId } = req.params;
+  const { status, notes } = req.body;
+
+  if (!["APPROVED", "REJECTED"].includes(status)) {
+    return next(new AppError("status يجب أن يكون APPROVED أو REJECTED", 400));
+  }
+
+  const phase = await ProjectPhase.findOne({ _id: phaseId, project: projectId });
+  if (!phase) return next(new AppError("المرحلة غير موجودة", 404));
+
+  const slot = phase.requiredApprovals.id(slotId);
+  if (!slot) return next(new AppError("طلب الموافقة غير موجود", 404));
+
+  slot.status = status;
+  slot.user = req.user._id;
+  slot.actionDate = new Date();
+  if (notes) slot.notes = notes;
+
+  await phase.save();
+
+  // 🔔 Notify project manager of the decision
+  const project = await ProjectModel.findById(projectId).lean();
+  if (project?.manager) {
+    await createNotification(
+      project.manager,
+      status === "APPROVED" ? "✅ موافقة جديدة على مرحلة" : "❌ رفض موافقة على مرحلة",
+      `${status === "APPROVED" ? "تمت الموافقة" : "تم الرفض"} على طلب الموافقة في مرحلة "${phase.nameAr || phase.name}" بمشروع "${project.name}".`,
+      status === "APPROVED" ? "SUCCESS" : "WARNING",
+      { projectId, phaseId, slotId, type: "PHASE_APPROVAL" }
+    ).catch(() => {});
+  }
+
+  return res.status(200).json({
+    success: true,
+    message: status === "APPROVED" ? "تمت الموافقة بنجاح" : "تم الرفض بنجاح",
+    data: slot
+  });
+});

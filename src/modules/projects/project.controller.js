@@ -704,4 +704,124 @@ router.patch(
   projectService.completePhase
 );
 
+/**
+ * @swagger
+ * /projects/{id}/phases/{phaseId}/tasks/{taskId}:
+ *   patch:
+ *     summary: تحديث مهمة داخل مرحلة (status / assignedTo / priority)
+ *     tags: [Projects]
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - { in: path, name: id, required: true, schema: { type: string } }
+ *       - { in: path, name: phaseId, required: true, schema: { type: string } }
+ *       - { in: path, name: taskId, required: true, schema: { type: string } }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               status:
+ *                 type: string
+ *                 enum: [PENDING, IN_PROGRESS, COMPLETED, CANCELLED]
+ *               assignedTo:
+ *                 type: string
+ *                 description: User ObjectId
+ *               priority:
+ *                 type: string
+ *                 enum: [LOW, MEDIUM, HIGH]
+ *               notes:
+ *                 type: string
+ *                 description: يُحدِّث حقل description للمهمة
+ *     responses:
+ *       200:
+ *         description: تم تحديث المهمة + إشعار للمعيَّن (إن تغيّر)
+ *       404:
+ *         description: المرحلة أو المهمة غير موجودة
+ */
+router.patch(
+  "/:id/phases/:phaseId/tasks/:taskId",
+  auth,
+  permission("EDIT_PROJECT"),
+  projectService.updateTask
+);
+
+/**
+ * @swagger
+ * /projects/{id}/phases/{phaseId}/attachments/{slotId}/review:
+ *   patch:
+ *     summary: مراجعة مرفق من قِبَل المدير (قبول / رفض)
+ *     tags: [Projects]
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - { in: path, name: id, required: true, schema: { type: string } }
+ *       - { in: path, name: phaseId, required: true, schema: { type: string } }
+ *       - { in: path, name: slotId, required: true, schema: { type: string }, description: "_id of the requiredAttachments subdoc" }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [reviewStatus]
+ *             properties:
+ *               reviewStatus:
+ *                 type: string
+ *                 enum: [APPROVED, REJECTED]
+ *               rejectionReason:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: تمت المراجعة
+ *       400:
+ *         description: المرفق لم يُرفع بعد أو قيمة غير صالحة
+ *       404:
+ *         description: المرحلة أو فتحة المرفق غير موجودة
+ */
+router.patch(
+  "/:id/phases/:phaseId/attachments/:slotId/review",
+  auth,
+  permission("EDIT_PROJECT"),
+  projectService.reviewAttachment
+);
+
+/**
+ * @swagger
+ * /projects/{id}/phases/{phaseId}/approvals/{slotId}:
+ *   patch:
+ *     summary: الموافقة أو الرفض على فتحة موافقة داخل المرحلة مباشرةً
+ *     description: يُحدِّث phase.requiredApprovals[slotId] مباشرةً ويُرسل إشعاراً لمدير المشروع
+ *     tags: [Projects]
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - { in: path, name: id, required: true, schema: { type: string } }
+ *       - { in: path, name: phaseId, required: true, schema: { type: string } }
+ *       - { in: path, name: slotId, required: true, schema: { type: string }, description: "_id of the requiredApprovals subdoc" }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [status]
+ *             properties:
+ *               status:
+ *                 type: string
+ *                 enum: [APPROVED, REJECTED]
+ *               notes:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: تم تحديث الموافقة + إشعار للمدير
+ *       404:
+ *         description: المرحلة أو فتحة الموافقة غير موجودة
+ */
+router.patch(
+  "/:id/phases/:phaseId/approvals/:slotId",
+  auth,
+  permission("EDIT_PROJECT"),
+  projectService.approvePhaseSlot
+);
+
 export default router;
