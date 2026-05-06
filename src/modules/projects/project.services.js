@@ -267,12 +267,19 @@ export const create_project = asynchandler(async (req, res, next) => {
 
   project.estimatedCost = estimatedCost;
 
-  // If frontend sends skipActivation: true and warehouseType is SHARED → go directly to PLANNING
-  if (req.body.skipActivation && (!warehouseType || warehouseType === "SHARED")) {
+  // ── Activation Logic ─────────────────────────────────────────────────────
+  // By default, projects go straight to PLANNING with the first phase opened.
+  // Only stay as DRAFT when:
+  //   1. The frontend explicitly sends `skipActivation: false`, OR
+  //   2. A DEDICATED warehouse still needs to be provisioned (use /activate)
+  const needsDedicatedWarehouse = warehouseType === "DEDICATED" && !req.body.dedicatedWarehouse;
+  const stayDraft = req.body.skipActivation === false || needsDedicatedWarehouse;
+
+  if (!stayDraft) {
     project.status = "PLANNING";
     await project.save();
 
-    // ── عند skipActivation: افتح أول مرحلة فقط (Gating) ──────────────
+    // Open ONLY the first phase (lowest order) — enforce phase gating
     const veryFirst = await ProjectPhase.findOne({ project: project._id })
       .sort({ order: 1 });
     if (veryFirst) {
@@ -280,7 +287,7 @@ export const create_project = asynchandler(async (req, res, next) => {
         { _id: veryFirst._id },
         { $set: { status: "IN_PROGRESS", startDate: veryFirst.startDate || new Date() } }
       );
-      // Make sure all OTHER phases stay PENDING
+      // Lock all other phases
       await ProjectPhase.updateMany(
         { project: project._id, _id: { $ne: veryFirst._id } },
         { $set: { status: "PENDING" } }
