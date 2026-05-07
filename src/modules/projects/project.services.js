@@ -273,6 +273,68 @@ export const create_project = asynchandler(async (req, res, next) => {
   const stayDraft = req.body.skipActivation === false;
 
   if (!stayDraft) {
+    // ── 1. Create Dedicated Warehouse if needed ─────────────────────────
+    if (warehouseType === "DEDICATED" && !req.body.dedicatedWarehouse) {
+      const newWarehouse = await Warehouse.create({
+        name: `مستودع مشروع: ${name}`,
+        location: `موقع المشروع: ${req.body.location || "غير محدد"}`,
+        type: "PROJECT",
+        project: project._id,
+        manager
+      });
+      project.dedicatedWarehouse = newWarehouse._id;
+    }
+
+    // ── 2. Process Initial Transfers (إن وُجدت) ──────────────────────────
+    const targetWarehouseId = project.dedicatedWarehouse;
+    const transfersToProcess = req.body.initialTransfers || [];
+
+    if (transfersToProcess.length > 0 && targetWarehouseId) {
+      for (const transfer of transfersToProcess) {
+        const { material, quantity, fromWarehouse: fromWH } = transfer;
+        if (!material || !quantity || !fromWH) continue;
+
+        const sourceInv = await Inventory.findOne({ warehouse: fromWH, material });
+        if (!sourceInv || sourceInv.quantity < quantity) {
+          const deficit = quantity - (sourceInv?.quantity || 0);
+          await Notification.create({
+            user: manager || req.user._id,
+            title: "عجز في المخزون",
+            body: `تعذّر نقل ${quantity} وحدة للمادة (${material}). عجز ${deficit} وحدة في المستودع المصدر.`,
+            type: "WARNING",
+            data: { projectId: project._id, materialId: material, deficit }
+          });
+          continue;
+        }
+
+        // Deduct source
+        sourceInv.quantity -= quantity;
+        await sourceInv.save();
+
+        // Add to project warehouse
+        await Inventory.findOneAndUpdate(
+          { warehouse: targetWarehouseId, material },
+          { $inc: { quantity }, $set: { lastUpdated: new Date() } },
+          { upsert: true, new: true }
+        );
+
+        // Log transaction
+        await MaterialTransaction.create({
+          material,
+          project: project._id,
+          type: "TRANSFER",
+          quantity,
+          warehouse: targetWarehouseId,
+          fromWarehouse: fromWH,
+          toWarehouse: targetWarehouseId,
+          processedBy: req.user._id,
+          reference: `Initial transfer for project ${name}`,
+          status: "COMPLETED"
+        });
+      }
+    }
+
+    // ── 3. Activate ────────────────────────────────────────────────────────
     project.status = "PLANNING";
     await project.save();
 
@@ -284,7 +346,6 @@ export const create_project = asynchandler(async (req, res, next) => {
         { _id: veryFirst._id },
         { $set: { status: "IN_PROGRESS", startDate: veryFirst.startDate || new Date() } }
       );
-      // Lock all other phases
       await ProjectPhase.updateMany(
         { project: project._id, _id: { $ne: veryFirst._id } },
         { $set: { status: "PENDING" } }
@@ -293,7 +354,6 @@ export const create_project = asynchandler(async (req, res, next) => {
   } else {
     await project.save();
   }
-
 
   return res.status(201).json({
     success: true,

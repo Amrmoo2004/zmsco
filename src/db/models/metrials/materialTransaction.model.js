@@ -28,22 +28,42 @@ const materialTransactionSchema = new mongoose.Schema(
       ref: "MaterialRequest"
     },
 
-    // ─── Added Context Fields ─────────────────────────────────────────────
+    // ─── Warehouse Context ────────────────────────────────────────────────
     warehouse: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Warehouse"
     },
+    fromWarehouse: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Warehouse"
+    },
+    toWarehouse: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Warehouse"
+    },
+    // ─────────────────────────────────────────────────────────────────────
 
     phase: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "ProjectPhase"
     },
-    // ───────────────────────────────────────────────────────────────────────
 
+    // ─── Audit ───────────────────────────────────────────────────────────
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User"
+    },
+    processedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User"
+    },
+    reference: String,        // free-text note (e.g. "Initial transfer for project X")
+    status: {
+      type: String,
+      enum: ["PENDING", "COMPLETED", "FAILED"],
+      default: "COMPLETED"
     }
+    // ─────────────────────────────────────────────────────────────────────
   },
   { timestamps: true }
 );
