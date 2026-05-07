@@ -159,28 +159,36 @@ export const deleteWarehouse = asynchandler(async (req, res, next) => {
 });
 
 /**
- * Get warehouse inventory
+ * Get warehouse inventory — with status per item
  */
 export const getWarehouseInventory = asynchandler(async (req, res, next) => {
     const { id } = req.params;
 
     const warehouse = await Warehouse.findById(id);
-    if (!warehouse) {
-        return next(new AppError("Warehouse not found", 404));
-    }
+    if (!warehouse) return next(new AppError("Warehouse not found", 404));
 
     const inventory = await Inventory.find({ warehouse: id })
-        .populate("material", "name unit category");
+        .populate("material", "name unit category alertQuantity");
+
+    // Add status per item based on material.alertQuantity threshold
+    const enriched = inventory.map(item => {
+        const qty = item.quantity || 0;
+        const threshold = item.material?.alertQuantity || 0;
+        let status = "متوفر";
+        if (qty === 0) status = "غير متوفر";
+        else if (threshold > 0 && qty <= threshold) status = "منخفض";
+
+        return {
+            ...item.toObject(),
+            status
+        };
+    });
 
     return res.status(200).json({
         success: true,
         data: {
-            warehouse: {
-                id: warehouse._id,
-                name: warehouse.name,
-                location: warehouse.location
-            },
-            inventory
+            warehouse: { id: warehouse._id, name: warehouse.name, location: warehouse.location },
+            inventory: enriched
         }
     });
 });
@@ -192,9 +200,7 @@ export const getWarehouseTransactions = asynchandler(async (req, res, next) => {
     const { id } = req.params;
 
     const warehouse = await Warehouse.findById(id);
-    if (!warehouse) {
-        return next(new AppError("Warehouse not found", 404));
-    }
+    if (!warehouse) return next(new AppError("Warehouse not found", 404));
 
     const transactions = await MaterialTransaction.find({ warehouse: id })
         .populate("material", "name unit")
@@ -205,12 +211,101 @@ export const getWarehouseTransactions = asynchandler(async (req, res, next) => {
     return res.status(200).json({
         success: true,
         data: {
-            warehouse: {
-                id: warehouse._id,
-                name: warehouse.name,
-                location: warehouse.location
-            },
+            warehouse: { id: warehouse._id, name: warehouse.name, location: warehouse.location },
             transactions
+        }
+    });
+});
+
+/**
+ * GET /warehouses/:id/dashboard
+ * Summary cards for the warehouse screen (رئيسي أو مشروع)
+ * Returns: totalMaterials, lowStockCount, unavailableCount, activeTransfersCount, recentTransactions
+ */
+export const getWarehouseDashboard = asynchandler(async (req, res, next) => {
+    const { id } = req.params;
+
+    const warehouse = await Warehouse.findById(id).populate("manager", "name email");
+    if (!warehouse) return next(new AppError("Warehouse not found", 404));
+
+    // All inventory items for this warehouse
+    const inventory = await Inventory.find({ warehouse: id })
+        .populate("material", "name unit category alertQuantity");
+
+    const totalMaterials = inventory.reduce((sum, i) => sum + (i.quantity || 0), 0);
+    const unavailableCount = inventory.filter(i => (i.quantity || 0) === 0).length;
+    const lowStockCount = inventory.filter(i => {
+        const qty = i.quantity || 0;
+        const threshold = i.material?.alertQuantity || 0;
+        return threshold > 0 && qty > 0 && qty <= threshold;
+    }).length;
+
+    // Active transfers = TRANSFER transactions in last 7 days
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const activeTransfersCount = await MaterialTransaction.countDocuments({
+        warehouse: id,
+        type: { $in: ["TRANSFER", "IN"] },
+        createdAt: { $gte: sevenDaysAgo }
+    });
+
+    // Daily consumption rate = average OUT/ISSUE per day over last 30 days
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const consumptionAgg = await MaterialTransaction.aggregate([
+        {
+            $match: {
+                warehouse: warehouse._id,
+                type: { $in: ["OUT", "ISSUE"] },
+                createdAt: { $gte: thirtyDaysAgo }
+            }
+        },
+        { $group: { _id: null, total: { $sum: "$quantity" } } }
+    ]);
+    const totalConsumed = consumptionAgg[0]?.total || 0;
+    const dailyConsumptionRate = totalMaterials > 0
+        ? Math.min(100, Math.round((totalConsumed / 30 / (totalMaterials || 1)) * 100))
+        : 0;
+
+    // Incoming shipments today
+    const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+    const incomingToday = await MaterialTransaction.countDocuments({
+        warehouse: id,
+        type: { $in: ["IN", "TRANSFER"] },
+        createdAt: { $gte: todayStart }
+    });
+
+    // Recent transactions (last 10)
+    const recentTransactions = await MaterialTransaction.find({ warehouse: id })
+        .populate("material", "name")
+        .populate("project", "name code")
+        .sort({ createdAt: -1 })
+        .limit(10);
+
+    // Inventory distribution by project (for pie chart)
+    const projectDistribution = await MaterialTransaction.aggregate([
+        { $match: { warehouse: warehouse._id, type: { $in: ["OUT", "ISSUE"] } } },
+        { $group: { _id: "$project", total: { $sum: "$quantity" } } },
+        { $lookup: { from: "projects", localField: "_id", foreignField: "_id", as: "project" } },
+        { $unwind: { path: "$project", preserveNullAndEmpty: true } },
+        { $project: { projectName: "$project.name", total: 1 } },
+        { $sort: { total: -1 } },
+        { $limit: 5 }
+    ]);
+
+    return res.status(200).json({
+        success: true,
+        data: {
+            warehouse,
+            summary: {
+                totalMaterials,
+                lowStockCount,
+                unavailableCount,
+                activeTransfersCount,
+                dailyConsumptionRate,     // % — for "معدل الاستهلاك اليومي"
+                incomingToday,            // count — for "شحنات قادمة اليوم"
+                inventoryItemsCount: inventory.length
+            },
+            projectDistribution,          // for pie chart "توزيع المخزون"
+            recentTransactions
         }
     });
 });

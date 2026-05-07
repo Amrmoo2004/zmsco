@@ -16,7 +16,7 @@ const materialTransactionSchema = new mongoose.Schema(
 
     type: {
       type: String,
-      enum: ["ISSUE", "RETURN"],
+      enum: ["IN", "OUT", "TRANSFER", "ISSUE", "RETURN"],
       required: true
     },
 

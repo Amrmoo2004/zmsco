@@ -251,4 +251,71 @@ router.get("/:id/inventory", auth, permission("VIEW_INVENTORY"), warehouseServic
  */
 router.get("/:id/transactions", auth, permission("VIEW_INVENTORY"), warehouseService.getWarehouseTransactions);
 
+/**
+ * @swagger
+ * /warehouses/{id}/dashboard:
+ *   get:
+ *     summary: "داشبورد المخزن — كروت الإحصائيات + توزيع المخزون + آخر التحويلات"
+ *     description: |
+ *       يُرجع كل البيانات اللازمة لشاشتي المخزن في الـ UI:
+ *
+ *       **شاشة المخزن الرئيسي:**
+ *       - `summary.totalMaterials` → إجمالي المواد (12,450)
+ *       - `summary.lowStockCount` → تنبيهات انخفاض المخزون (24)
+ *       - `summary.activeTransfersCount` → التحويلات النشطة (8)
+ *       - `summary.unavailableCount` → المواد غير المتوفرة (12)
+ *       - `projectDistribution` → بيانات الـ Pie Chart (توزيع المخزون)
+ *       - `recentTransactions` → قائمة آخر التحويلات
+ *
+ *       **شاشة مخزن المشروع:**
+ *       - `summary.dailyConsumptionRate` → معدل الاستهلاك اليومي %
+ *       - `summary.incomingToday` → شحنات قادمة اليوم
+ *       - `summary.totalMaterials` → إجمالي المواد
+ *       - `summary.lowStockCount` → مواد أوشكت على النفاد
+ *     tags: [Warehouses]
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *         description: "Warehouse ObjectId (رئيسي أو مشروع)"
+ *     responses:
+ *       200:
+ *         description: Dashboard data
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean }
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     warehouse: { type: object }
+ *                     summary:
+ *                       type: object
+ *                       properties:
+ *                         totalMaterials: { type: number, example: 12450 }
+ *                         lowStockCount: { type: number, example: 24 }
+ *                         unavailableCount: { type: number, example: 12 }
+ *                         activeTransfersCount: { type: number, example: 8 }
+ *                         dailyConsumptionRate: { type: number, example: 85, description: "% — for معدل الاستهلاك اليومي" }
+ *                         incomingToday: { type: number, example: 4, description: "شحنات قادمة اليوم" }
+ *                         inventoryItemsCount: { type: number }
+ *                     projectDistribution:
+ *                       type: array
+ *                       description: "for Pie Chart — توزيع المخزون"
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           projectName: { type: string }
+ *                           total: { type: number }
+ *                     recentTransactions:
+ *                       type: array
+ *                       description: "آخر 10 تحويلات"
+ *       404: { description: Warehouse not found }
+ */
+router.get("/:id/dashboard", auth, permission("VIEW_INVENTORY"), warehouseService.getWarehouseDashboard);
+
 export default router;
