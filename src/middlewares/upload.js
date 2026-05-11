@@ -46,3 +46,8 @@ export const uploadSingle = (fieldName = 'file') => multerInstance.single(fieldN
  */
 export const uploadMultiple = (fieldName = 'files', maxCount = 10) =>
     multerInstance.array(fieldName, maxCount);
+
+/**
+ * Middleware to accept any files.
+ */
+export const uploadAny = () => multerInstance.any();

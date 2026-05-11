@@ -2,6 +2,7 @@ import express from "express";
 import * as projectService from "./project.services.js";
 import { auth } from "../../middlewares/auth.js";
 import { permission } from "../../middlewares/premission.js";
+import { uploadAny } from "../../middlewares/upload.js";
 
 const router = express.Router();
 
@@ -286,7 +287,7 @@ const router = express.Router();
 
 router.route("/")
   .get(auth, permission("VIEW_PROJECT"), projectService.get_projects)
-  .post(auth, permission("CREATE_PROJECT"), projectService.create_project);
+  .post(auth, permission("CREATE_PROJECT"), uploadAny(), projectService.create_project);
 
 /**
  * @swagger
@@ -373,7 +374,7 @@ router.get("/archived", auth, permission("VIEW_PROJECT"), projectService.get_arc
  */
 router.route("/:id")
   .get(auth, permission("VIEW_PROJECT"), projectService.get_project)
-  .put(auth, permission("EDIT_PROJECT"), projectService.update_project)
+  .put(auth, permission("EDIT_PROJECT"), uploadAny(), projectService.update_project)
   .delete(auth, permission("DELETE_PROJECT"), projectService.delete_project);
 
 /**

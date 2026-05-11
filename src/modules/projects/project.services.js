@@ -14,11 +14,21 @@ import Inventory from "../../db/models/inventory.js";
 import MaterialTransaction from "../../db/models/metrials/materialTransaction.model.js";
 import Notification from "../../db/models/notification.model.js";
 import { createNotification } from "../notifications/notification.service.js";
+import { uploadToCloudinary } from "../../utils/cloudinary.js";
 
 /**
  * CREATE PROJECT
  */
 export const create_project = asynchandler(async (req, res, next) => {
+  let parsedBody = { ...req.body };
+  ['phases', 'materials', 'equipments', 'documents', 'members', 'initialTransfers'].forEach(field => {
+    if (typeof parsedBody[field] === 'string') {
+      try { parsedBody[field] = JSON.parse(parsedBody[field]); } catch (e) { parsedBody[field] = []; }
+    }
+  });
+  if (typeof parsedBody.skipActivation === 'string') parsedBody.skipActivation = parsedBody.skipActivation === 'true';
+  if (typeof parsedBody.budget === 'string') parsedBody.budget = Number(parsedBody.budget);
+
   const {
     name,
     type,
@@ -39,7 +49,7 @@ export const create_project = asynchandler(async (req, res, next) => {
     equipments = [],
     documents = [],
     members = []
-  } = req.body;
+  } = parsedBody;
 
   if (!name || !type || !manager) {
     return next(new AppError("المشروع يحتاج اسم، نوع، ومدير مشروع", 400));
@@ -236,6 +246,25 @@ export const create_project = asynchandler(async (req, res, next) => {
 
   if (documents?.length > 0) {
     await ProjectDocument.insertMany(documents.map(d => ({ ...d, project: project._id, status: "PENDING" })));
+  }
+
+  // Handle physically uploaded files in multipart/form-data
+  if (req.files && req.files.length > 0) {
+    const fileDocs = [];
+    for (const file of req.files) {
+      const uploadResult = await uploadToCloudinary(file.buffer, file.originalname, file.mimetype, 'project-documents');
+      fileDocs.push({
+        project: project._id,
+        name: file.originalname,
+        status: "UPLOADED",
+        fileUrl: uploadResult.url,
+        uploadedBy: req.user._id,
+        isRequired: false
+      });
+    }
+    if (fileDocs.length > 0) {
+      await ProjectDocument.insertMany(fileDocs);
+    }
   }
 
   // Process Members (Vacancies)
@@ -484,14 +513,42 @@ export const get_project = asynchandler(async (req, res, next) => {
  * UPDATE PROJECT
  */
 export const update_project = asynchandler(async (req, res, next) => {
+  let parsedBody = { ...req.body };
+  ['phases', 'materials', 'equipments', 'documents', 'members', 'initialTransfers'].forEach(field => {
+    if (typeof parsedBody[field] === 'string') {
+      try { parsedBody[field] = JSON.parse(parsedBody[field]); } catch (e) { parsedBody[field] = []; }
+    }
+  });
+  if (typeof parsedBody.skipActivation === 'string') parsedBody.skipActivation = parsedBody.skipActivation === 'true';
+  if (typeof parsedBody.budget === 'string') parsedBody.budget = Number(parsedBody.budget);
+
   const project = await ProjectModel.findByIdAndUpdate(
     req.params.id,
-    req.body,
+    parsedBody,
     { new: true }
   );
 
   if (!project) {
     return next(new Error("Project not found", { cause: 404 }));
+  }
+
+  // Handle physically uploaded files in update
+  if (req.files && req.files.length > 0) {
+    const fileDocs = [];
+    for (const file of req.files) {
+      const uploadResult = await uploadToCloudinary(file.buffer, file.originalname, file.mimetype, 'project-documents');
+      fileDocs.push({
+        project: project._id,
+        name: file.originalname,
+        status: "UPLOADED",
+        fileUrl: uploadResult.url,
+        uploadedBy: req.user._id,
+        isRequired: false
+      });
+    }
+    if (fileDocs.length > 0) {
+      await ProjectDocument.insertMany(fileDocs);
+    }
   }
 
   return res.status(200).json({
