@@ -495,7 +495,34 @@ export const get_project = asynchandler(async (req, res, next) => {
 
   const equipments = await ProjectEquipment.find({ project: req.params.id });
 
-  const phases = await ProjectPhase.find({ project: req.params.id }).sort({ order: 1 });
+  const phasesRaw = await ProjectPhase.find({ project: req.params.id }).sort({ order: 1 });
+  const phases = phasesRaw.map(phase => {
+    const pObj = phase.toObject ? phase.toObject() : phase;
+    const totalTasks = (pObj.tasks || []).length;
+    const completedTasks = (pObj.tasks || []).filter(t => t.status === 'COMPLETED').length;
+    const totalAttachments = (pObj.requiredAttachments || []).length;
+    const uploadedAttachments = (pObj.requiredAttachments || []).filter(a => !!a.attachmentId).length;
+    const totalApprovals = (pObj.requiredApprovals || []).length;
+    const approvedApprovals = (pObj.requiredApprovals || []).filter(a => a.status === 'APPROVED').length;
+    
+    const taskPct = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : (pObj.status === 'COMPLETED' ? 100 : 0);
+    const attachPct = totalAttachments > 0 ? (uploadedAttachments / totalAttachments) * 100 : 100;
+    const approvalPct = totalApprovals > 0 ? (approvedApprovals / totalApprovals) * 100 : 100;
+    const progress = Math.round(taskPct * 0.6 + attachPct * 0.2 + approvalPct * 0.2);
+    
+    const canComplete = completedTasks === totalTasks && uploadedAttachments === totalAttachments && approvedApprovals === totalApprovals;
+    
+    return {
+      ...pObj,
+      statistics: {
+        progress,
+        canComplete,
+        tasks: { completed: completedTasks, total: totalTasks },
+        attachments: { uploaded: uploadedAttachments, total: totalAttachments },
+        approvals: { approved: approvedApprovals, total: totalApprovals }
+      }
+    };
+  });
 
   return res.status(200).json({
     success: true,
@@ -644,8 +671,35 @@ export const get_project_summary = asynchandler(async (req, res, next) => {
 
   if (!project) return next(new AppError("Project not found", 404));
 
-  const [phases, members, materials, equipment, documents] = await Promise.all([
-    ProjectPhase.find({ project: id }).lean(),
+  const phasesRaw = await ProjectPhase.find({ project: id }).lean().sort({ order: 1 });
+  const phases = phasesRaw.map(pObj => {
+    const totalTasks = (pObj.tasks || []).length;
+    const completedTasks = (pObj.tasks || []).filter(t => t.status === 'COMPLETED').length;
+    const totalAttachments = (pObj.requiredAttachments || []).length;
+    const uploadedAttachments = (pObj.requiredAttachments || []).filter(a => !!a.attachmentId).length;
+    const totalApprovals = (pObj.requiredApprovals || []).length;
+    const approvedApprovals = (pObj.requiredApprovals || []).filter(a => a.status === 'APPROVED').length;
+    
+    const taskPct = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : (pObj.status === 'COMPLETED' ? 100 : 0);
+    const attachPct = totalAttachments > 0 ? (uploadedAttachments / totalAttachments) * 100 : 100;
+    const approvalPct = totalApprovals > 0 ? (approvedApprovals / totalApprovals) * 100 : 100;
+    const progress = Math.round(taskPct * 0.6 + attachPct * 0.2 + approvalPct * 0.2);
+    
+    const canComplete = completedTasks === totalTasks && uploadedAttachments === totalAttachments && approvedApprovals === totalApprovals;
+    
+    return {
+      ...pObj,
+      statistics: {
+        progress,
+        canComplete,
+        tasks: { completed: completedTasks, total: totalTasks },
+        attachments: { uploaded: uploadedAttachments, total: totalAttachments },
+        approvals: { approved: approvedApprovals, total: totalApprovals }
+      }
+    };
+  });
+
+  const [members, materials, equipment, documents] = await Promise.all([
     ProjectMember.find({ project: id }).populate("user", "username email").lean(),
     ProjectMaterial.find({ project: id }).populate("material", "name unit").lean(),
     ProjectEquipment.find({ project: id }).lean(),
@@ -789,12 +843,39 @@ export const update_phase_status = asynchandler(async (req, res, next) => {
 
   const phase = await ProjectPhase.findOneAndUpdate(
     { _id: phaseId, project: projectId },
-    { status },
+    { status, endDate: status === "COMPLETED" ? new Date() : undefined },
     { new: true }
   );
 
   if (!phase) {
     return next(new AppError("Phase not found.", 404));
+  }
+
+  if (status === "COMPLETED") {
+    // Open next phase
+    const nextPhase = await ProjectPhase.findOne({
+      project: projectId,
+      order: { $gt: phase.order },
+      status: { $in: ["PENDING", "IN_PROGRESS"] }
+    }).sort({ order: 1 });
+
+    if (nextPhase && nextPhase.status === "PENDING") {
+      nextPhase.status = "IN_PROGRESS";
+      nextPhase.startDate = nextPhase.startDate || new Date();
+      await nextPhase.save();
+    }
+
+    // Check if project is completed
+    const remainingPhases = await ProjectPhase.countDocuments({
+      project: projectId,
+      status: { $ne: "COMPLETED" }
+    });
+    if (remainingPhases === 0) {
+      await ProjectModel.findByIdAndUpdate(projectId, {
+        status: "COMPLETED",
+        completionDate: new Date()
+      });
+    }
   }
 
   return res.status(200).json({
