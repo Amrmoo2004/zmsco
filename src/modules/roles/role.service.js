@@ -7,11 +7,19 @@ import { asynchandler } from "../../utils/response/response.js";
  * Get all roles
  */
 export const getAllRoles = asynchandler(async (req, res, next) => {
-    const roles = await Role.find().sort({ createdAt: -1 });
+    const roles = await Role.find().sort({ createdAt: -1 }).lean();
+
+    const rolesWithCounts = await Promise.all(roles.map(async (role) => {
+        const usersCount = await User.countDocuments({ role: role._id });
+        return {
+            ...role,
+            usersCount
+        };
+    }));
 
     return res.status(200).json({
         success: true,
-        data: roles
+        data: rolesWithCounts
     });
 });
 
@@ -21,15 +29,20 @@ export const getAllRoles = asynchandler(async (req, res, next) => {
 export const getRoleById = asynchandler(async (req, res, next) => {
     const { id } = req.params;
 
-    const role = await Role.findById(id);
+    const role = await Role.findById(id).lean();
 
     if (!role) {
         return next(new AppError("Role not found", 404));
     }
 
+    const usersCount = await User.countDocuments({ role: role._id });
+
     return res.status(200).json({
         success: true,
-        data: role
+        data: {
+            ...role,
+            usersCount
+        }
     });
 });
 
