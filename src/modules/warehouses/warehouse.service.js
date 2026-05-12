@@ -285,7 +285,7 @@ export const getWarehouseDashboard = asynchandler(async (req, res, next) => {
         { $match: { warehouse: warehouse._id, type: { $in: ["OUT", "ISSUE"] } } },
         { $group: { _id: "$project", total: { $sum: "$quantity" } } },
         { $lookup: { from: "projects", localField: "_id", foreignField: "_id", as: "project" } },
-        { $unwind: { path: "$project", preserveNullAndEmpty: true } },
+        { $unwind: { path: "$project", preserveNullAndEmptyArrays: true } },
         { $project: { projectName: "$project.name", total: 1 } },
         { $sort: { total: -1 } },
         { $limit: 5 }
