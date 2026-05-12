@@ -15,6 +15,7 @@ import MaterialTransaction from "../../db/models/metrials/materialTransaction.mo
 import Notification from "../../db/models/notification.model.js";
 import { createNotification } from "../notifications/notification.service.js";
 import { uploadToCloudinary } from "../../utils/cloudinary.js";
+import { calculatePhaseStatistics } from "../../utils/phaseUtils.js";
 
 /**
  * CREATE PROJECT
@@ -497,30 +498,9 @@ export const get_project = asynchandler(async (req, res, next) => {
 
   const phasesRaw = await ProjectPhase.find({ project: req.params.id }).sort({ order: 1 });
   const phases = phasesRaw.map(phase => {
-    const pObj = phase.toObject ? phase.toObject() : phase;
-    const totalTasks = (pObj.tasks || []).length;
-    const completedTasks = (pObj.tasks || []).filter(t => t.status === 'COMPLETED').length;
-    const totalAttachments = (pObj.requiredAttachments || []).length;
-    const uploadedAttachments = (pObj.requiredAttachments || []).filter(a => !!a.attachmentId).length;
-    const totalApprovals = (pObj.requiredApprovals || []).length;
-    const approvedApprovals = (pObj.requiredApprovals || []).filter(a => a.status === 'APPROVED').length;
-    
-    const taskPct = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : (pObj.status === 'COMPLETED' ? 100 : 0);
-    const attachPct = totalAttachments > 0 ? (uploadedAttachments / totalAttachments) * 100 : 100;
-    const approvalPct = totalApprovals > 0 ? (approvedApprovals / totalApprovals) * 100 : 100;
-    const progress = Math.round(taskPct * 0.6 + attachPct * 0.2 + approvalPct * 0.2);
-    
-    const canComplete = completedTasks === totalTasks && uploadedAttachments === totalAttachments && approvedApprovals === totalApprovals;
-    
     return {
-      ...pObj,
-      statistics: {
-        progress,
-        canComplete,
-        tasks: { completed: completedTasks, total: totalTasks },
-        attachments: { uploaded: uploadedAttachments, total: totalAttachments },
-        approvals: { approved: approvedApprovals, total: totalApprovals }
-      }
+      ...(phase.toObject ? phase.toObject() : phase),
+      statistics: calculatePhaseStatistics(phase)
     };
   });
 
@@ -673,29 +653,9 @@ export const get_project_summary = asynchandler(async (req, res, next) => {
 
   const phasesRaw = await ProjectPhase.find({ project: id }).lean().sort({ order: 1 });
   const phases = phasesRaw.map(pObj => {
-    const totalTasks = (pObj.tasks || []).length;
-    const completedTasks = (pObj.tasks || []).filter(t => t.status === 'COMPLETED').length;
-    const totalAttachments = (pObj.requiredAttachments || []).length;
-    const uploadedAttachments = (pObj.requiredAttachments || []).filter(a => !!a.attachmentId).length;
-    const totalApprovals = (pObj.requiredApprovals || []).length;
-    const approvedApprovals = (pObj.requiredApprovals || []).filter(a => a.status === 'APPROVED').length;
-    
-    const taskPct = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : (pObj.status === 'COMPLETED' ? 100 : 0);
-    const attachPct = totalAttachments > 0 ? (uploadedAttachments / totalAttachments) * 100 : 100;
-    const approvalPct = totalApprovals > 0 ? (approvedApprovals / totalApprovals) * 100 : 100;
-    const progress = Math.round(taskPct * 0.6 + attachPct * 0.2 + approvalPct * 0.2);
-    
-    const canComplete = completedTasks === totalTasks && uploadedAttachments === totalAttachments && approvedApprovals === totalApprovals;
-    
     return {
       ...pObj,
-      statistics: {
-        progress,
-        canComplete,
-        tasks: { completed: completedTasks, total: totalTasks },
-        attachments: { uploaded: uploadedAttachments, total: totalAttachments },
-        approvals: { approved: approvedApprovals, total: totalApprovals }
-      }
+      statistics: calculatePhaseStatistics(pObj)
     };
   });
 
@@ -904,40 +864,11 @@ export const get_phase_details = asynchandler(async (req, res, next) => {
 
   if (!phase) return next(new AppError('Phase not found.', 404));
 
-  // ── إحصائيات المهام
-  const totalTasks = (phase.tasks || []).length;
-  const completedTasks = (phase.tasks || []).filter(t => t.status === 'COMPLETED').length;
-
-  // ── إحصائيات المرفقات
-  const totalAttachments = (phase.requiredAttachments || []).length;
-  const uploadedAttachments = (phase.requiredAttachments || []).filter(a => !!a.attachmentId).length;
-
-  // ── إحصائيات الموافقات
-  const totalApprovals = (phase.requiredApprovals || []).length;
-  const approvedApprovals = (phase.requiredApprovals || []).filter(a => a.status === 'APPROVED').length;
-
-  // ── نسبة الإنجاز (مهام 60% + مرفقات 20% + موافقات 20%)
-  const taskPct = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
-  const attachPct = totalAttachments > 0 ? (uploadedAttachments / totalAttachments) * 100 : 100;
-  const approvalPct = totalApprovals > 0 ? (approvedApprovals / totalApprovals) * 100 : 100;
-  const progress = Math.round(taskPct * 0.6 + attachPct * 0.2 + approvalPct * 0.2);
-
-  const canComplete =
-    completedTasks === totalTasks &&
-    uploadedAttachments === totalAttachments &&
-    approvedApprovals === totalApprovals;
-
   return res.status(200).json({
     success: true,
     data: {
       ...phase,
-      statistics: {
-        progress,
-        canComplete,
-        tasks: { completed: completedTasks, total: totalTasks },
-        attachments: { uploaded: uploadedAttachments, total: totalAttachments },
-        approvals: { approved: approvedApprovals, total: totalApprovals }
-      }
+      statistics: calculatePhaseStatistics(phase)
     }
   });
 });
