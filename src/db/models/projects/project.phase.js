@@ -109,7 +109,11 @@ const projectPhaseSchema = new mongoose.Schema(
     // ─── Phase Gating: Required Permits ──────────────────────────────────────
     requiredPermits: [
       {
-        name: { type: String, required: true }, // e.g. "Building Permit"
+        name: { type: String, required: true },           // e.g. "رخصة بناء"
+        issuingAuthority: { type: String, default: "" },  // e.g. "إدارة التخطيط العمراني"
+        authorityType: { type: String, default: "الجهة التنظيمية" }, // e.g. "الجهة التنظيمية"
+        permitNumber: { type: String, default: "" },      // e.g. "BP-2026-1547" — رقم التصريح
+        expiryDate: { type: Date },                       // تاريخ انتهاء التصريح
         attachmentId: { type: mongoose.Schema.Types.ObjectId, ref: "Attachment" },
         reviewStatus: {
           type: String,

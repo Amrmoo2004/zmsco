@@ -112,6 +112,10 @@ export const instantiatePhases = asynchandler(async (req, res, next) => {
             phase.permits.forEach(p => {
                 requiredPermits.push({
                     name: p.name,
+                    issuingAuthority: p.issuingAuthority || "",
+                    authorityType: p.authorityType || "الجهة التنظيمية",
+                    expiryDate: p.expiryDate || null,
+                    permitNumber: "",
                     isMandatory: p.isRequired
                 });
             });

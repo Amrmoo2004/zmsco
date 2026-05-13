@@ -175,3 +175,174 @@ export const deleteProjectPhase = asynchandler(async (req, res, next) => {
 
     return res.status(200).json({ success: true, message: "Project phase deleted successfully" });
 });
+
+/**
+ * Update a single permit inside a phase
+ * PATCH /api/projects/:projectId/phases/:id/permits/:permitId
+ */
+export const updatePermit = asynchandler(async (req, res, next) => {
+    const { projectId, id, permitId } = req.params;
+    const { permitNumber, expiryDate, attachmentId, reviewStatus } = req.body;
+
+    const phase = await ProjectPhase.findOne({ _id: id, project: projectId });
+    if (!phase) return next(new AppError("Phase not found in this project", 404));
+
+    // Find the permit by its _id
+    const permit = phase.requiredPermits.id(permitId);
+    if (!permit) return next(new AppError("Permit not found in this phase", 404));
+
+    // Update only the provided fields
+    if (permitNumber !== undefined) permit.permitNumber = permitNumber;
+    if (expiryDate !== undefined) permit.expiryDate = expiryDate;
+    if (attachmentId !== undefined) permit.attachmentId = attachmentId;
+
+    // Auto-set reviewStatus based on permit data
+    if (reviewStatus) {
+        permit.reviewStatus = reviewStatus;
+    } else {
+        // If a permitNumber is provided, mark as APPROVED; if cleared, reset to PENDING
+        permit.reviewStatus = permit.permitNumber ? "APPROVED" : "PENDING";
+    }
+
+    await phase.save();
+
+    // Broadcast update to project room
+    emitToProject(projectId, 'phase:updated', {
+        type: 'PERMIT_UPDATED',
+        phaseId: phase._id,
+        permitId,
+        projectId,
+        timestamp: new Date().toISOString(),
+    });
+
+    return res.status(200).json({
+        success: true,
+        message: "Permit updated successfully",
+        data: {
+            phase: phase._id,
+            permit
+        }
+    });
+});
+
+/**
+ * Get permits summary for a phase (for Step 5 UI)
+ * GET /api/projects/:projectId/phases/:id/permits
+ */
+export const getPhasePermits = asynchandler(async (req, res, next) => {
+    const { projectId, id } = req.params;
+
+    const phase = await ProjectPhase.findOne({ _id: id, project: projectId })
+        .populate("requiredPermits.attachmentId", "url fileUrl name");
+    if (!phase) return next(new AppError("Phase not found in this project", 404));
+
+    const permits = phase.requiredPermits.map(p => ({
+        _id: p._id,
+        name: p.name,
+        issuingAuthority: p.issuingAuthority,
+        authorityType: p.authorityType,
+        permitNumber: p.permitNumber,
+        expiryDate: p.expiryDate,
+        reviewStatus: p.reviewStatus,
+        isMandatory: p.isMandatory,
+        attachment: p.attachmentId,
+        isCompleted: !!p.permitNumber  // اعتبر التصريح مكتملاً إذا فيه رقم
+    }));
+
+    const mandatory = permits.filter(p => p.isMandatory);
+    const completedMandatory = mandatory.filter(p => p.isCompleted);
+
+    return res.status(200).json({
+        success: true,
+        data: {
+            permits,
+            summary: {
+                total: permits.length,
+                totalMandatory: mandatory.length,
+                completedMandatory: completedMandatory.length,
+                allMandatoryDone: mandatory.length === completedMandatory.length,
+                // نفس النص اللي في الديزاين
+                label: `تم إكمال ${completedMandatory.length} من أصل ${mandatory.length} تصاريح إلزامية`
+            }
+        }
+    });
+});
+
+/**
+ * Add a new permit directly to a phase (independent from blueprint)
+ * POST /api/projects/:projectId/phases/:id/permits
+ */
+export const addPermit = asynchandler(async (req, res, next) => {
+    const { projectId, id } = req.params;
+    const {
+        name,
+        issuingAuthority = "",
+        authorityType = "الجهة التنظيمية",
+        permitNumber = "",
+        expiryDate,
+        isMandatory = true
+    } = req.body;
+
+    if (!name) return next(new AppError("اسم التصريح مطلوب", 400));
+
+    const phase = await ProjectPhase.findOne({ _id: id, project: projectId });
+    if (!phase) return next(new AppError("Phase not found in this project", 404));
+
+    const newPermit = {
+        name,
+        issuingAuthority,
+        authorityType,
+        permitNumber,
+        expiryDate: expiryDate || null,
+        isMandatory,
+        reviewStatus: permitNumber ? "APPROVED" : "PENDING"
+    };
+
+    phase.requiredPermits.push(newPermit);
+    await phase.save();
+
+    const added = phase.requiredPermits[phase.requiredPermits.length - 1];
+
+    emitToProject(projectId, 'phase:updated', {
+        type: 'PERMIT_ADDED',
+        phaseId: phase._id,
+        projectId,
+        timestamp: new Date().toISOString(),
+    });
+
+    return res.status(201).json({
+        success: true,
+        message: "Permit added successfully",
+        data: added
+    });
+});
+
+/**
+ * Delete a permit from a phase
+ * DELETE /api/projects/:projectId/phases/:id/permits/:permitId
+ */
+export const deletePermit = asynchandler(async (req, res, next) => {
+    const { projectId, id, permitId } = req.params;
+
+    const phase = await ProjectPhase.findOne({ _id: id, project: projectId });
+    if (!phase) return next(new AppError("Phase not found in this project", 404));
+
+    const permit = phase.requiredPermits.id(permitId);
+    if (!permit) return next(new AppError("Permit not found in this phase", 404));
+
+    permit.deleteOne();
+    await phase.save();
+
+    emitToProject(projectId, 'phase:updated', {
+        type: 'PERMIT_DELETED',
+        phaseId: phase._id,
+        permitId,
+        projectId,
+        timestamp: new Date().toISOString(),
+    });
+
+    return res.status(200).json({
+        success: true,
+        message: "Permit deleted successfully"
+    });
+});

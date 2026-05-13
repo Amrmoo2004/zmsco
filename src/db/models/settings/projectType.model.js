@@ -71,7 +71,10 @@ const phaseTemplateSchema = new mongoose.Schema(
         approvals: [phaseApprovalSchema],
         permits: [
             {
-                name: { type: String, required: true }, // e.g. "Building Permit"
+                name: { type: String, required: true },           // e.g. "رخصة بناء"
+                issuingAuthority: { type: String, default: "" },  // e.g. "إدارة التخطيط العمراني"
+                authorityType: { type: String, default: "الجهة التنظيمية" }, // e.g. "الجهة التنظيمية"
+                expiryDate: { type: Date },                       // تاريخ انتهاء التصريح الافتراضي
                 isRequired: { type: Boolean, default: true }
             }
         ],

@@ -131,6 +131,10 @@ export const create_project = asynchandler(async (req, res, next) => {
 
       const requiredPermits = phase.permits ? phase.permits.map(p => ({
         name: p.name,
+        issuingAuthority: p.issuingAuthority || "",
+        authorityType: p.authorityType || "الجهة التنظيمية",
+        expiryDate: p.expiryDate || null,
+        permitNumber: "",
         isMandatory: p.isRequired
       })) : [];
 
