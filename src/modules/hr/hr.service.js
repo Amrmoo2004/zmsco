@@ -121,8 +121,14 @@ export const createHrRequest = asynchandler(async (req, res) => {
     const notifData = { requestId: request._id, requestType: request.requestType };
 
     // ── إشعار جميع الادمنز ───────────────────────────────────────────────
+    const Role = (await import("../../db/models/roles.js")).default;
+    const adminRoles = await Role.find({
+        name: { $in: ["ADMIN", "superAdmin", "Admin", "Super Admin"] }
+    }).select("_id").lean();
+    const adminRoleIds = adminRoles.map(r => r._id);
+
     const admins = await User.find({
-        $or: [{ role: "ADMIN" }, { role: "superAdmin" }],
+        role: { $in: adminRoleIds },
         isActive: true
     }).select("_id").lean();
 
