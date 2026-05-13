@@ -545,7 +545,13 @@ export const fulfillRequest = asynchandler(async (req, res, next) => {
         timestamp:       new Date().toISOString()
       });
 
-      const managers = await User.find({ role: { $in: ["manager", "admin"] } });
+      const Role = (await import("../../db/models/roles.js")).default;
+      const mgmtRoles = await Role.find({ 
+        name: { $in: ["manager", "admin", "ADMIN", "superAdmin", "Manager", "Admin"] } 
+      }).select("_id").lean();
+      const mgmtRoleIds = mgmtRoles.map(r => r._id);
+
+      const managers = await User.find({ role: { $in: mgmtRoleIds } });
       await Promise.all(
         managers.map((m) =>
           createNotification(
