@@ -51,7 +51,7 @@ const router = Router();
  *     responses:
  *       201: { description: Phase created }
  */
-router.get("/:projectId/phases", auth, permission("VIEW_REPORTS"), projectPhaseService.getProjectPhases);
+router.get("/:projectId/phases", auth, projectPhaseService.getProjectPhases);
 router.post("/:projectId/phases", auth, permission("UPDATE_PROJECT"), projectPhaseService.createProjectPhase);
 
 /**
