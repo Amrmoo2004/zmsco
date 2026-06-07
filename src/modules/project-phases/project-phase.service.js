@@ -5,7 +5,7 @@ import { AppError } from "../../utils/appError.js";
 import { asynchandler } from "../../utils/response/response.js";
 import { createNotification } from "../notifications/notification.service.js";
 import { emitToProject, emitDashboardUpdate } from "../../utils/socket.js";
-import { calculatePhaseStatistics } from "../../utils/phaseUtils.js";
+import { calculatePhaseStatistics, tryAutoCompletePhase } from "../../utils/phaseUtils.js";
 
 /** Get project phases */
 export const getProjectPhases = asynchandler(async (req, res, next) => {
@@ -14,7 +14,7 @@ export const getProjectPhases = asynchandler(async (req, res, next) => {
     if (!project) return next(new AppError("Project not found", 404));
 
     const phasesRaw = await ProjectPhase.find({ project: projectId }).sort({ startDate: 1 }).lean();
-    
+
     const phases = phasesRaw.map(pObj => {
         return {
             ...pObj,
@@ -213,6 +213,12 @@ export const updatePermit = asynchandler(async (req, res, next) => {
         permitId,
         projectId,
         timestamp: new Date().toISOString(),
+    });
+
+    // 🔄 Check if phase should auto-complete after permit update
+    await tryAutoCompletePhase(phase, {
+        emitToProject, emitDashboardUpdate, createNotification,
+        ProjectMember, Project
     });
 
     return res.status(200).json({

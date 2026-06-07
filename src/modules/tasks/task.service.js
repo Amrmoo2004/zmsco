@@ -1,8 +1,12 @@
 
 import ProjectPhase from "../../db/models/projects/project.phase.js";
+import Project from "../../db/models/projects/project.js";
+import ProjectMember from "../../db/models/projects/project.member.js";
 import { AppError } from "../../utils/appError.js";
 import { asynchandler } from "../../utils/response/response.js";
 import { createNotification } from "../notifications/notification.service.js";
+import { emitToProject, emitDashboardUpdate } from "../../utils/socket.js";
+import { tryAutoCompletePhase } from "../../utils/phaseUtils.js";
 
 // GET /api/projects/:projectId/phases/:phaseId/tasks
 export const getTasksByPhase = asynchandler(async (req, res) => {
@@ -63,6 +67,12 @@ export const updateTask = asynchandler(async (req, res, next) => {
     }
 
     await phase.save();
+
+    // 🔄 Check if phase should auto-complete after task status change
+    await tryAutoCompletePhase(phase, {
+        emitToProject, emitDashboardUpdate, createNotification,
+        ProjectMember, Project
+    });
 
     // Notify if a NEW user was assigned to this task during update
     if (req.body.assignedTo && req.body.assignedTo.toString() !== oldAssignedTo) {
@@ -142,6 +152,12 @@ export const reviewPhaseAttachment = asynchandler(async (req, res, next) => {
     if (status === "REJECTED") slot.rejectionReason = rejectionReason;
     await phase.save();
 
+    // 🔄 Check if phase should auto-complete after attachment review
+    await tryAutoCompletePhase(phase, {
+        emitToProject, emitDashboardUpdate, createNotification,
+        ProjectMember, Project
+    });
+
     return res.status(200).json({ success: true, message: "Attachment review updated", data: phase });
 });
 
@@ -162,6 +178,12 @@ export const signOffPhase = asynchandler(async (req, res, next) => {
     approvalSlot.actionDate = new Date();
     approvalSlot.notes = notes;
     await phase.save();
+
+    // 🔄 Check if phase should auto-complete after sign-off
+    await tryAutoCompletePhase(phase, {
+        emitToProject, emitDashboardUpdate, createNotification,
+        ProjectMember, Project
+    });
 
     return res.status(200).json({ success: true, message: `Phase sign-off ${status.toLowerCase()}`, data: phase });
 });

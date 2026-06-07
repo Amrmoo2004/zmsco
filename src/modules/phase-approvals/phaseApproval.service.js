@@ -1,7 +1,12 @@
 import PhaseApproval from "../../db/models/projects/phaseApproval.model.js";
 import ProjectPhase from "../../db/models/projects/project.phase.js";
+import Project from "../../db/models/projects/project.js";
+import ProjectMember from "../../db/models/projects/project.member.js";
 import { AppError } from "../../utils/appError.js";
 import { asynchandler } from "../../utils/response/response.js";
+import { createNotification } from "../notifications/notification.service.js";
+import { emitToProject, emitDashboardUpdate } from "../../utils/socket.js";
+import { tryAutoCompletePhase } from "../../utils/phaseUtils.js";
 
 // GET /api/projects/:projectId/phases/:phaseId/approvals
 export const getPhaseApprovals = asynchandler(async (req, res) => {
@@ -66,6 +71,12 @@ export const processPhaseApproval = asynchandler(async (req, res, next) => {
             slot.actionDate = new Date();
             slot.notes = notes;
             await phase.save();
+
+            // 🔄 Check if phase should auto-complete after approval
+            await tryAutoCompletePhase(phase, {
+                emitToProject, emitDashboardUpdate, createNotification,
+                ProjectMember, Project
+            });
         }
     }
 
