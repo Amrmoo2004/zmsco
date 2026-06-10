@@ -16,6 +16,7 @@ import Notification from "../../db/models/notification.model.js";
 import { createNotification } from "../notifications/notification.service.js";
 import { uploadToCloudinary } from "../../utils/cloudinary.js";
 import { calculatePhaseStatistics } from "../../utils/phaseUtils.js";
+import { emitToProject, emitDashboardUpdate } from "../../utils/socket.js";
 
 /**
  * CREATE PROJECT
@@ -976,6 +977,24 @@ export const completePhase = asynchandler(async (req, res, next) => {
   phase.endDate = phase.endDate || new Date();
   await phase.save();
 
+  // 🔔 Broadcast phase completion to all connected clients
+  emitToProject(projectId, 'phase:updated', {
+    type: 'UPDATED',
+    phaseId: phase._id,
+    phaseName: phase.name,
+    projectId,
+    status: 'COMPLETED',
+    prevStatus: 'IN_PROGRESS',
+    timestamp: new Date().toISOString(),
+  });
+
+  emitToProject(projectId, 'notification:phase_completed', {
+    phaseId: phase._id,
+    phaseName: phase.name,
+    projectId,
+    completedAt: new Date().toISOString(),
+  });
+
   // ── فتح المرحلة التالية تلقائياً ─────────────────────────────────────
   // Use $gt to handle non-consecutive order numbers (0,2,4 or 1,3,5 etc.)
   const nextPhase = await ProjectPhase.findOne({
@@ -990,6 +1009,17 @@ export const completePhase = asynchandler(async (req, res, next) => {
     nextPhase.startDate = nextPhase.startDate || new Date();
     await nextPhase.save();
     nextPhaseData = { _id: nextPhase._id, name: nextPhase.nameAr || nextPhase.name, order: nextPhase.order };
+
+    // 🔔 Broadcast next phase activation
+    emitToProject(projectId, 'phase:updated', {
+      type: 'UPDATED',
+      phaseId: nextPhase._id,
+      phaseName: nextPhase.name,
+      projectId,
+      status: 'IN_PROGRESS',
+      prevStatus: 'PENDING',
+      timestamp: new Date().toISOString(),
+    });
   } else if (nextPhase) {
     nextPhaseData = { _id: nextPhase._id, name: nextPhase.nameAr || nextPhase.name, order: nextPhase.order };
   }
@@ -1032,6 +1062,9 @@ export const completePhase = asynchandler(async (req, res, next) => {
       completionDate: new Date()
     });
   }
+
+  // 📊 Dashboard update
+  emitDashboardUpdate({ trigger: 'phase_completed', projectId, phaseId: phase._id });
 
   return res.status(200).json({
     success: true,

@@ -81,6 +81,59 @@ router.post("/register", authService.register);
 
 /**
  * @swagger
+ * /auth/verify-email:
+ *   post:
+ *     summary: Verify email with OTP code sent during registration
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - otp
+ *             properties:
+ *               email:
+ *                 type: string
+ *               otp:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Email verified successfully
+ *       400:
+ *         description: Invalid or expired verification code
+ */
+router.post("/verify-email", authService.verifyEmail);
+
+/**
+ * @swagger
+ * /auth/resend-verification:
+ *   post:
+ *     summary: Resend email verification OTP
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *             properties:
+ *               email:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Verification code resent successfully
+ *       400:
+ *         description: Email is already verified
+ */
+router.post("/resend-verification", authService.resendVerificationOtp);
+
+/**
+ * @swagger
  * /auth/forgot-password:
  *   post:
  *     summary: Request password reset

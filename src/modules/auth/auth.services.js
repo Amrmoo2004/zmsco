@@ -22,8 +22,13 @@ export const register = asynchandler(async (req, res, next) => {
   const { name, email, password, phone } = req.body;
 
   const existingUser = await User.findOne({ email });
-  if (existingUser) {
+  if (existingUser && existingUser.isEmailVerified) {
     throw new AppError("User already exists", 409);
+  }
+
+  // If user exists but not verified, delete the old record so they can re-register
+  if (existingUser && !existingUser.isEmailVerified) {
+    await User.deleteOne({ _id: existingUser._id });
   }
 
   // Always assign the default user role during registration
@@ -32,6 +37,9 @@ export const register = asynchandler(async (req, res, next) => {
   if (!role) {
     throw new AppError("Role not found", 404);
   }
+
+  // Generate 6-digit OTP for email verification
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
   const user = await User.create({
     name,
@@ -42,12 +50,23 @@ export const register = asynchandler(async (req, res, next) => {
     }),
     phone: await encrypt(phone, process.env.encryption_key),
     role: role._id,
-    createdBy: req.user ? req.user._id : undefined, // مين اللي أنشأه
+    isEmailVerified: false,
+    emailVerificationOtp: await generatehash({ plaintext: otp, saltround: process.env.SALTROUNDS }),
+    emailVerificationOtpExpires: new Date(Date.now() + 15 * 60 * 1000), // 15 minutes
+    createdBy: req.user ? req.user._id : undefined,
+  });
+
+  // Send verification email
+  emailevnt.emit("confirmemail", {
+    to: user.email,
+    username: user.name,
+    otp: otp,
   });
 
   return successResponse(res, {
-    message: "User registered successfully",
+    message: "Registration successful. Please check your email for the verification code.",
     userId: user._id,
+    email: user.email,
   }, 201);
 });
 
@@ -59,12 +78,17 @@ export const login = asynchandler(async (req, res, next) => {
     .populate("role");
 
   if (!user || !user.isActive) {
-    throw new Error("Invalid credentials");
+    throw new AppError("Invalid credentials", 401);
+  }
+
+  // Block login if email is not verified
+  if (!user.isEmailVerified) {
+    throw new AppError("Please verify your email before logging in. Check your inbox for the verification code.", 403);
   }
 
   const match = await bcrypt.compare(password, user.password);
   if (!match) {
-    throw new Error("Invalid credentials");
+    throw new AppError("Invalid credentials", 401);
   }
 
   const token = generateToken({
@@ -82,6 +106,78 @@ export const login = asynchandler(async (req, res, next) => {
       name: user.name,
       role: user.role.name
     }
+  });
+});
+
+export const verifyEmail = asynchandler(async (req, res, next) => {
+  const email = req.body.email?.trim().toLowerCase();
+  const { otp } = req.body;
+
+  const user = await User.findOne({ email });
+
+  if (!user) {
+    throw new AppError("No account found with this email", 404);
+  }
+
+  if (user.isEmailVerified) {
+    throw new AppError("Email is already verified", 400);
+  }
+
+  if (!user.emailVerificationOtp || !user.emailVerificationOtpExpires) {
+    throw new AppError("No verification code found. Please request a new one.", 400);
+  }
+
+  if (user.emailVerificationOtpExpires < new Date()) {
+    throw new AppError("Verification code has expired. Please request a new one.", 400);
+  }
+
+  const isOtpValid = await comparehash(otp, user.emailVerificationOtp);
+  if (!isOtpValid) {
+    throw new AppError("Invalid verification code", 400);
+  }
+
+  // Activate the email
+  user.isEmailVerified = true;
+  user.emailVerificationOtp = undefined;
+  user.emailVerificationOtpExpires = undefined;
+  await user.save();
+
+  return successResponse(res, {
+    message: "Email verified successfully. You can now log in.",
+  });
+});
+
+export const resendVerificationOtp = asynchandler(async (req, res, next) => {
+  const email = req.body.email?.trim().toLowerCase();
+
+  const user = await User.findOne({ email });
+
+  if (!user) {
+    throw new AppError("No account found with this email", 404);
+  }
+
+  if (user.isEmailVerified) {
+    throw new AppError("Email is already verified", 400);
+  }
+
+  // Generate new OTP
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+  user.emailVerificationOtp = await generatehash({ plaintext: otp, saltround: process.env.SALTROUNDS });
+  user.emailVerificationOtpExpires = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+  await user.save();
+
+  // Send verification email
+  emailevnt.emit("confirmemail", {
+    to: user.email,
+    username: user.name,
+    otp: otp,
+  });
+
+  return successResponse(res, {
+    message: "Verification code resent successfully. Please check your email.",
+    email: user.email,
+    otpExpiresIn: "15 minutes",
   });
 });
 
