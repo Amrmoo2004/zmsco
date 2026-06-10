@@ -412,7 +412,10 @@ export const get_projects = asynchandler(async (req, res, next) => {
       { client: { $regex: search, $options: "i" } },
     ];
   }
-  if (status) query.status = status;
+  if (status) {
+    const statuses = status.split(",").map(s => s.trim().toUpperCase());
+    query.status = statuses.length === 1 ? statuses[0] : { $in: statuses };
+  }
   if (priority) query.priority = priority;
   if (manager) query.manager = manager;
   if (type) query.type = type;

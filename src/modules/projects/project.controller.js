@@ -25,11 +25,30 @@ const router = express.Router();
  *         name: status
  *         schema:
  *           type: string
- *           enum: [DRAFT, PLANNING, IN_PROGRESS, ON_HOLD, COMPLETED, CANCELLED]
+ *         description: |
+ *           Filter by project status. Supports comma-separated values for multiple statuses.
+ *           Examples: `DRAFT`, `PLANNING`, `DRAFT,PLANNING`, `EXECUTION,ON_HOLD`
+ *           Available values: DRAFT, PLANNING, EXECUTION, ON_HOLD, COMPLETED, CANCELLED
  *       - in: query
  *         name: search
  *         schema:
  *           type: string
+ *         description: Search by project name, code, or client
+ *       - in: query
+ *         name: priority
+ *         schema:
+ *           type: string
+ *           enum: [LOW, MEDIUM, HIGH]
+ *       - in: query
+ *         name: manager
+ *         schema:
+ *           type: string
+ *         description: Filter by manager User ObjectId
+ *       - in: query
+ *         name: type
+ *         schema:
+ *           type: string
+ *         description: Filter by ProjectType ObjectId
  *     responses:
  *       200:
  *         description: List of projects
