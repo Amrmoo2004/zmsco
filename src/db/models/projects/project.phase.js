@@ -22,7 +22,13 @@ const phaseTaskSchema = new mongoose.Schema(
       enum: ["PENDING", "IN_PROGRESS", "COMPLETED", "CANCELLED"],
       default: "PENDING"
     },
-    completedAt: Date
+    completedAt: Date,
+    attachments: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Attachment"
+      }
+    ]
   },
   { timestamps: true }
 );

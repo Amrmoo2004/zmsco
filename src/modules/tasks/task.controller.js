@@ -2,6 +2,7 @@ import { Router } from "express";
 import * as taskService from "./task.service.js";
 import { auth } from "../../middlewares/auth.js";
 import { permission } from "../../middlewares/premission.js";
+import { uploadSingle } from "../../middlewares/upload.js";
 
 const router = Router({ mergeParams: true }); // mergeParams to access :projectId and :phaseId
 
@@ -121,6 +122,10 @@ router.get("/", auth, taskService.getTasksByPhase);
 router.post("/", auth, permission("EDIT_PROJECT"), taskService.createTask);
 router.put("/:taskId", auth, permission("EDIT_PROJECT"), taskService.updateTask);
 router.delete("/:taskId", auth, permission("DELETE_PROJECT"), taskService.deleteTask);
+
+// Task Attachments
+router.post("/:taskId/attachments", auth, uploadSingle("file"), taskService.uploadTaskAttachment);
+router.delete("/:taskId/attachments/:attachmentId", auth, taskService.deleteTaskAttachment);
 
 // Phase Gating Actions
 router.post("/submit-attachment", auth, taskService.submitPhaseAttachment);
