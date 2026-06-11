@@ -3,10 +3,12 @@ import { sendemails } from "../emails/nodemailer.js";
 
 export const emailevnt = new EventEmitter();
 emailevnt.on("confirmemail", async (data) => {
-  await sendemails({
-    to: data.to,
-    subject: `Your Verification Code: ${data.otp}`,
-    html: `
+  try {
+    console.log(`[EMAIL] Sending verification email to: ${data.to}`);
+    const info = await sendemails({
+      to: data.to,
+      subject: `Your Verification Code: ${data.otp}`,
+      html: `
 <!DOCTYPE html>
 <html>
 <head>
@@ -40,14 +42,22 @@ emailevnt.on("confirmemail", async (data) => {
     </div>
 </body>
 </html>
-    `
-  });
+      `
+    });
+    console.log(`[EMAIL] Verification email sent successfully to: ${data.to}`, info?.messageId);
+  } catch (error) {
+    console.error(`[EMAIL ERROR] Failed to send verification email to: ${data.to}`);
+    console.error(`[EMAIL ERROR] Details:`, error.message);
+    console.error(`[EMAIL ERROR] Full error:`, error);
+  }
 });
 emailevnt.on("forgotpassword", async (data) => {
-  await sendemails({
-    to: data.to,
-    subject: `Your forgot password OTP`,
-    html: `
+  try {
+    console.log(`[EMAIL] Sending forgot password email to: ${data.to}`);
+    const info = await sendemails({
+      to: data.to,
+      subject: `Your forgot password OTP`,
+      html: `
 <!DOCTYPE html>
 <html>
 <head>
@@ -81,6 +91,12 @@ emailevnt.on("forgotpassword", async (data) => {
     </div>
 </body>
 </html>
-    `
-  });
+      `
+    });
+    console.log(`[EMAIL] Forgot password email sent successfully to: ${data.to}`, info?.messageId);
+  } catch (error) {
+    console.error(`[EMAIL ERROR] Failed to send forgot password email to: ${data.to}`);
+    console.error(`[EMAIL ERROR] Details:`, error.message);
+    console.error(`[EMAIL ERROR] Full error:`, error);
+  }
 });
