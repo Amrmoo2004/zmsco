@@ -78,6 +78,41 @@ const router = Router({ mergeParams: true }); // mergeParams to access :projectI
  *     responses:
  *       200: { description: Task deleted }
  *
+ * /projects/{projectId}/phases/{phaseId}/tasks/{taskId}/attachments:
+ *   post:
+ *     summary: Upload an attachment for a task
+ *     tags: [Phase Tasks]
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - { in: path, name: projectId, required: true, schema: { type: string } }
+ *       - { in: path, name: phaseId, required: true, schema: { type: string } }
+ *       - { in: path, name: taskId, required: true, schema: { type: string } }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               file:
+ *                 type: string
+ *                 format: binary
+ *     responses:
+ *       201: { description: Attachment uploaded and added to task successfully }
+ *
+ * /projects/{projectId}/phases/{phaseId}/tasks/{taskId}/attachments/{attachmentId}:
+ *   delete:
+ *     summary: Delete an attachment from a task
+ *     tags: [Phase Tasks]
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - { in: path, name: projectId, required: true, schema: { type: string } }
+ *       - { in: path, name: phaseId, required: true, schema: { type: string } }
+ *       - { in: path, name: taskId, required: true, schema: { type: string } }
+ *       - { in: path, name: attachmentId, required: true, schema: { type: string } }
+ *     responses:
+ *       200: { description: Attachment deleted from task successfully }
+ *
  * /projects/{projectId}/phases/{phaseId}/tasks/submit-attachment:
  *   post:
  *     summary: Submit a required phase attachment
