@@ -559,7 +559,7 @@ export const fulfillRequest = asynchandler(async (req, res, next) => {
             `📉 مخزون منخفض: ${matName}`,
             `الكمية المتبقية من "${matName}" (${stock.quantity}) أقل من الحد الأدنى (${minStock}).`,
             "WARNING",
-            { materialId: matId, currentQuantity: stock.quantity, minStock }
+            { materialId: matId, currentQuantity: stock.quantity, minStock, projectId: project._id }
           ).catch(() => {})
         )
       );

@@ -45,7 +45,7 @@ export const createTask = asynchandler(async (req, res, next) => {
             "تم تعيينك في مهمة جديدة",
             `تم إسناد مهمة "${name}" إليك في مرحلة ${phase.nameAr || phase.name || 'جديدة'}.`,
             "INFO",
-            { taskId: task._id, phaseId: phase._id }
+            { taskId: task._id, phaseId: phase._id, projectId: phase.project }
         );
     }
 
@@ -86,7 +86,7 @@ export const updateTask = asynchandler(async (req, res, next) => {
             "تم تعيينك في مهمة",
             `تم إسناد مهمة "${task.name}" إليك في مرحلة ${phase.nameAr || phase.name || 'حالية'}.`,
             "INFO",
-            { taskId: task._id, phaseId: phase._id }
+            { taskId: task._id, phaseId: phase._id, projectId: phase.project }
         );
     }
 

@@ -119,6 +119,9 @@ export const createHrRequest = asynchandler(async (req, res) => {
     const dateStr   = request.startDate ? new Date(request.startDate).toLocaleDateString("ar") : "";
     const notifBody = `أرسل ${req.user.name || "موظف"} طلب ${typeLabel} بتاريخ ${dateStr} — يرجى المراجعة.`;
     const notifData = { requestId: request._id, requestType: request.requestType };
+    if (request.relatedProject) {
+        notifData.projectId = request.relatedProject;
+    }
 
     // ── إشعار جميع الادمنز ───────────────────────────────────────────────
     const Role = (await import("../../db/models/roles.js")).default;
@@ -204,7 +207,7 @@ export const processHrRequest = asynchandler(async (req, res, next) => {
                 ? `تمت الموافقة على طلب ${typeLabel} الخاص بك بتاريخ ${request.startDate ? new Date(request.startDate).toLocaleDateString("ar") : ""}.`
                 : `تم رفض طلب ${typeLabel} الخاص بك.${rejectionReason ? " السبب: " + rejectionReason : ""}`,
             isApproved ? "SUCCESS" : "ERROR",
-            { requestId: request._id, requestType: request.requestType }
+            { requestId: request._id, requestType: request.requestType, projectId: request.relatedProject?._id || request.relatedProject }
         );
     }
 
