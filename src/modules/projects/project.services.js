@@ -401,9 +401,49 @@ export const create_project = asynchandler(async (req, res, next) => {
 });
 export const get_projects = asynchandler(async (req, res, next) => {
   // ARCHIVED projects are excluded from the normal listing — use GET /projects/archived instead
-  let query = { isActive: true, status: { $ne: "ARCHIVED" } };
+  // ── Calculate Stats without Search Filters ─────────────────────────────────
+  let baseQuery = { isActive: true, status: { $ne: "ARCHIVED" } };
+  
+  if (req.user.role !== "ADMIN") {
+    const assignments = await ProjectMember.find({ user: req.user._id }).select("project");
+    const assignedProjectIds = assignments.map(a => a.project);
+    baseQuery.$and = [{
+      $or: [
+        { _id: { $in: assignedProjectIds } },
+        { manager: req.user._id }
+      ]
+    }];
+  }
+
+  const allProjectsForStats = await ProjectModel.find(baseQuery).select("status endDate").lean();
+  
+  const stats = {
+    total: allProjectsForStats.length,
+    active: 0,
+    planning: 0,
+    completed: 0,
+    onHold: 0,
+    delayed: 0,
+    draft: 0,
+  };
+
+  const now = new Date();
+  allProjectsForStats.forEach(p => {
+    let displayStatus = p.status;
+    if (p.endDate && new Date(p.endDate) < now && p.status !== "COMPLETED") {
+      displayStatus = "DELAYED";
+    }
+
+    if (p.status === "PLANNING" || displayStatus === "DELAYED") stats.active++;
+    if (p.status === "PLANNING") stats.planning++;
+    if (p.status === "COMPLETED") stats.completed++;
+    if (p.status === "ON_HOLD") stats.onHold++;
+    if (displayStatus === "DELAYED") stats.delayed++;
+    if (p.status === "DRAFT") stats.draft++;
+  });
 
   // ── Search & Filter from query params ──────────────────────────────────────
+  let query = { ...baseQuery };
   const { search, status, priority, manager, type } = req.query;
   if (search) {
     query.$or = [
@@ -419,18 +459,6 @@ export const get_projects = asynchandler(async (req, res, next) => {
   if (priority) query.priority = priority;
   if (manager) query.manager = manager;
   if (type) query.type = type;
-
-  if (req.user.role !== "ADMIN") {
-    const assignments = await ProjectMember.find({ user: req.user._id }).select("project");
-    const assignedProjectIds = assignments.map(a => a.project);
-    const roleFilter = [
-      { _id: { $in: assignedProjectIds } },
-      { manager: req.user._id }
-    ];
-    query.$and = query.$and || [];
-    query.$and.push({ $or: roleFilter });
-    delete query.$or;
-  }
 
   const projects = await ProjectModel.find(query)
     .populate("manager", "username email name")
@@ -455,7 +483,7 @@ export const get_projects = asynchandler(async (req, res, next) => {
     const progress = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
 
     let displayStatus = project.status;
-    if (project.endDate && new Date(project.endDate) < new Date() && project.status !== "COMPLETED") {
+    if (project.endDate && new Date(project.endDate) < now && project.status !== "COMPLETED") {
       displayStatus = "DELAYED";
     }
 
@@ -465,17 +493,6 @@ export const get_projects = asynchandler(async (req, res, next) => {
       displayStatus
     };
   });
-
-  // ── Summary stats for Dashboard cards ────────────────────────────────────
-  const stats = {
-    total: formattedProjects.length,
-    active: formattedProjects.filter(p => p.status === "PLANNING" || p.displayStatus === "DELAYED").length,
-    planning: formattedProjects.filter(p => p.status === "PLANNING").length,
-    completed: formattedProjects.filter(p => p.status === "COMPLETED").length,
-    onHold: formattedProjects.filter(p => p.status === "ON_HOLD").length,
-    delayed: formattedProjects.filter(p => p.displayStatus === "DELAYED").length,
-    draft: formattedProjects.filter(p => p.status === "DRAFT").length,
-  };
 
   return res.status(200).json({
     success: true,

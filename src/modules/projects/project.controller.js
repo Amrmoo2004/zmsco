@@ -51,7 +51,27 @@ const router = express.Router();
  *         description: Filter by ProjectType ObjectId
  *     responses:
  *       200:
- *         description: List of projects
+ *         description: List of projects with dashboard statistics
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean, example: true }
+ *                 stats:
+ *                   type: object
+ *                   properties:
+ *                     total: { type: number }
+ *                     active: { type: number }
+ *                     planning: { type: number }
+ *                     completed: { type: number }
+ *                     onHold: { type: number }
+ *                     delayed: { type: number }
+ *                     draft: { type: number }
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
  *   post:
  *     summary: Create a new project (Step 1 of Wizard)
  *     description: |
