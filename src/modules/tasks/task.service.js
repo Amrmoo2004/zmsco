@@ -228,6 +228,32 @@ export const uploadTaskAttachment = asynchandler(async (req, res, next) => {
     task.attachments.push(attachment._id);
     await phase.save();
 
+    // 🔔 Notify relevant users about the new attachment
+    const project = await Project.findById(projectId).lean();
+    const uploaderId = req.user._id.toString();
+    const notifyTargets = new Set();
+
+    // Notify the task assignee (if not the uploader)
+    if (task.assignedTo && task.assignedTo.toString() !== uploaderId) {
+        notifyTargets.add(task.assignedTo.toString());
+    }
+    // Notify the project manager (if not the uploader)
+    if (project?.manager && project.manager.toString() !== uploaderId) {
+        notifyTargets.add(project.manager.toString());
+    }
+
+    await Promise.all(
+        [...notifyTargets].map(userId =>
+            createNotification(
+                userId,
+                '📎 مرفق جديد على مهمة',
+                `تم رفع مرفق "${attachment.originalName}" على مهمة "${task.name}" في مرحلة "${phase.nameAr || phase.name}" بمشروع "${project?.name}".`,
+                'INFO',
+                { projectId, phaseId: phase._id, taskId: task._id, attachmentId: attachment._id }
+            ).catch(() => {})
+        )
+    );
+
     return res.status(201).json({
         success: true,
         message: "Attachment uploaded and added to task successfully",
