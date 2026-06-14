@@ -8,31 +8,65 @@ import { asynchandler } from "../../utils/response/response.js";
 
 /**
  * GET DASHBOARD STATS (Admin / global)
+ *
+ * Optimized: Replaced ~8 sequential queries with parallel execution + aggregation.
  */
 export const getDashboardStats = asynchandler(async (req, res, next) => {
-    // 1. Projects Stats (ARCHIVED projects are treated separately — read-only)
-    const totalProjects = await ProjectModel.countDocuments({
-        isActive: true,
-        status: { $ne: "ARCHIVED" }
-    });
-    const completedProjects = await ProjectModel.countDocuments({ isActive: true, status: "COMPLETED" });
-    const archivedProjects = await ProjectModel.countDocuments({ isActive: true, status: "ARCHIVED" });
-    const activeProjects = await ProjectModel.countDocuments({
-        isActive: true,
-        status: { $in: ["PLANNING", "IN_PROGRESS"] }
-    });
-    const onHoldProjects = await ProjectModel.countDocuments({ isActive: true, status: "ON_HOLD" });
 
-    // 2. Budget Stats
-    const budgetAgg = await ProjectModel.aggregate([
-        { $match: { isActive: true } },
-        { $group: { _id: null, totalBudget: { $sum: "$budget" }, totalEstimatedCost: { $sum: "$estimatedCost" } } }
+    // ── Run all independent queries in parallel ──────────────────────────────
+    const [
+        projectStats,
+        budgetAgg,
+        phases,
+        users,
+        inventoryConfig
+    ] = await Promise.all([
+
+        // 1. Project counts — single $facet aggregation instead of 5 countDocuments
+        ProjectModel.aggregate([
+            { $match: { isActive: true } },
+            {
+                $facet: {
+                    total:     [{ $match: { status: { $ne: "ARCHIVED" } } }, { $count: "n" }],
+                    completed: [{ $match: { status: "COMPLETED" } }, { $count: "n" }],
+                    archived:  [{ $match: { status: "ARCHIVED" } }, { $count: "n" }],
+                    active:    [{ $match: { status: { $in: ["PLANNING", "IN_PROGRESS"] } } }, { $count: "n" }],
+                    onHold:    [{ $match: { status: "ON_HOLD" } }, { $count: "n" }],
+                }
+            }
+        ]),
+
+        // 2. Budget aggregation
+        ProjectModel.aggregate([
+            { $match: { isActive: true } },
+            { $group: { _id: null, totalBudget: { $sum: "$budget" }, totalEstimatedCost: { $sum: "$estimatedCost" } } }
+        ]),
+
+        // 3. All phases with tasks (lean for speed)
+        ProjectPhaseModel.find({}, "tasks project").lean(),
+
+        // 4. Users (lean for speed)
+        UserModel.find({ isActive: true }, "name status performanceRating").lean(),
+
+        // 5. Inventory config
+        getActiveConfig()
     ]);
+
+    // ── Extract project counts from $facet result ────────────────────────────
+    const facet = projectStats[0] || {};
+    const extract = (arr) => (arr && arr[0] && arr[0].n) || 0;
+
+    const totalProjects     = extract(facet.total);
+    const completedProjects = extract(facet.completed);
+    const archivedProjects  = extract(facet.archived);
+    const activeProjects    = extract(facet.active);
+    const onHoldProjects    = extract(facet.onHold);
+
+    // ── Budget ───────────────────────────────────────────────────────────────
     const totalBudget = budgetAgg.length > 0 ? budgetAgg[0].totalBudget : 0;
     const spentBudget = budgetAgg.length > 0 ? budgetAgg[0].totalEstimatedCost : 0;
 
-    // 3. Tasks Stats from ProjectPhases
-    const phases = await ProjectPhaseModel.find({}, "tasks project");
+    // ── Tasks Stats from ProjectPhases ────────────────────────────────────────
     let totalTasks = 0;
     let pendingTasks = 0;
     let inProgressTasks = 0;
@@ -40,69 +74,71 @@ export const getDashboardStats = asynchandler(async (req, res, next) => {
     let delayedTasks = 0;
 
     const tasksByProjectMap = {};
+    const now = new Date();
 
-    phases.forEach(phase => {
+    for (const phase of phases) {
         const projectId = phase.project.toString();
         if (!tasksByProjectMap[projectId]) {
             tasksByProjectMap[projectId] = { projectId, pending: 0, inProgress: 0, completed: 0, delayed: 0 };
         }
 
-        phase.tasks.forEach(task => {
+        const entry = tasksByProjectMap[projectId];
+
+        for (const task of phase.tasks) {
             totalTasks++;
             if (task.status === "COMPLETED") {
                 completedTasks++;
-                tasksByProjectMap[projectId].completed++;
+                entry.completed++;
             } else if (task.status === "IN_PROGRESS") {
                 inProgressTasks++;
-                tasksByProjectMap[projectId].inProgress++;
+                entry.inProgress++;
             } else {
                 pendingTasks++;
-                tasksByProjectMap[projectId].pending++;
+                entry.pending++;
             }
 
-            if (task.dueDate && new Date(task.dueDate) < new Date() && task.status !== "COMPLETED") {
+            if (task.dueDate && new Date(task.dueDate) < now && task.status !== "COMPLETED") {
                 delayedTasks++;
-                tasksByProjectMap[projectId].delayed++;
+                entry.delayed++;
             }
-        });
-    });
+        }
+    }
 
-    // 4. Employee Performance
-    const users = await UserModel.find({ isActive: true }, "name status performanceRating hrProfile");
-    const employeePerformance = users.map(user => {
-        return {
+    // ── Employee Performance ─────────────────────────────────────────────────
+    const employeePerformance = users
+        .map(user => ({
             id: user._id,
             name: user.name,
             performanceRating: user.performanceRating || 0,
             completionRate: user.performanceRating ? (user.performanceRating / 5) * 100 : 0
-        };
-    }).sort((a, b) => b.completionRate - a.completionRate).slice(0, 5);
+        }))
+        .sort((a, b) => b.completionRate - a.completionRate)
+        .slice(0, 5);
 
-    // 5. Attendance Stats
+    // ── Attendance Stats ─────────────────────────────────────────────────────
     const totalEmployees = users.length;
     let presentCount = 0;
     let absentCount = 0;
     let onLeaveCount = 0;
 
-    users.forEach(user => {
+    for (const user of users) {
         if (user.status === "ON_LEAVE") onLeaveCount++;
         else if (user.status === "AVAILABLE" || user.status === "BUSY") presentCount++;
         else absentCount++;
-    });
+    }
 
-    // 6. Inventory Alerts (Low Stock)
-    const inventoryConfig = await getActiveConfig();
+    // ── Inventory Alerts (Low Stock) — only query if alerts are enabled ──────
     let lowStockCount = 0;
     if (inventoryConfig.lowStockAlerts) {
         const threshold = inventoryConfig.lowStockThreshold;
-        const allInventory = await InventoryModel.find().populate("material", "alertQuantity");
+        const allInventory = await InventoryModel.find().populate("material", "alertQuantity").lean();
 
-        allInventory.forEach(item => {
+        for (const item of allInventory) {
             const itemThreshold = (item.material && item.material.alertQuantity)
                 ? item.material.alertQuantity
                 : threshold;
             if (item.quantity <= itemThreshold) lowStockCount++;
-        });
+        }
     }
 
     const tasksByProject = Object.values(tasksByProjectMap).slice(0, 10);
@@ -156,15 +192,25 @@ export const getDashboardStats = asynchandler(async (req, res, next) => {
  *   stats.myProjectsCount  عدد مشاريعه                  ← البطاقة الخضراء
  *   tasks[]                قائمة مهامه (متأخرة أولاً)
  *   projects[]             مشاريعه مع نسبة الإنجاز والمرحلة الحالية
+ *
+ * Optimized: Parallel queries + .lean()
  */
 export const getMyDashboard = asynchandler(async (req, res) => {
     const userId = req.user._id;
     const now = new Date();
 
-    // ── 1. مشاريع المستخدم (عضو أو مدير) ─────────────────────────────────────
-    const memberDocs = await ProjectMember.find({ user: userId }).select("project role").lean();
+    // ── 1. Fetch member docs and task phases in parallel ─────────────────────
+    const [memberDocs, taskPhases] = await Promise.all([
+        ProjectMember.find({ user: userId }).select("project role").lean(),
+        ProjectPhaseModel.find(
+            { "tasks.assignedTo": userId },
+            "project name nameAr tasks"
+        ).lean()
+    ]);
+
     const memberProjectIds = memberDocs.map(m => m.project);
 
+    // ── 2. Fetch user's projects + all phases for those projects in parallel ─
     const myProjects = await ProjectModel.find({
         isActive: true,
         status: { $ne: "ARCHIVED" },
@@ -179,34 +225,34 @@ export const getMyDashboard = asynchandler(async (req, res) => {
 
     const myProjectIds = myProjects.map(p => p._id);
 
-    // ── 2. كل مراحل المشاريع الخاصة بالمستخدم (للـ projects section) ──────────
-    const allPhases = await ProjectPhaseModel.find(
-        { project: { $in: myProjectIds } },
-        "project name nameAr status order tasks"
-    ).lean();
+    // Fetch all phases for user's projects (for project cards) + task project names in parallel
+    const taskProjectIds = [...new Set(taskPhases.map(ph => ph.project.toString()))];
 
-    // ── 2b. البحث عن التاسكات عبر كل الـ phases (مش مقيّد بالمشاريع)
-    //       يضمن ظهور التاسك حتى لو المستخدم ADMIN وليس member رسمي
-    const taskPhases = await ProjectPhaseModel.find(
-        { "tasks.assignedTo": userId },
-        "project name nameAr tasks"
-    ).lean();
+    const [allPhases, taskProjects] = await Promise.all([
+        ProjectPhaseModel.find(
+            { project: { $in: myProjectIds } },
+            "project name nameAr status order tasks"
+        ).lean(),
+        taskProjectIds.length > 0
+            ? ProjectModel.find({ _id: { $in: taskProjectIds } }, "name code").lean()
+            : []
+    ]);
 
-    // ── 3. إحصائيات المهام — من taskPhases (كل الـ phases التي فيها تاسك له) ──
+    // ── 3. Task statistics ──────────────────────────────────────────────────
     let delayedCount = 0;
     let pendingApprovalCount = 0;
     let inProgressCount = 0;
     const myTasks = [];
 
-    // جلب أسماء المشاريع لكل تاسك
-    const taskProjectIds = [...new Set(taskPhases.map(ph => ph.project.toString()))];
-    const taskProjects = taskProjectIds.length > 0
-        ? await ProjectModel.find({ _id: { $in: taskProjectIds } }, "name code").lean()
-        : [];
+    // Build a lookup map for task project names (avoids O(n²) .find())
+    const taskProjectMap = new Map();
+    for (const p of taskProjects) {
+        taskProjectMap.set(p._id.toString(), p);
+    }
 
-    taskPhases.forEach(phase => {
-        (phase.tasks || []).forEach(task => {
-            if (!task.assignedTo || task.assignedTo.toString() !== userId.toString()) return;
+    for (const phase of taskPhases) {
+        for (const task of (phase.tasks || [])) {
+            if (!task.assignedTo || task.assignedTo.toString() !== userId.toString()) continue;
 
             const isDelayed = !!(task.dueDate && new Date(task.dueDate) < now && task.status !== "COMPLETED");
 
@@ -214,9 +260,7 @@ export const getMyDashboard = asynchandler(async (req, res) => {
             if (task.status === "IN_PROGRESS") inProgressCount++;
             if (task.status === "PENDING") pendingApprovalCount++;
 
-            const relatedProject = taskProjects.find(
-                p => p._id.toString() === phase.project.toString()
-            );
+            const relatedProject = taskProjectMap.get(phase.project.toString());
 
             myTasks.push({
                 _id: task._id,
@@ -231,23 +275,23 @@ export const getMyDashboard = asynchandler(async (req, res) => {
                 phaseId: phase._id,
                 phaseName: phase.nameAr || phase.name
             });
-        });
-    });
+        }
+    }
 
-    // ── 4. تجميع بيانات المشاريع (نسبة إنجاز + المرحلة الحالية + عدد المهام)
+    // ── 4. Format projects ──────────────────────────────────────────────────
     const projectsFormatted = myProjects.map(project => {
         const phases = allPhases
             .filter(ph => ph.project.toString() === project._id.toString())
             .sort((a, b) => a.order - b.order);
 
         let totalTasks = 0, completedTasksCount = 0, activeTasks = 0;
-        phases.forEach(ph => {
-            (ph.tasks || []).forEach(t => {
+        for (const ph of phases) {
+            for (const t of (ph.tasks || [])) {
                 totalTasks++;
                 if (t.status === "COMPLETED") completedTasksCount++;
                 if (t.status === "IN_PROGRESS") activeTasks++;
-            });
-        });
+            }
+        }
 
         const progress = totalTasks > 0 ? Math.round((completedTasksCount / totalTasks) * 100) : 0;
 
@@ -297,7 +341,7 @@ export const getMyDashboard = asynchandler(async (req, res) => {
         };
     });
 
-    // ── 5. ترتيب المهام: متأخرة أولاً ─────────────────────────────────────────
+    // ── 5. Sort tasks: delayed first ────────────────────────────────────────
     const sortedTasks = myTasks.sort((a, b) => {
         if (a.isDelayed && !b.isDelayed) return -1;
         if (!a.isDelayed && b.isDelayed) return 1;

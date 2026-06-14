@@ -1,9 +1,20 @@
 import express from "express";
+import rateLimit from "express-rate-limit";
 import * as authService from "./auth.services.js";
 import { auth } from "../../middlewares/auth.js";
 import { permission } from "../../middlewares/premission.js";
 
+// Strict rate limiter for auth endpoints: 15 requests per 15 minutes per IP
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 15,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: 'Too many authentication attempts, please try again later.' },
+});
+
 const router = express.Router();
+router.use(authLimiter);
 
 /**
  * @swagger

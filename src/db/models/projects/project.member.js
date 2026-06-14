@@ -65,4 +65,7 @@ const projectMemberSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// Compound index for finding members by user (and optionally by project)
+projectMemberSchema.index({ user: 1, project: 1 });
+
 export default mongoose.model("ProjectMember", projectMemberSchema);

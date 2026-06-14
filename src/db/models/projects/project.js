@@ -112,4 +112,9 @@ const projectSchema = new mongoose.Schema(
   }
 );
 
+// Compound index for dashboard queries (countDocuments by isActive + status)
+projectSchema.index({ isActive: 1, status: 1 });
+// Index for finding projects by manager
+projectSchema.index({ manager: 1 });
+
 export default mongoose.model("Project", projectSchema);

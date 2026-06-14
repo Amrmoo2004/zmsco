@@ -6,7 +6,6 @@ const notificationSchema = new mongoose.Schema(
             type: mongoose.Schema.Types.ObjectId,
             ref: 'User',
             required: true,
-            index: true,
         },
         title: {
             type: String,
@@ -33,5 +32,8 @@ const notificationSchema = new mongoose.Schema(
     },
     { timestamps: true }
 );
+
+// Compound index for fast notification fetching (user's unread first, newest first)
+notificationSchema.index({ user: 1, isRead: 1, createdAt: -1 });
 
 export default mongoose.model('Notification', notificationSchema);

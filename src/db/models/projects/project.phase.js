@@ -144,4 +144,9 @@ const projectPhaseSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// Index for finding phases by project
+projectPhaseSchema.index({ project: 1 });
+// Index for personal dashboard — finding tasks assigned to a user
+projectPhaseSchema.index({ "tasks.assignedTo": 1 });
+
 export default mongoose.model("ProjectPhase", projectPhaseSchema);

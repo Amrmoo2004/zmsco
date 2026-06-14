@@ -1,6 +1,10 @@
 import express from 'express';
 import cors from "cors";
 import morgan from 'morgan';
+import helmet from 'helmet';
+import compression from 'compression';
+import hpp from 'hpp';
+import rateLimit from 'express-rate-limit';
 import swaggerUi from "swagger-ui-express";
 import cookieParser from 'cookie-parser';
 import swaggerSpec from "./docs/swagger.js";
@@ -66,18 +70,44 @@ import { seedDefaultSettings } from "./auto/seed-settings.js";
 
 
 const app = express();
+const isProduction = process.env.NODE_ENV === 'production';
+
+// ── Security Middleware ──────────────────────────────────────────────────────
+// Helmet: sets security HTTP headers (XSS, CSP, HSTS, etc.)
+app.use(helmet());
+
+// HPP: protects against HTTP Parameter Pollution attacks
+app.use(hpp());
+
+// Rate Limiter: 100 requests per 15 minutes per IP
+const globalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: 'Too many requests, please try again later.' },
+});
+app.use('/api', globalLimiter);
+
+// ── Performance Middleware ───────────────────────────────────────────────────
+// Gzip compression: reduces response size by ~70%
+app.use(compression());
+
+// ── Standard Middleware ─────────────────────────────────────────────────────
 const corsOptions = {
-  origin: '*',
+  origin: process.env.CORS_ORIGIN || '*',
   methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
   optionsSuccessStatus: 204,
 };
 app.use(cors(corsOptions));
-app.use(express.json());
-app.use(morgan("dev"));
-app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
-
-
+app.use(express.json({ limit: '2mb' }));
 app.use(cookieParser());
+app.use(morgan(isProduction ? 'combined' : 'dev'));
+
+// Swagger docs — hidden in production
+if (!isProduction) {
+  app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+}
 
 export const bootstrap = async () => { 
   app.get('/', (req, res) => {

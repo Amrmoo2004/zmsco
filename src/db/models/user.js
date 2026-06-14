@@ -98,4 +98,7 @@ const userSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// Index for frequent queries filtering by active status
+userSchema.index({ isActive: 1 });
+
 export default mongoose.model("User", userSchema);
