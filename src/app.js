@@ -76,10 +76,12 @@ const isProduction = process.env.NODE_ENV === 'production';
 // Required for express-rate-limit to get the correct client IP
 app.set('trust proxy', 1);
 
+// ── Swagger API Docs (Placed before security middleware to prevent asset blocking) ──
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+
 // ── Security Middleware ──────────────────────────────────────────────────────
 // Helmet: sets security HTTP headers
 // Note: crossOriginResourcePolicy is set to cross-origin to allow frontend (e.g. Netlify) to access the API
-// Note: contentSecurityPolicy is disabled because it blocks Swagger UI inline scripts/styles
 app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" },
   contentSecurityPolicy: false,
@@ -112,9 +114,6 @@ app.use(cors(corsOptions));
 app.use(express.json({ limit: '2mb' }));
 app.use(cookieParser());
 app.use(morgan(isProduction ? 'combined' : 'dev'));
-
-// Swagger docs
-app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 export const bootstrap = async () => { 
   app.get('/', (req, res) => {
