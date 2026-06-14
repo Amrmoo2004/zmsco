@@ -430,31 +430,49 @@ export const get_projects = asynchandler(async (req, res, next) => {
   const now = new Date();
   allProjectsForStats.forEach(p => {
     let displayStatus = p.status;
-    if (p.endDate && new Date(p.endDate) < now && p.status !== "COMPLETED") {
+    if (p.endDate && new Date(p.endDate) < now && !['COMPLETED', 'CANCELLED', 'ON_HOLD'].includes(p.status)) {
       displayStatus = "DELAYED";
     }
 
-    if (p.status === "PLANNING" || displayStatus === "DELAYED") stats.active++;
+    if (['PLANNING', 'EXECUTION'].includes(p.status) || displayStatus === "DELAYED") stats.active++;
     if (p.status === "PLANNING") stats.planning++;
+    if (p.status === "EXECUTION") stats.execution = (stats.execution || 0) + 1;
     if (p.status === "COMPLETED") stats.completed++;
     if (p.status === "ON_HOLD") stats.onHold++;
     if (displayStatus === "DELAYED") stats.delayed++;
     if (p.status === "DRAFT") stats.draft++;
+    if (p.status === "CANCELLED") stats.cancelled = (stats.cancelled || 0) + 1;
   });
 
   // ── Search & Filter from query params ──────────────────────────────────────
-  let query = { ...baseQuery };
+  // Clone base query but when a specific status filter is applied, replace the
+  // { $ne: "ARCHIVED" } with the exact status(es) requested
+  let query = { isActive: true };
+  // Re-apply the non-admin restriction on the data query
+  if (req.user.role !== "ADMIN" && req.user.role !== "superAdmin") {
+    const assignments = await ProjectMember.find({ user: req.user._id }).select("project");
+    const assignedProjectIds = assignments.map(a => a.project);
+    query.$and = [{
+      $or: [
+        { _id: { $in: assignedProjectIds } },
+        { manager: req.user._id }
+      ]
+    }];
+  }
   const { search, status, priority, manager, type } = req.query;
+  if (status) {
+    const statuses = status.split(",").map(s => s.trim().toUpperCase());
+    query.status = statuses.length === 1 ? statuses[0] : { $in: statuses };
+  } else {
+    // Default: exclude ARCHIVED unless explicitly requested
+    query.status = { $ne: "ARCHIVED" };
+  }
   if (search) {
     query.$or = [
       { name: { $regex: search, $options: "i" } },
       { code: { $regex: search, $options: "i" } },
       { client: { $regex: search, $options: "i" } },
     ];
-  }
-  if (status) {
-    const statuses = status.split(",").map(s => s.trim().toUpperCase());
-    query.status = statuses.length === 1 ? statuses[0] : { $in: statuses };
   }
   if (priority) query.priority = priority;
   if (manager) query.manager = manager;

@@ -30,7 +30,7 @@ export const getDashboardStats = asynchandler(async (req, res, next) => {
                     total:     [{ $match: { status: { $ne: "ARCHIVED" } } }, { $count: "n" }],
                     completed: [{ $match: { status: "COMPLETED" } }, { $count: "n" }],
                     archived:  [{ $match: { status: "ARCHIVED" } }, { $count: "n" }],
-                    active:    [{ $match: { status: { $in: ["PLANNING", "IN_PROGRESS"] } } }, { $count: "n" }],
+                    active:    [{ $match: { status: { $in: ["PLANNING", "EXECUTION", "IN_PROGRESS"] } } }, { $count: "n" }],
                     onHold:    [{ $match: { status: "ON_HOLD" } }, { $count: "n" }],
                 }
             }

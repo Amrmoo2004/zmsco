@@ -120,17 +120,13 @@ app.use('/api/auth', authLimiter);
 app.use(compression());
 
 // ── Standard Middleware ─────────────────────────────────────────────────────
-// CORS must be applied BEFORE everything else so 4xx errors also carry CORS headers
 const corsOptions = {
   origin: process.env.CORS_ORIGIN || '*',
   methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
   allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: true,
   optionsSuccessStatus: 204,
 };
 app.use(cors(corsOptions));
-// Respond immediately to all OPTIONS preflight requests
-app.options('*', cors(corsOptions));
 app.use(express.json({ limit: '2mb' }));
 app.use(cookieParser());
 app.use(morgan(isProduction ? 'combined' : 'dev'));
