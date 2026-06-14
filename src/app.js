@@ -92,32 +92,50 @@ app.use(helmet({
 // HPP: protects against HTTP Parameter Pollution attacks
 app.use(hpp());
 
-// Rate Limiter: 100 requests per 15 minutes per IP
+// ── Rate Limiters ─────────────────────────────────────────────────────────────
+// Global: 500 requests per 15 minutes per IP (was 100 — caused 429s due to polling)
 const globalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 100,
+  max: 500,
   standardHeaders: true,
   legacyHeaders: false,
+  skip: (req) => req.method === 'OPTIONS', // Don't rate-limit preflight requests
   message: { success: false, message: 'Too many requests, please try again later.' },
 });
 app.use('/api', globalLimiter);
+
+// Auth-specific: 30 login attempts per 15 minutes per IP (stricter)
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: (req) => req.method === 'OPTIONS',
+  message: { success: false, message: 'Too many login attempts, please try again later.' },
+});
+app.use('/api/auth', authLimiter);
 
 // ── Performance Middleware ───────────────────────────────────────────────────
 // Gzip compression: reduces response size by ~70%
 app.use(compression());
 
 // ── Standard Middleware ─────────────────────────────────────────────────────
+// CORS must be applied BEFORE everything else so 4xx errors also carry CORS headers
 const corsOptions = {
   origin: process.env.CORS_ORIGIN || '*',
-  methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+  methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true,
   optionsSuccessStatus: 204,
 };
 app.use(cors(corsOptions));
+// Respond immediately to all OPTIONS preflight requests
+app.options('*', cors(corsOptions));
 app.use(express.json({ limit: '2mb' }));
 app.use(cookieParser());
 app.use(morgan(isProduction ? 'combined' : 'dev'));
 
-export const bootstrap = async () => { 
+export const bootstrap = async () => {
   app.get('/', (req, res) => {
     res.send('API is working!');
   });
@@ -133,7 +151,7 @@ export const bootstrap = async () => {
   app.use('/api/materials', materialRoutes);
   app.use('/api/material-requests', materialRequestRoutes);
   app.use('/api/material-transactions', materialTransactionRoutes);
- 
+
   // Warehouse Management APIs
   app.use('/api/warehouses', warehouseRoutes);
 
