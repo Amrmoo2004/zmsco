@@ -72,9 +72,16 @@ import { seedDefaultSettings } from "./auto/seed-settings.js";
 const app = express();
 const isProduction = process.env.NODE_ENV === 'production';
 
+// Trust proxy if the app is behind a reverse proxy (Nginx, Render, Heroku, etc.)
+// Required for express-rate-limit to get the correct client IP
+app.set('trust proxy', 1);
+
 // ── Security Middleware ──────────────────────────────────────────────────────
-// Helmet: sets security HTTP headers (XSS, CSP, HSTS, etc.)
-app.use(helmet());
+// Helmet: sets security HTTP headers
+// Note: crossOriginResourcePolicy is set to cross-origin to allow frontend (e.g. Netlify) to access the API
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" }
+}));
 
 // HPP: protects against HTTP Parameter Pollution attacks
 app.use(hpp());
