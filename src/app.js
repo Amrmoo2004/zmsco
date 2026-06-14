@@ -111,10 +111,8 @@ app.use(express.json({ limit: '2mb' }));
 app.use(cookieParser());
 app.use(morgan(isProduction ? 'combined' : 'dev'));
 
-// Swagger docs — hidden in production
-if (!isProduction) {
-  app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
-}
+// Swagger docs
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 export const bootstrap = async () => { 
   app.get('/', (req, res) => {
