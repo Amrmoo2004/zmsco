@@ -82,9 +82,11 @@ app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 // ── Security Middleware ──────────────────────────────────────────────────────
 // Helmet: sets security HTTP headers
 // Note: crossOriginResourcePolicy is set to cross-origin to allow frontend (e.g. Netlify) to access the API
+// Note: hsts is disabled because accessing the raw IP via HTTP gets forcefully upgraded to HTTPS by browsers
 app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" },
   contentSecurityPolicy: false,
+  hsts: false,
 }));
 
 // HPP: protects against HTTP Parameter Pollution attacks
