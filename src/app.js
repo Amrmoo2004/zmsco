@@ -79,8 +79,10 @@ app.set('trust proxy', 1);
 // ── Security Middleware ──────────────────────────────────────────────────────
 // Helmet: sets security HTTP headers
 // Note: crossOriginResourcePolicy is set to cross-origin to allow frontend (e.g. Netlify) to access the API
+// Note: contentSecurityPolicy is disabled because it blocks Swagger UI inline scripts/styles
 app.use(helmet({
-  crossOriginResourcePolicy: { policy: "cross-origin" }
+  crossOriginResourcePolicy: { policy: "cross-origin" },
+  contentSecurityPolicy: false,
 }));
 
 // HPP: protects against HTTP Parameter Pollution attacks
