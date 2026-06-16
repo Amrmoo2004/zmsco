@@ -63,6 +63,13 @@ export const updateTask = asynchandler(async (req, res, next) => {
     const task = phase.tasks.id(taskId);
     if (!task) return next(new AppError("Task not found", 404));
 
+    const isAssignee = task.assignedTo?.toString() === req.user._id.toString();
+    const hasProjectPermission = req.user.permissions?.includes("EDIT_PROJECT") || req.user.permissions?.includes("*");
+
+    if (!isAssignee && !hasProjectPermission) {
+        return next(new AppError("Permission denied: You can only update your assigned tasks", 403));
+    }
+
     const oldAssignedTo = task.assignedTo?.toString();
     Object.assign(task, req.body);
 

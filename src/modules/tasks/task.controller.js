@@ -204,7 +204,7 @@ const router = Router({ mergeParams: true }); // mergeParams to access :projectI
 // Task CRUD
 router.get("/", auth, taskService.getTasksByPhase);
 router.post("/", auth, permission("EDIT_PROJECT"), taskService.createTask);
-router.put("/:taskId", auth, permission("EDIT_PROJECT"), taskService.updateTask);
+router.put("/:taskId", auth, taskService.updateTask);
 router.delete("/:taskId", auth, permission("DELETE_PROJECT"), taskService.deleteTask);
 
 // Task Attachments
