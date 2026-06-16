@@ -227,8 +227,8 @@ const router = Router();
  *               data:
  *                 notifications:
  *                   - _id: "64f1a2b3c4d5e6f7a8b9c0d1"
- *                     title: "✅ مرحلة اكتملت"
- *                     body: "تم الانتهاء من مرحلة التخطيط في مشروع شبكة الصرف"
+ *                     title: "✅ مرحلة \"التخطيط\" اكتملت"
+ *                     body: "تم الانتهاء من مرحلة \"التخطيط\" في مشروع \"شبكة الصرف الشمالية\""
  *                     type: "SUCCESS"
  *                     isRead: false
  *                     data:
@@ -258,13 +258,196 @@ const router = Router();
  *                     createdAt: "2025-06-15T10:30:00.000Z"
  *                   - _id: "64f1a2b3c4d5e6f7a8b9c0d4"
  *                     title: "📋 طلب صرف مواد جديد"
- *                     body: "تم إنشاء طلب صرف مواد جديد (REQ-001) في مشروع X"
+ *                     body: "تم إنشاء طلب صرف مواد جديد (REQ-001) في مشروع \"شبكة الصرف الشمالية\" بتكلفة 5000 ريال."
  *                     type: "INFO"
  *                     isRead: true
  *                     data:
  *                       requestId: "64f1a2b3c4d5e6f7a8b9c0b1"
  *                       projectId: "64f1a2b3c4d5e6f7a8b9c0a1"
  *                     createdAt: "2025-06-15T08:00:00.000Z"
+ *                   - _id: "64f1a2b3c4d5e6f7a8b9c0e1"
+ *                     title: "👤 تم تعيينك في مشروع"
+ *                     body: "تم تعيينك كـ \"Engineer\" في مشروع \"شبكة الصرف الشمالية\"."
+ *                     type: "INFO"
+ *                     isRead: false
+ *                     data:
+ *                       projectId: "64f1a2b3c4d5e6f7a8b9c0a1"
+ *                       role: "Engineer"
+ *                     createdAt: "2025-06-16T08:00:00.000Z"
+ *                   - _id: "64f1a2b3c4d5e6f7a8b9c0e2"
+ *                     title: "🔄 تم تغيير دورك في المشروع"
+ *                     body: "تم تحديث دورك إلى \"Manager\" في المشروع."
+ *                     type: "INFO"
+ *                     isRead: false
+ *                     data:
+ *                       projectId: "64f1a2b3c4d5e6f7a8b9c0a1"
+ *                       role: "Manager"
+ *                     createdAt: "2025-06-16T08:05:00.000Z"
+ *                   - _id: "64f1a2b3c4d5e6f7a8b9c0e3"
+ *                     title: "🚪 تم إزالتك من مشروع"
+ *                     body: "تم إزالتك من المشروع."
+ *                     type: "WARNING"
+ *                     isRead: false
+ *                     data:
+ *                       projectId: "64f1a2b3c4d5e6f7a8b9c0a1"
+ *                     createdAt: "2025-06-16T08:10:00.000Z"
+ *                   - _id: "64f1a2b3c4d5e6f7a8b9c0e4"
+ *                     title: "تم تعيينك في مهمة"
+ *                     body: "تم إسناد مهمة \"مراجعة التصميم\" إليك في مرحلة \"الأساسات\"."
+ *                     type: "INFO"
+ *                     isRead: false
+ *                     data:
+ *                       projectId: "64f1a2b3c4d5e6f7a8b9c0a1"
+ *                       phaseId: "64f1a2b3c4d5e6f7a8b9c0a2"
+ *                       taskId: "64f1a2b3c4d5e6f7a8b9c0a3"
+ *                     createdAt: "2025-06-16T08:15:00.000Z"
+ *                   - _id: "64f1a2b3c4d5e6f7a8b9c0e5"
+ *                     title: "📋 تم تعيينك على مهمة"
+ *                     body: "تم تعيينك على مهمة \"صب الخرسانة\" في مرحلة \"الأساسات\" بمشروع \"شبكة الصرف الشمالية\"."
+ *                     type: "INFO"
+ *                     isRead: false
+ *                     data:
+ *                       projectId: "64f1a2b3c4d5e6f7a8b9c0a1"
+ *                       phaseId: "64f1a2b3c4d5e6f7a8b9c0a2"
+ *                       taskId: "64f1a2b3c4d5e6f7a8b9c0a3"
+ *                     createdAt: "2025-06-16T08:20:00.000Z"
+ *                   - _id: "64f1a2b3c4d5e6f7a8b9c0e6"
+ *                     title: "⚠️ مرحلة \"التنفيذ\" متأخرة"
+ *                     body: "مرحلة \"التنفيذ\" في مشروع \"شبكة الصرف الشمالية\" بها تأخير."
+ *                     type: "WARNING"
+ *                     isRead: false
+ *                     data:
+ *                       projectId: "64f1a2b3c4d5e6f7a8b9c0a1"
+ *                       phaseId: "64f1a2b3c4d5e6f7a8b9c0a2"
+ *                     createdAt: "2025-06-16T08:25:00.000Z"
+ *                   - _id: "64f1a2b3c4d5e6f7a8b9c0e7"
+ *                     title: "🎉 اكتمل المشروع بنجاح!"
+ *                     body: "تم إكمال جميع مراحل مشروع \"شبكة الصرف الشمالية\" بنجاح. يمكنك الآن بدء إجراءات الإغلاق."
+ *                     type: "SUCCESS"
+ *                     isRead: false
+ *                     data:
+ *                       projectId: "64f1a2b3c4d5e6f7a8b9c0a1"
+ *                       type: "PROJECT_COMPLETED"
+ *                     createdAt: "2025-06-16T08:30:00.000Z"
+ *                   - _id: "64f1a2b3c4d5e6f7a8b9c0e8"
+ *                     title: "✅ اكتملت مرحلة: التخطيط"
+ *                     body: "تم إكمال المرحلة وفتح المرحلة التالية \"التنفيذ\" في مشروع \"شبكة الصرف الشمالية\"."
+ *                     type: "INFO"
+ *                     isRead: false
+ *                     data:
+ *                       projectId: "64f1a2b3c4d5e6f7a8b9c0a1"
+ *                       phaseId: "64f1a2b3c4d5e6f7a8b9c0a2"
+ *                       nextPhaseId: "64f1a2b3c4d5e6f7a8b9c0a5"
+ *                       type: "PHASE_COMPLETED"
+ *                     createdAt: "2025-06-16T08:35:00.000Z"
+ *                   - _id: "64f1a2b3c4d5e6f7a8b9c0e9"
+ *                     title: "✅ موافقة جديدة على مرحلة"
+ *                     body: "تمت الموافقة على طلب الموافقة في مرحلة \"التنفيذ\" بمشروع \"شبكة الصرف الشمالية\"."
+ *                     type: "SUCCESS"
+ *                     isRead: false
+ *                     data:
+ *                       projectId: "64f1a2b3c4d5e6f7a8b9c0a1"
+ *                       phaseId: "64f1a2b3c4d5e6f7a8b9c0a2"
+ *                       slotId: "64f1a2b3c4d5e6f7a8b9c0a6"
+ *                       type: "PHASE_APPROVAL"
+ *                     createdAt: "2025-06-16T08:40:00.000Z"
+ *                   - _id: "64f1a2b3c4d5e6f7a8b9c0f1"
+ *                     title: "❌ رفض موافقة على مرحلة"
+ *                     body: "تم الرفض على طلب الموافقة في مرحلة \"التنفيذ\" بمشروع \"شبكة الصرف الشمالية\"."
+ *                     type: "WARNING"
+ *                     isRead: false
+ *                     data:
+ *                       projectId: "64f1a2b3c4d5e6f7a8b9c0a1"
+ *                       phaseId: "64f1a2b3c4d5e6f7a8b9c0a2"
+ *                       slotId: "64f1a2b3c4d5e6f7a8b9c0a6"
+ *                       type: "PHASE_APPROVAL"
+ *                     createdAt: "2025-06-16T08:45:00.000Z"
+ *                   - _id: "64f1a2b3c4d5e6f7a8b9c0f2"
+ *                     title: "📎 مرفق جديد رُفِع"
+ *                     body: "تم رفع مستند \"العقد.pdf\" في مشروع \"شبكة الصرف الشمالية\"."
+ *                     type: "INFO"
+ *                     isRead: false
+ *                     data:
+ *                       projectId: "64f1a2b3c4d5e6f7a8b9c0a1"
+ *                       documentId: "64f1a2b3c4d5e6f7a8b9c0a7"
+ *                     createdAt: "2025-06-16T08:50:00.000Z"
+ *                   - _id: "64f1a2b3c4d5e6f7a8b9c0f3"
+ *                     title: "✅ طلب المواد تم قبوله"
+ *                     body: "تم قبول طلب صرف المواد (REQ-001) في مشروع \"شبكة الصرف الشمالية\"."
+ *                     type: "SUCCESS"
+ *                     isRead: false
+ *                     data:
+ *                       requestId: "64f1a2b3c4d5e6f7a8b9c0b1"
+ *                       projectId: "64f1a2b3c4d5e6f7a8b9c0a1"
+ *                     createdAt: "2025-06-16T08:55:00.000Z"
+ *                   - _id: "64f1a2b3c4d5e6f7a8b9c0f4"
+ *                     title: "✅ طلب المواد اعتُمد بالكامل"
+ *                     body: "تم اكتمال اعتماد طلب صرف المواد (REQ-001) في مشروع \"شبكة الصرف الشمالية\"."
+ *                     type: "SUCCESS"
+ *                     isRead: false
+ *                     data:
+ *                       requestId: "64f1a2b3c4d5e6f7a8b9c0b1"
+ *                       projectId: "64f1a2b3c4d5e6f7a8b9c0a1"
+ *                     createdAt: "2025-06-16T09:00:00.000Z"
+ *                   - _id: "64f1a2b3c4d5e6f7a8b9c0f5"
+ *                     title: "❌ طلب المواد تم رفضه"
+ *                     body: "تم رفض طلب صرف المواد (REQ-001) في مشروع \"شبكة الصرف الشمالية\". السبب: الميزانية لا تسمح."
+ *                     type: "ERROR"
+ *                     isRead: false
+ *                     data:
+ *                       requestId: "64f1a2b3c4d5e6f7a8b9c0b1"
+ *                       projectId: "64f1a2b3c4d5e6f7a8b9c0a1"
+ *                     createdAt: "2025-06-16T09:05:00.000Z"
+ *                   - _id: "64f1a2b3c4d5e6f7a8b9c0f6"
+ *                     title: "📦 تم صرف المواد"
+ *                     body: "تم صرف المواد لمشروع \"شبكة الصرف الشمالية\" بنجاح (REQ-001)."
+ *                     type: "SUCCESS"
+ *                     isRead: false
+ *                     data:
+ *                       requestId: "64f1a2b3c4d5e6f7a8b9c0b1"
+ *                       projectId: "64f1a2b3c4d5e6f7a8b9c0a1"
+ *                     createdAt: "2025-06-16T09:10:00.000Z"
+ *                   - _id: "64f1a2b3c4d5e6f7a8b9c0f7"
+ *                     title: "📉 مخزون منخفض: أسمنت"
+ *                     body: "الكمية المتبقية من \"أسمنت\" (10) أقل من الحد الأدنى (50)."
+ *                     type: "WARNING"
+ *                     isRead: false
+ *                     data:
+ *                       materialId: "64f1a2b3c4d5e6f7a8b9c0b8"
+ *                       currentQuantity: 10
+ *                       minStock: 50
+ *                       projectId: "64f1a2b3c4d5e6f7a8b9c0a1"
+ *                     createdAt: "2025-06-16T09:15:00.000Z"
+ *                   - _id: "64f1a2b3c4d5e6f7a8b9c0f8"
+ *                     title: "📋 طلب إجازة جديد"
+ *                     body: "تم تقديم طلب إجازة جديد من الموظف أحمد محمد لتبدأ في 2026-06-20."
+ *                     type: "INFO"
+ *                     isRead: false
+ *                     data:
+ *                       requestId: "64f1a2b3c4d5e6f7a8b9c0c1"
+ *                       requestType: "LEAVE"
+ *                       projectId: "64f1a2b3c4d5e6f7a8b9c0a1"
+ *                     createdAt: "2025-06-16T09:20:00.000Z"
+ *                   - _id: "64f1a2b3c4d5e6f7a8b9c0f9"
+ *                     title: "✅ تمت الموافقة على طلب إجازة"
+ *                     body: "تمت الموافقة على طلب إجازة الخاص بك بتاريخ 2026-06-20."
+ *                     type: "SUCCESS"
+ *                     isRead: false
+ *                     data:
+ *                       requestId: "64f1a2b3c4d5e6f7a8b9c0c1"
+ *                       requestType: "LEAVE"
+ *                       projectId: "64f1a2b3c4d5e6f7a8b9c0a1"
+ *                     createdAt: "2025-06-16T09:25:00.000Z"
+ *                   - _id: "64f1a2b3c4d5e6f7a8b9c0g1"
+ *                     title: "❌ تم رفض طلب إجازة"
+ *                     body: "تم رفض طلب إجازة الخاص بك. السبب: ضغط العمل."
+ *                     type: "ERROR"
+ *                     isRead: false
+ *                     data:
+ *                       requestId: "64f1a2b3c4d5e6f7a8b9c0c1"
+ *                       requestType: "LEAVE"
+ *                       projectId: "64f1a2b3c4d5e6f7a8b9c0a1"
+ *                     createdAt: "2025-06-16T09:30:00.000Z"
  *                 unreadCount: 2
  *       401:
  *         description: Unauthorized — missing or invalid token
