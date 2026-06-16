@@ -84,21 +84,45 @@ const router = Router({ mergeParams: true }); // mergeParams to access :projectI
  *     tags: [Phase Tasks]
  *     security: [{ bearerAuth: [] }]
  *     parameters:
- *       - { in: path, name: projectId, required: true, schema: { type: string } }
- *       - { in: path, name: phaseId, required: true, schema: { type: string } }
- *       - { in: path, name: taskId, required: true, schema: { type: string } }
+ *       - in: path
+ *         name: projectId
+ *         required: true
+ *         schema: { type: string }
+ *         description: MongoDB ObjectId of the project
+ *         example: "64f1a2b3c4d5e6f7a8b9c0d1"
+ *       - in: path
+ *         name: phaseId
+ *         required: true
+ *         schema: { type: string }
+ *         description: MongoDB ObjectId of the phase
+ *         example: "64f1a2b3c4d5e6f7a8b9c0d2"
+ *       - in: path
+ *         name: taskId
+ *         required: true
+ *         schema: { type: string }
+ *         description: MongoDB ObjectId of the task (embedded inside the phase)
+ *         example: "64f1a2b3c4d5e6f7a8b9c0d3"
  *     requestBody:
  *       required: true
  *       content:
  *         multipart/form-data:
  *           schema:
  *             type: object
+ *             required: [file]
  *             properties:
  *               file:
  *                 type: string
  *                 format: binary
+ *                 description: The file to upload (image, PDF, etc.)
  *     responses:
- *       201: { description: Attachment uploaded and added to task successfully }
+ *       201:
+ *         description: Attachment uploaded and added to task successfully
+ *       400:
+ *         description: No file uploaded
+ *       403:
+ *         description: Permission denied — not the task assignee and no EDIT_PROJECT permission
+ *       404:
+ *         description: Phase or task not found
  *
  * /projects/{projectId}/phases/{phaseId}/tasks/{taskId}/attachments/{attachmentId}:
  *   delete:
@@ -106,12 +130,37 @@ const router = Router({ mergeParams: true }); // mergeParams to access :projectI
  *     tags: [Phase Tasks]
  *     security: [{ bearerAuth: [] }]
  *     parameters:
- *       - { in: path, name: projectId, required: true, schema: { type: string } }
- *       - { in: path, name: phaseId, required: true, schema: { type: string } }
- *       - { in: path, name: taskId, required: true, schema: { type: string } }
- *       - { in: path, name: attachmentId, required: true, schema: { type: string } }
+ *       - in: path
+ *         name: projectId
+ *         required: true
+ *         schema: { type: string }
+ *         description: MongoDB ObjectId of the project
+ *         example: "64f1a2b3c4d5e6f7a8b9c0d1"
+ *       - in: path
+ *         name: phaseId
+ *         required: true
+ *         schema: { type: string }
+ *         description: MongoDB ObjectId of the phase
+ *         example: "64f1a2b3c4d5e6f7a8b9c0d2"
+ *       - in: path
+ *         name: taskId
+ *         required: true
+ *         schema: { type: string }
+ *         description: MongoDB ObjectId of the task
+ *         example: "64f1a2b3c4d5e6f7a8b9c0d3"
+ *       - in: path
+ *         name: attachmentId
+ *         required: true
+ *         schema: { type: string }
+ *         description: MongoDB ObjectId of the attachment to delete
+ *         example: "64f1a2b3c4d5e6f7a8b9c0d4"
  *     responses:
- *       200: { description: Attachment deleted from task successfully }
+ *       200:
+ *         description: Attachment deleted from task successfully
+ *       403:
+ *         description: Permission denied
+ *       404:
+ *         description: Phase, task, or attachment not found
  *
  * /projects/{projectId}/phases/{phaseId}/tasks/submit-attachment:
  *   post:
