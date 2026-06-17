@@ -209,8 +209,8 @@ export const getMyDashboard = asynchandler(async (req, res) => {
     ]);
 
     const memberProjectIds = memberDocs.map(m => m.project);
-    const taskProjectIds = taskPhases.map(ph => ph.project);
-    const combinedProjectIds = [...new Set([...memberProjectIds, ...taskProjectIds])];
+    const taskProjectIds = [...new Set(taskPhases.map(ph => ph.project.toString()))];
+    const combinedProjectIds = [...new Set([...memberProjectIds.map(id => id.toString()), ...taskProjectIds])];
 
     // ── 2. Fetch user's projects + all phases for those projects in parallel ─
     const myProjects = await ProjectModel.find({
@@ -228,7 +228,6 @@ export const getMyDashboard = asynchandler(async (req, res) => {
     const myProjectIds = myProjects.map(p => p._id);
 
     // Fetch all phases for user's projects (for project cards) + task project names in parallel
-    const taskProjectIds = [...new Set(taskPhases.map(ph => ph.project.toString()))];
 
     const [allPhases, taskProjects] = await Promise.all([
         ProjectPhaseModel.find(
