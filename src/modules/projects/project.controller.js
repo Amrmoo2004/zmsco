@@ -602,6 +602,86 @@ router.post(
 
 /**
  * @swagger
+ * /projects/{id}/draft:
+ *   patch:
+ *     summary: حفظ بيانات مسودة المشروع (step-by-step)
+ *     description: |
+ *       يحفظ أي حقل تبعثه في جسم الطلب على مشروع **DRAFT** فقط.
+ *       المشروع لا يبدأ ولا تتغير حالته — فقط البيانات تُحدَّث.
+ *
+ *       **الحقول المسموح بتحديثها:**
+ *       `name`, `type`, `priority`, `budget`, `startDate`, `endDate`,
+ *       `manager`, `department`, `client`, `description`, `location`,
+ *       `warehouseType`, `dedicatedWarehouse`, `sourceWarehouse`, `initialTransfers`
+ *
+ *       **الحقول المحظورة (تُتجاهل تلقائياً):**
+ *       `status`, `isActive`, `code`, `createdBy`
+ *
+ *       بعد الانتهاء من كل الخطوات استخدم:
+ *       `POST /api/projects/:id/activate` لبدء المشروع رسمياً.
+ *     tags: [Projects]
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *         description: Project ID (يجب أن يكون في حالة DRAFT)
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:        { type: string, example: "مشروع السكن الطلابي" }
+ *               type:        { type: string, example: "<ProjectType ObjectId>" }
+ *               priority:    { type: string, enum: [LOW, MEDIUM, HIGH] }
+ *               budget:      { type: number, example: 500000 }
+ *               startDate:   { type: string, format: date }
+ *               endDate:     { type: string, format: date }
+ *               manager:     { type: string, example: "<User ObjectId>" }
+ *               department:  { type: string, example: "<Department ObjectId>" }
+ *               client:      { type: string, example: "شركة الإنشاءات المتحدة" }
+ *               description: { type: string }
+ *               location:    { type: string }
+ *               warehouseType: { type: string, enum: [SHARED, DEDICATED] }
+ *               dedicatedWarehouse: { type: string }
+ *               sourceWarehouse:    { type: string }
+ *               initialTransfers:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *                   properties:
+ *                     material:      { type: string }
+ *                     quantity:      { type: number }
+ *                     fromWarehouse: { type: string }
+ *     responses:
+ *       200:
+ *         description: تم حفظ المسودة بنجاح
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean, example: true }
+ *                 message: { type: string, example: "تم حفظ المسودة بنجاح" }
+ *                 data:    { type: object }
+ *       400:
+ *         description: المشروع ليس في حالة DRAFT
+ *       404:
+ *         description: المشروع غير موجود
+ */
+router.patch(
+  "/:id/draft",
+  auth,
+  permission("EDIT_PROJECT"),
+  projectService.save_draft
+);
+
+
+/**
+ * @swagger
  * /projects/{id}/phases/{phaseId}/status:
  *   patch:
  *     summary: Simplest way to open or close a project's phase

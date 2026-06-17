@@ -13,7 +13,7 @@ import { tryAutoCompletePhase } from "../../utils/phaseUtils.js";
 
 // GET /api/projects/:projectId/phases/:phaseId/tasks
 export const getTasksByPhase = asynchandler(async (req, res) => {
-    const { phaseId } = req.params;
+    const { projectId, phaseId } = req.params;
     const { assignedTo } = req.query;
     
     const phase = await ProjectPhase.findById(phaseId)
@@ -21,13 +21,22 @@ export const getTasksByPhase = asynchandler(async (req, res) => {
         .populate("tasks.attachments");
     if (!phase) return res.status(404).json({ success: false, message: "Phase not found" });
     
+    const project = await Project.findById(projectId).select("manager").lean();
+    const isManager = project?.manager?.toString() === req.user._id.toString();
+    const isAdmin = req.user.role === "ADMIN" || req.user.role === "superAdmin";
+
+    let filterUser = assignedTo;
+    if (!isAdmin && !isManager && !assignedTo) {
+        filterUser = "me";
+    }
+
     let tasks = phase.tasks || [];
     
-    if (assignedTo) {
-        const filterUser = assignedTo === 'me' ? req.user._id.toString() : assignedTo;
+    if (filterUser) {
+        const resolvedUserId = filterUser === 'me' ? req.user._id.toString() : filterUser;
         tasks = tasks.filter(t => 
-            (t.assignedTo?._id?.toString() === filterUser) || 
-            (t.assignedTo?.toString() === filterUser)
+            (t.assignedTo?._id?.toString() === resolvedUserId) || 
+            (t.assignedTo?.toString() === resolvedUserId)
         );
     }
     

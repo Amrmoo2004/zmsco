@@ -30,6 +30,10 @@ export const create_project = asynchandler(async (req, res, next) => {
   });
   if (typeof parsedBody.skipActivation === 'string') parsedBody.skipActivation = parsedBody.skipActivation === 'true';
   if (typeof parsedBody.budget === 'string') parsedBody.budget = Number(parsedBody.budget);
+  // Default: stay DRAFT unless caller explicitly sets skipActivation: false (meaning "activate now")
+  // skipActivation: true  (or omitted) → create DRAFT only
+  // skipActivation: false               → create + activate immediately
+  const activateNow = parsedBody.skipActivation === false;
 
   const {
     name,
@@ -303,11 +307,9 @@ export const create_project = asynchandler(async (req, res, next) => {
   project.estimatedCost = estimatedCost;
 
   // ── Activation Logic ─────────────────────────────────────────────────────
-  // Projects go straight to PLANNING by default (first phase → IN_PROGRESS).
-  // Only stays DRAFT when the frontend explicitly sends: skipActivation: false
-  const stayDraft = req.body.skipActivation === false;
-
-  if (!stayDraft) {
+  // Default: create as DRAFT — the project only starts when explicitly activated
+  // via POST /api/projects/:id/activate OR when skipActivation=false is passed here.
+  if (activateNow) {
     // ── 1. Create Dedicated Warehouse if needed ─────────────────────────
     if (warehouseType === "DEDICATED" && !req.body.dedicatedWarehouse) {
       const newWarehouse = await Warehouse.create({
@@ -369,7 +371,6 @@ export const create_project = asynchandler(async (req, res, next) => {
       }
     }
 
-    // ── 3. Activate ────────────────────────────────────────────────────────
     project.status = "PLANNING";
     await project.save();
 
@@ -387,14 +388,15 @@ export const create_project = asynchandler(async (req, res, next) => {
       );
     }
   } else {
+    // Stay as DRAFT — just save estimatedCost
     await project.save();
   }
 
   return res.status(201).json({
     success: true,
-    message: project.status === "PLANNING"
+    message: activateNow
       ? "Project created and activated successfully."
-      : "Project draft created. Use /activate to finalize.",
+      : "Project draft created successfully. Use POST /projects/:id/activate to start it.",
     data: project
   });
 
@@ -555,13 +557,21 @@ export const get_project = asynchandler(async (req, res, next) => {
     .populate("tasks.assignedTo", "name email username")
     .sort({ order: 1 });
   const { assignedTo } = req.query;
+  const isManager = project.manager?.toString() === req.user._id.toString();
+  const isAdmin = req.user.role === "ADMIN" || req.user.role === "superAdmin";
+
+  let filterUser = assignedTo;
+  if (!isAdmin && !isManager && !assignedTo) {
+    filterUser = "me";
+  }
+
   const phases = phasesRaw.map(phase => {
     let phaseObj = phase.toObject ? phase.toObject() : phase;
-    if (assignedTo) {
-      const filterUser = assignedTo === 'me' ? req.user._id.toString() : assignedTo;
+    if (filterUser) {
+      const resolvedUserId = filterUser === 'me' ? req.user._id.toString() : filterUser;
       phaseObj.tasks = (phaseObj.tasks || []).filter(t => 
-        (t.assignedTo?._id?.toString() === filterUser) || 
-        (t.assignedTo?.toString() === filterUser)
+        (t.assignedTo?._id?.toString() === resolvedUserId) || 
+        (t.assignedTo?.toString() === resolvedUserId)
       );
     }
     return {
@@ -630,6 +640,56 @@ export const update_project = asynchandler(async (req, res, next) => {
     data: project
   });
 });
+
+/**
+ * SAVE DRAFT (step-by-step safe update for DRAFT projects)
+ * PATCH /projects/:id/draft
+ * يحفظ بيانات المسودة بأمان — مسموح فقط لو المشروع لسه DRAFT
+ * أي حقل ترسله بيتحفظ بدون أن يبدأ المشروع
+ */
+export const save_draft = asynchandler(async (req, res, next) => {
+  const { id } = req.params;
+
+  const project = await ProjectModel.findById(id);
+  if (!project) return next(new AppError("المشروع غير موجود", 404));
+
+  if (project.status !== "DRAFT") {
+    return next(new AppError("لا يمكن تعديل بيانات المسودة — المشروع بدأ بالفعل", 400));
+  }
+
+  // Fields that are not allowed to be changed via draft update
+  const FORBIDDEN = ["status", "isActive", "code", "createdBy"];
+  FORBIDDEN.forEach(f => delete req.body[f]);
+
+  // Parse arrays that might come as strings (multipart/form-data)
+  ['phases', 'materials', 'equipments', 'documents', 'members', 'initialTransfers'].forEach(field => {
+    if (typeof req.body[field] === 'string') {
+      try { req.body[field] = JSON.parse(req.body[field]); } catch (e) { delete req.body[field]; }
+    }
+  });
+  if (typeof req.body.budget === 'string') req.body.budget = Number(req.body.budget);
+
+  // Apply allowed field updates
+  const ALLOWED_FIELDS = [
+    'name', 'type', 'priority', 'budget', 'startDate', 'endDate',
+    'manager', 'department', 'client', 'description', 'location',
+    'warehouseType', 'dedicatedWarehouse', 'sourceWarehouse', 'initialTransfers'
+  ];
+  ALLOWED_FIELDS.forEach(field => {
+    if (req.body[field] !== undefined) {
+      project[field] = req.body[field];
+    }
+  });
+
+  await project.save();
+
+  return res.status(200).json({
+    success: true,
+    message: "تم حفظ المسودة بنجاح",
+    data: project
+  });
+});
+
 
 /**
  * DELETE PROJECT (soft delete)
@@ -932,12 +992,21 @@ export const get_phase_details = asynchandler(async (req, res, next) => {
 
   if (!phase) return next(new AppError('Phase not found.', 404));
 
+  const project = await ProjectModel.findById(projectId).select("manager").lean();
+  const isManager = project?.manager?.toString() === req.user._id.toString();
+  const isAdmin = req.user.role === "ADMIN" || req.user.role === "superAdmin";
+
+  let filterUser = assignedTo;
+  if (!isAdmin && !isManager && !assignedTo) {
+    filterUser = "me";
+  }
+
   let filteredPhase = { ...phase };
-  if (assignedTo) {
-    const filterUser = assignedTo === 'me' ? req.user._id.toString() : assignedTo;
+  if (filterUser) {
+    const resolvedUserId = filterUser === 'me' ? req.user._id.toString() : filterUser;
     filteredPhase.tasks = (filteredPhase.tasks || []).filter(t => 
-      (t.assignedTo?._id?.toString() === filterUser) || 
-      (t.assignedTo?.toString() === filterUser)
+      (t.assignedTo?._id?.toString() === resolvedUserId) || 
+      (t.assignedTo?.toString() === resolvedUserId)
     );
   }
 
@@ -1295,8 +1364,10 @@ export const get_project_tasks = asynchandler(async (req, res, next) => {
   }
 
   // Restrict access for non-admins
-  if (req.user.role !== "ADMIN" && req.user.role !== "superAdmin") {
-    const isManager = project.manager?.toString() === req.user._id.toString();
+  const isManager = project.manager?.toString() === req.user._id.toString();
+  const isAdmin = req.user.role === "ADMIN" || req.user.role === "superAdmin";
+
+  if (!isAdmin) {
     const isMember = await ProjectMember.exists({ project: id, user: req.user._id });
     const hasAssignedTask = await ProjectPhase.exists({ project: id, "tasks.assignedTo": req.user._id });
 
@@ -1328,6 +1399,10 @@ export const get_project_tasks = asynchandler(async (req, res, next) => {
   });
 
   let filterUser = assignedTo;
+  if (!isAdmin && !isManager && !assignedTo) {
+    filterUser = "me";
+  }
+
   if (filterUser === "me") {
     filterUser = req.user._id.toString();
   }
