@@ -10,20 +10,42 @@ import { calculatePhaseStatistics, tryAutoCompletePhase } from "../../utils/phas
 /** Get project phases */
 export const getProjectPhases = asynchandler(async (req, res, next) => {
     const { projectId } = req.params;
-    const project = await Project.findById(projectId);
+    const project = await Project.findById(projectId).select("manager").lean();
     if (!project) return next(new AppError("Project not found", 404));
 
-    const phasesRaw = await ProjectPhase.find({ project: projectId }).sort({ startDate: 1 }).lean();
+    const userId = req.user._id.toString();
+    const isAdmin      = req.user.role === "ADMIN" || req.user.role === "superAdmin";
+    const isManager    = project.manager?.toString() === userId;
+    const isProjMgr    = req.user.role === "PROJECT_MANAGER"; // system role
+    const isPrivileged = isAdmin || isManager || isProjMgr;
 
-    const phases = phasesRaw.map(pObj => {
-        return {
-            ...pObj,
-            statistics: calculatePhaseStatistics(pObj)
-        };
-    });
+    const phasesRaw = await ProjectPhase.find({ project: projectId }).sort({ order: 1 }).lean();
+
+    let phases;
+
+    if (isPrivileged) {
+        // Admins & managers → see everything as-is
+        phases = phasesRaw.map(p => ({ ...p, statistics: calculatePhaseStatistics(p) }));
+    } else {
+        // Regular users → only phases they have tasks in, tasks filtered to their own
+        phases = phasesRaw
+            .map(p => {
+                const myTasks = (p.tasks || []).filter(t =>
+                    t.assignedTo?.toString() === userId
+                );
+                if (myTasks.length === 0) return null; // skip phases with no tasks for this user
+                return {
+                    ...p,
+                    tasks: myTasks,
+                    statistics: calculatePhaseStatistics({ ...p, tasks: myTasks })
+                };
+            })
+            .filter(Boolean); // remove nulls
+    }
 
     return res.status(200).json({ success: true, data: phases });
 });
+
 
 /** Create project phase */
 export const createProjectPhase = asynchandler(async (req, res, next) => {

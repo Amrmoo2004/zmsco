@@ -26,7 +26,7 @@ export const getTasksByPhase = asynchandler(async (req, res) => {
     const isAdmin = req.user.role === "ADMIN" || req.user.role === "superAdmin";
 
     let filterUser = assignedTo;
-    if (!isAdmin && !isManager && !assignedTo) {
+    if (!isAdmin && !isManager && req.user.role !== "PROJECT_MANAGER" && !assignedTo) {
         filterUser = "me";
     }
 
@@ -86,8 +86,16 @@ export const updateTask = asynchandler(async (req, res, next) => {
 
     const isAssignee = task.assignedTo?.toString() === req.user._id.toString();
     const hasProjectPermission = req.user.permissions?.includes("EDIT_PROJECT") || req.user.permissions?.includes("*");
+    const isAdmin   = req.user.role === "ADMIN" || req.user.role === "superAdmin";
+    const isProjMgr = req.user.role === "PROJECT_MANAGER";
 
-    if (!isAssignee && !hasProjectPermission) {
+    // Check if user is the project manager (project.manager field)
+    const project = await Project.findById(projectId).select("manager").lean();
+    const isProjectManager = project?.manager?.toString() === req.user._id.toString();
+
+    const canEdit = isAssignee || hasProjectPermission || isAdmin || isProjMgr || isProjectManager;
+
+    if (!canEdit) {
         return next(new AppError("Permission denied: You can only update your assigned tasks", 403));
     }
 
