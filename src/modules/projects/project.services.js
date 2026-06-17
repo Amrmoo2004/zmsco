@@ -559,9 +559,11 @@ export const get_project = asynchandler(async (req, res, next) => {
   const { assignedTo } = req.query;
   const isManager = project.manager?.toString() === req.user._id.toString();
   const isAdmin = req.user.role === "ADMIN" || req.user.role === "superAdmin";
+  const isProjMgr = req.user.role === "PROJECT_MANAGER";
+  const isPrivileged = isAdmin || isManager || isProjMgr;
 
   let filterUser = assignedTo;
-  if (!isAdmin && !isManager && !assignedTo) {
+  if (!isPrivileged && !assignedTo) {
     filterUser = "me";
   }
 
@@ -573,12 +575,17 @@ export const get_project = asynchandler(async (req, res, next) => {
         (t.assignedTo?._id?.toString() === resolvedUserId) || 
         (t.assignedTo?.toString() === resolvedUserId)
       );
+      // If we are filtering by user (and the user is not privileged enough to see everything by default),
+      // and this phase has no tasks for the user, return null so we can filter it out.
+      if (!isPrivileged && phaseObj.tasks.length === 0) {
+        return null;
+      }
     }
     return {
       ...phaseObj,
       statistics: calculatePhaseStatistics(phaseObj)
     };
-  });
+  }).filter(Boolean); // Remove null phases
 
   return res.status(200).json({
     success: true,
@@ -777,13 +784,32 @@ export const get_project_summary = asynchandler(async (req, res, next) => {
 
   if (!project) return next(new AppError("Project not found", 404));
 
-  const phasesRaw = await ProjectPhase.find({ project: id }).lean().sort({ order: 1 });
-  const phases = phasesRaw.map(pObj => {
+  const userId = req.user._id.toString();
+  const isAdmin = req.user.role === "ADMIN" || req.user.role === "superAdmin";
+  const isProjMgr = req.user.role === "PROJECT_MANAGER";
+  const isManager = project.manager?._id?.toString() === userId || project.manager?.toString() === userId;
+  const isPrivileged = isAdmin || isManager || isProjMgr;
+
+  const phasesRaw = await ProjectPhase.find({ project: id })
+    .populate("tasks.assignedTo", "name email username")
+    .sort({ order: 1 });
+
+  const phases = phasesRaw.map(phase => {
+    let phaseObj = phase.toObject ? phase.toObject() : phase;
+    if (!isPrivileged) {
+      phaseObj.tasks = (phaseObj.tasks || []).filter(t => 
+        (t.assignedTo?._id?.toString() === userId) || 
+        (t.assignedTo?.toString() === userId)
+      );
+      if (phaseObj.tasks.length === 0) {
+        return null;
+      }
+    }
     return {
-      ...pObj,
-      statistics: calculatePhaseStatistics(pObj)
+      ...phaseObj,
+      statistics: calculatePhaseStatistics(phaseObj)
     };
-  });
+  }).filter(Boolean);
 
   const [members, materials, equipment, documents] = await Promise.all([
     ProjectMember.find({ project: id }).populate("user", "username email").lean(),
