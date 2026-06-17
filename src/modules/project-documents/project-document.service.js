@@ -126,7 +126,7 @@ export const uploadProjectDocument = asynchandler(async (req, res, next) => {
                 '📎 مرفق جديد رُفِع',
                 `تم رفع مستند "${document.name}" في مشروع "${project.name}".`,
                 'INFO',
-                { projectId, documentId: document._id }
+                { projectId, documentId: document._id, phaseId: document.phase || phase || undefined }
             ).catch(() => { })
         )
     );

@@ -403,20 +403,26 @@ export const get_projects = asynchandler(async (req, res, next) => {
   // ARCHIVED projects are excluded from the normal listing — use GET /projects/archived instead
   // ── Calculate Stats without Search Filters ─────────────────────────────────
   let baseQuery = { isActive: true, status: { $ne: "ARCHIVED" } };
-  
-  if (req.user.role !== "ADMIN") {
+
+  if (req.user.role !== "ADMIN" && req.user.role !== "superAdmin") {
     const assignments = await ProjectMember.find({ user: req.user._id }).select("project");
     const assignedProjectIds = assignments.map(a => a.project);
+
+    // Also include projects where the user is assigned to a task
+    const taskPhases = await ProjectPhase.find({ "tasks.assignedTo": req.user._id }).select("project");
+    const taskProjectIds = taskPhases.map(ph => ph.project);
+    const combinedIds = [...new Set([...assignedProjectIds, ...taskProjectIds])];
+
     baseQuery.$and = [{
       $or: [
-        { _id: { $in: assignedProjectIds } },
+        { _id: { $in: combinedIds } },
         { manager: req.user._id }
       ]
     }];
   }
 
   const allProjectsForStats = await ProjectModel.find(baseQuery).select("status endDate").lean();
-  
+
   const stats = {
     total: allProjectsForStats.length,
     active: 0,
@@ -452,9 +458,15 @@ export const get_projects = asynchandler(async (req, res, next) => {
   if (req.user.role !== "ADMIN" && req.user.role !== "superAdmin") {
     const assignments = await ProjectMember.find({ user: req.user._id }).select("project");
     const assignedProjectIds = assignments.map(a => a.project);
+
+    // Also include projects where the user is assigned to a task
+    const taskPhases = await ProjectPhase.find({ "tasks.assignedTo": req.user._id }).select("project");
+    const taskProjectIds = taskPhases.map(ph => ph.project);
+    const combinedIds = [...new Set([...assignedProjectIds, ...taskProjectIds])];
+
     query.$and = [{
       $or: [
-        { _id: { $in: assignedProjectIds } },
+        { _id: { $in: combinedIds } },
         { manager: req.user._id }
       ]
     }];
@@ -539,11 +551,22 @@ export const get_project = asynchandler(async (req, res, next) => {
 
   const equipments = await ProjectEquipment.find({ project: req.params.id });
 
-  const phasesRaw = await ProjectPhase.find({ project: req.params.id }).sort({ order: 1 });
+  const phasesRaw = await ProjectPhase.find({ project: req.params.id })
+    .populate("tasks.assignedTo", "name email username")
+    .sort({ order: 1 });
+  const { assignedTo } = req.query;
   const phases = phasesRaw.map(phase => {
+    let phaseObj = phase.toObject ? phase.toObject() : phase;
+    if (assignedTo) {
+      const filterUser = assignedTo === 'me' ? req.user._id.toString() : assignedTo;
+      phaseObj.tasks = (phaseObj.tasks || []).filter(t => 
+        (t.assignedTo?._id?.toString() === filterUser) || 
+        (t.assignedTo?.toString() === filterUser)
+      );
+    }
     return {
-      ...(phase.toObject ? phase.toObject() : phase),
-      statistics: calculatePhaseStatistics(phase)
+      ...phaseObj,
+      statistics: calculatePhaseStatistics(phaseObj)
     };
   });
 
@@ -899,19 +922,30 @@ export const update_phase_status = asynchandler(async (req, res, next) => {
  */
 export const get_phase_details = asynchandler(async (req, res, next) => {
   const { id: projectId, phaseId } = req.params;
+  const { assignedTo } = req.query;
 
   const phase = await ProjectPhase.findOne({ _id: phaseId, project: projectId })
     .populate('requiredApprovals.user', 'name')
     .populate('requiredAttachments.attachmentId', 'url name')
+    .populate('tasks.assignedTo', 'name email username')
     .lean();
 
   if (!phase) return next(new AppError('Phase not found.', 404));
 
+  let filteredPhase = { ...phase };
+  if (assignedTo) {
+    const filterUser = assignedTo === 'me' ? req.user._id.toString() : assignedTo;
+    filteredPhase.tasks = (filteredPhase.tasks || []).filter(t => 
+      (t.assignedTo?._id?.toString() === filterUser) || 
+      (t.assignedTo?.toString() === filterUser)
+    );
+  }
+
   return res.status(200).json({
     success: true,
     data: {
-      ...phase,
-      statistics: calculatePhaseStatistics(phase)
+      ...filteredPhase,
+      statistics: calculatePhaseStatistics(filteredPhase)
     }
   });
 });
@@ -1156,7 +1190,7 @@ export const updateTask = asynchandler(async (req, res, next) => {
       `تم تعيينك على مهمة "${task.name}" في مرحلة "${phase.nameAr || phase.name}" بمشروع "${project?.name}".`,
       "INFO",
       { projectId, phaseId, taskId }
-    ).catch(() => {});
+    ).catch(() => { });
   }
 
   return res.status(200).json({
@@ -1236,7 +1270,7 @@ export const approvePhaseSlot = asynchandler(async (req, res, next) => {
       `${status === "APPROVED" ? "تمت الموافقة" : "تم الرفض"} على طلب الموافقة في مرحلة "${phase.nameAr || phase.name}" بمشروع "${project.name}".`,
       status === "APPROVED" ? "SUCCESS" : "WARNING",
       { projectId, phaseId, slotId, type: "PHASE_APPROVAL" }
-    ).catch(() => {});
+    ).catch(() => { });
   }
 
   return res.status(200).json({
@@ -1245,3 +1279,82 @@ export const approvePhaseSlot = asynchandler(async (req, res, next) => {
     data: slot
   });
 });
+
+/**
+ * GET ALL PROJECT TASKS
+ * GET /projects/:id/tasks
+ * Query: ?assignedTo=userId (or 'me') & status=PENDING,IN_PROGRESS,COMPLETED,CANCELLED & priority=LOW,MEDIUM,HIGH
+ */
+export const get_project_tasks = asynchandler(async (req, res, next) => {
+  const { id } = req.params;
+  const { assignedTo, status, priority } = req.query;
+
+  const project = await ProjectModel.findById(id);
+  if (!project) {
+    return next(new AppError("المشروع غير موجود", 404));
+  }
+
+  // Restrict access for non-admins
+  if (req.user.role !== "ADMIN" && req.user.role !== "superAdmin") {
+    const isManager = project.manager?.toString() === req.user._id.toString();
+    const isMember = await ProjectMember.exists({ project: id, user: req.user._id });
+    const hasAssignedTask = await ProjectPhase.exists({ project: id, "tasks.assignedTo": req.user._id });
+
+    if (!isManager && !isMember && !hasAssignedTask) {
+      return next(new AppError("غير مصرح لك بمشاهدة مهام هذا المشروع", 403));
+    }
+  }
+
+  const phases = await ProjectPhase.find({ project: id })
+    .populate("tasks.assignedTo", "name email username")
+    .lean();
+
+  let allTasks = [];
+  phases.forEach(phase => {
+    if (phase.tasks && phase.tasks.length > 0) {
+      phase.tasks.forEach(task => {
+        allTasks.push({
+          ...task,
+          phaseId: phase._id,
+          phaseName: phase.name,
+          phaseNameAr: phase.nameAr,
+          phaseNameEn: phase.nameEn,
+          phaseStatus: phase.status,
+          projectId: id,
+          projectName: project.name
+        });
+      });
+    }
+  });
+
+  let filterUser = assignedTo;
+  if (filterUser === "me") {
+    filterUser = req.user._id.toString();
+  }
+
+  if (filterUser) {
+    allTasks = allTasks.filter(t => 
+      (t.assignedTo?._id?.toString() === filterUser.toString()) || 
+      (t.assignedTo?.toString() === filterUser.toString())
+    );
+  }
+
+  if (status) {
+    const statuses = status.split(",").map(s => s.trim().toUpperCase());
+    allTasks = allTasks.filter(t => statuses.includes(t.status?.toUpperCase()));
+  }
+
+  if (priority) {
+    const priorities = priority.split(",").map(p => p.trim().toUpperCase());
+    allTasks = allTasks.filter(t => priorities.includes(t.priority?.toUpperCase()));
+  }
+
+  // Sort by createdAt descending
+  allTasks.sort((a, b) => new Date(b.createdAt || b.updatedAt || 0) - new Date(a.createdAt || a.updatedAt || 0));
+
+  return res.status(200).json({
+    success: true,
+    data: allTasks
+  });
+});
+

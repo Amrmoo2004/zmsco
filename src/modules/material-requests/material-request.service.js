@@ -209,7 +209,7 @@ export const createRequest = asynchandler(async (req, res, next) => {
       "📋 طلب صرف مواد جديد",
       `تم إنشاء طلب صرف مواد جديد (${request.requestNumber}) في مشروع "${projectExists.name}" بتكلفة ${totalRequestCost} ريال.`,
       "INFO",
-      { requestId: request._id, projectId: project }
+      { requestId: request._id, projectId: project, phaseId: phase || undefined }
     );
   }
 
@@ -310,7 +310,7 @@ export const approveRequest = asynchandler(async (req, res, next) => {
       "✅ طلب المواد تم قبوله",
       `تم قبول طلب صرف المواد (${request.requestNumber}) في مشروع "${request.project?.name}".`,
       "SUCCESS",
-      { requestId: request._id, projectId: request.project?._id }
+      { requestId: request._id, projectId: request.project?._id, phaseId: request.phase?._id || request.phase || undefined }
     );
     emitToProject(String(request.project?._id), "approval:approved", {
       requestId:  request._id,
@@ -368,7 +368,7 @@ export const approveRequest = asynchandler(async (req, res, next) => {
       "✅ طلب المواد اعتُمد بالكامل",
       `تم اكتمال اعتماد طلب صرف المواد (${request.requestNumber}) في مشروع "${request.project?.name}".`,
       "SUCCESS",
-      { requestId: request._id, projectId: request.project?._id }
+      { requestId: request._id, projectId: request.project?._id, phaseId: request.phase?._id || request.phase || undefined }
     );
     emitToProject(String(request.project?._id), "approval:approved", {
       requestId: request._id, approvedBy: req.user._id, timestamp: new Date().toISOString()
@@ -454,7 +454,7 @@ export const rejectRequest = asynchandler(async (req, res, next) => {
     "❌ طلب المواد تم رفضه",
     `تم رفض طلب صرف المواد (${request.requestNumber}) في مشروع "${request.project?.name}".${reason ? " السبب: " + reason : ""}`,
     "ERROR",
-    { requestId: request._id, projectId: request.project?._id }
+    { requestId: request._id, projectId: request.project?._id, phaseId: request.phase?._id || request.phase || undefined }
   );
   emitToProject(String(request.project?._id), "approval:rejected", {
     requestId: request._id, reason, rejectedBy: req.user._id, timestamp: new Date().toISOString()
@@ -559,7 +559,7 @@ export const fulfillRequest = asynchandler(async (req, res, next) => {
             `📉 مخزون منخفض: ${matName}`,
             `الكمية المتبقية من "${matName}" (${stock.quantity}) أقل من الحد الأدنى (${minStock}).`,
             "WARNING",
-            { materialId: matId, currentQuantity: stock.quantity, minStock, projectId: project._id }
+            { materialId: matId, currentQuantity: stock.quantity, minStock, projectId: project._id, phaseId: request.phase?._id || request.phase || undefined }
           ).catch(() => {})
         )
       );
@@ -576,7 +576,7 @@ export const fulfillRequest = asynchandler(async (req, res, next) => {
     "📦 تم صرف المواد",
     `تم صرف المواد لمشروع "${project?.name}" بنجاح (${request.requestNumber}).`,
     "SUCCESS",
-    { requestId: request._id, projectId: project?._id }
+    { requestId: request._id, projectId: project?._id, phaseId: request.phase?._id || request.phase || undefined }
   );
 
   return res.status(200).json({

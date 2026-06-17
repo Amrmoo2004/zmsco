@@ -14,13 +14,25 @@ import { tryAutoCompletePhase } from "../../utils/phaseUtils.js";
 // GET /api/projects/:projectId/phases/:phaseId/tasks
 export const getTasksByPhase = asynchandler(async (req, res) => {
     const { phaseId } = req.params;
+    const { assignedTo } = req.query;
+    
     const phase = await ProjectPhase.findById(phaseId)
         .populate("tasks.assignedTo", "name email")
         .populate("tasks.attachments");
     if (!phase) return res.status(404).json({ success: false, message: "Phase not found" });
     
+    let tasks = phase.tasks || [];
+    
+    if (assignedTo) {
+        const filterUser = assignedTo === 'me' ? req.user._id.toString() : assignedTo;
+        tasks = tasks.filter(t => 
+            (t.assignedTo?._id?.toString() === filterUser) || 
+            (t.assignedTo?.toString() === filterUser)
+        );
+    }
+    
     // Sort tasks descending by createdAt
-    const tasks = phase.tasks.sort((a, b) => b.createdAt - a.createdAt);
+    tasks.sort((a, b) => b.createdAt - a.createdAt);
     return res.status(200).json({ success: true, data: tasks });
 });
 

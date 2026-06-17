@@ -209,13 +209,15 @@ export const getMyDashboard = asynchandler(async (req, res) => {
     ]);
 
     const memberProjectIds = memberDocs.map(m => m.project);
+    const taskProjectIds = taskPhases.map(ph => ph.project);
+    const combinedProjectIds = [...new Set([...memberProjectIds, ...taskProjectIds])];
 
     // ── 2. Fetch user's projects + all phases for those projects in parallel ─
     const myProjects = await ProjectModel.find({
         isActive: true,
         status: { $ne: "ARCHIVED" },
         $or: [
-            { _id: { $in: memberProjectIds } },
+            { _id: { $in: combinedProjectIds } },
             { manager: userId }
         ]
     })

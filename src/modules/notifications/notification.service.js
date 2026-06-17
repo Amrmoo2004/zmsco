@@ -1,4 +1,5 @@
 import Notification from '../../db/models/notification.model.js';
+import ProjectPhase from '../../db/models/projects/project.phase.js';
 import { sendNotification, emitToManagers } from '../../utils/socket.js';
 import { asynchandler } from '../../utils/response/response.js';
 import { AppError } from '../../utils/appError.js';
@@ -23,6 +24,29 @@ export const emitSystemEvent = (event, message, data = {}) => {
  * @param {object} data  - Optional extra payload
  */
 export const createNotification = async (userId, title, body, type = 'INFO', data = {}) => {
+    // If projectId is present but phaseId is not, find the active phase and append it
+    if (data && data.projectId && !data.phaseId) {
+        try {
+            // First, try to find a phase where the user is involved in tasks
+            const userPhase = await ProjectPhase.findOne({
+                project: data.projectId,
+                "tasks.assignedTo": userId
+            }).sort({ createdAt: -1 });
+
+            if (userPhase) {
+                data.phaseId = userPhase._id;
+            } else {
+                // Fallback to the overall IN_PROGRESS phase of the project
+                const activePhase = await ProjectPhase.findOne({ project: data.projectId, status: 'IN_PROGRESS' });
+                if (activePhase) {
+                    data.phaseId = activePhase._id;
+                }
+            }
+        } catch (err) {
+            console.error("Error finding active phase for notification:", err);
+        }
+    }
+
     const notification = await Notification.create({ user: userId, title, body, type, data });
     // Push in real-time to the user's socket room
     sendNotification(String(userId), 'notification', {

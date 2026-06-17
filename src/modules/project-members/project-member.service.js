@@ -65,7 +65,7 @@ export const addProjectMember = asynchandler(async (req, res, next) => {
             `👤 تم تعيينك في مشروع`,
             `تم تعيينك كـ "${role}" في مشروع "${project.name}".`,
             'INFO',
-            { projectId, role }
+            { projectId, role, phaseId: phase || undefined }
         );
 
         emitToProject(projectId, 'resource:assigned', {
@@ -98,7 +98,7 @@ export const updateProjectMember = asynchandler(async (req, res, next) => {
         `🔄 تم تغيير دورك في المشروع`,
         `تم تحديث دورك إلى "${role}" في المشروع.`,
         'INFO',
-        { projectId, role }
+        { projectId, role, phaseId: member.phase || undefined }
     );
 
     emitToProject(projectId, 'resource:assigned', {
@@ -128,7 +128,7 @@ export const removeProjectMember = asynchandler(async (req, res, next) => {
         `🚪 تم إزالتك من مشروع`,
         `تم إزالتك من المشروع.`,
         'WARNING',
-        { projectId }
+        { projectId, phaseId: member.phase || undefined }
     );
 
     emitToProject(projectId, 'resource:assigned', {

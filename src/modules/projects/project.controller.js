@@ -864,4 +864,64 @@ router.patch(
   projectService.approvePhaseSlot
 );
 
+/**
+ * @swagger
+ * /projects/{id}/tasks:
+ *   get:
+ *     summary: Get all tasks in a project across all phases with optional filtering
+ *     tags: [Projects]
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Project ID
+ *       - in: query
+ *         name: assignedTo
+ *         schema:
+ *           type: string
+ *         description: Filter by User ID assigned to the tasks. Can also pass 'me' to filter for current user.
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *         description: Comma-separated list of statuses to filter by (e.g. `PENDING,IN_PROGRESS`)
+ *       - in: query
+ *         name: priority
+ *         schema:
+ *           type: string
+ *         description: Comma-separated list of priorities to filter by (e.g. `HIGH,MEDIUM`)
+ *     responses:
+ *       200:
+ *         description: List of tasks matching the filters
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean, example: true }
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       _id: { type: string }
+ *                       name: { type: string }
+ *                       description: { type: string }
+ *                       status: { type: string }
+ *                       priority: { type: string }
+ *                       phaseId: { type: string }
+ *                       phaseName: { type: string }
+ *                       projectName: { type: string }
+ */
+router.get(
+  "/:id/tasks",
+  auth,
+  permission("VIEW_PROJECT"),
+  projectService.get_project_tasks
+);
+
 export default router;
+
