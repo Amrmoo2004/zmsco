@@ -2,6 +2,7 @@ import express from "express";
 import * as projectService from "./project.services.js";
 import { auth } from "../../middlewares/auth.js";
 import { permission } from "../../middlewares/premission.js";
+import { projectAccess } from "../../middlewares/projectAccess.js";
 import { uploadAny } from "../../middlewares/upload.js";
 
 const router = express.Router();
@@ -412,8 +413,8 @@ router.get("/archived", auth, permission("VIEW_PROJECT"), projectService.get_arc
  *         description: Project deleted
  */
 router.route("/:id")
-  .get(auth, permission("VIEW_PROJECT"), projectService.get_project)
-  .put(auth, permission("EDIT_PROJECT"), uploadAny(), projectService.update_project)
+  .get(auth, projectAccess("view"), projectService.get_project)
+  .put(auth, projectAccess("edit"), uploadAny(), projectService.update_project)
   .delete(auth, permission("DELETE_PROJECT"), projectService.delete_project);
 
 /**
@@ -495,7 +496,7 @@ router.post(
 router.get(
   "/:id/summary",
   auth,
-  permission("VIEW_PROJECT"),
+  projectAccess("view"),
   projectService.get_project_summary
 );
 
@@ -999,7 +1000,7 @@ router.patch(
 router.get(
   "/:id/tasks",
   auth,
-  permission("VIEW_PROJECT"),
+  projectAccess("view"),
   projectService.get_project_tasks
 );
 

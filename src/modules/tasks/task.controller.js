@@ -2,6 +2,7 @@ import { Router } from "express";
 import * as taskService from "./task.service.js";
 import { auth } from "../../middlewares/auth.js";
 import { permission } from "../../middlewares/premission.js";
+import { projectAccess } from "../../middlewares/projectAccess.js";
 import { uploadSingle } from "../../middlewares/upload.js";
 
 const router = Router({ mergeParams: true }); // mergeParams to access :projectId and :phaseId
@@ -202,14 +203,14 @@ const router = Router({ mergeParams: true }); // mergeParams to access :projectI
  */
 
 // Task CRUD
-router.get("/", auth, taskService.getTasksByPhase);
-router.post("/", auth, permission("EDIT_PROJECT"), taskService.createTask);
-router.put("/:taskId", auth, taskService.updateTask);
+router.get("/", auth, projectAccess("view"), taskService.getTasksByPhase);
+router.post("/", auth, projectAccess("manage"), taskService.createTask);
+router.put("/:taskId", auth, projectAccess("view"), taskService.updateTask);
 router.delete("/:taskId", auth, permission("DELETE_PROJECT"), taskService.deleteTask);
 
 // Task Attachments
-router.post("/:taskId/attachments", auth, uploadSingle("file"), taskService.uploadTaskAttachment);
-router.delete("/:taskId/attachments/:attachmentId", auth, taskService.deleteTaskAttachment);
+router.post("/:taskId/attachments", auth, projectAccess("view"), uploadSingle("file"), taskService.uploadTaskAttachment);
+router.delete("/:taskId/attachments/:attachmentId", auth, projectAccess("view"), taskService.deleteTaskAttachment);
 
 // Phase Gating Actions
 router.post("/submit-attachment", auth, taskService.submitPhaseAttachment);

@@ -2,6 +2,7 @@ import { Router } from "express";
 import * as projectPhaseService from "./project-phase.service.js";
 import { auth } from "../../middlewares/auth.js";
 import { permission } from "../../middlewares/premission.js";
+import { projectAccess } from "../../middlewares/projectAccess.js";
 
 const router = Router();
 
@@ -51,8 +52,8 @@ const router = Router();
  *     responses:
  *       201: { description: Phase created }
  */
-router.get("/:projectId/phases", auth, projectPhaseService.getProjectPhases);
-router.post("/:projectId/phases", auth, permission("UPDATE_PROJECT"), projectPhaseService.createProjectPhase);
+router.get("/:projectId/phases", auth, projectAccess("view"), projectPhaseService.getProjectPhases);
+router.post("/:projectId/phases", auth, projectAccess("manage"), projectPhaseService.createProjectPhase);
 
 /**
  * @swagger
