@@ -344,6 +344,26 @@ router.get("/archived", auth, permission("VIEW_PROJECT"), projectService.get_arc
 
 /**
  * @swagger
+ * /projects/search:
+ *   get:
+ *     summary: Global search across projects, phases, and tasks
+ *     tags: [Projects]
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - in: query
+ *         name: query
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Search query for project, phase, or task names
+ *     responses:
+ *       200:
+ *         description: Array of matched items
+ */
+router.get("/search", auth, projectService.global_search);
+
+/**
+ * @swagger
  * /projects/{id}:
  *   get:
  *     summary: Get project details

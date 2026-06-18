@@ -1459,3 +1459,97 @@ export const get_project_tasks = asynchandler(async (req, res, next) => {
   });
 });
 
+/**
+ * GLOBAL SEARCH
+ */
+export const global_search = asynchandler(async (req, res, next) => {
+  const { query } = req.query;
+  if (!query) {
+    return res.status(200).json({ success: true, data: [] });
+  }
+
+  const searchRegex = new RegExp(query, 'i');
+  const results = [];
+
+  // Project Access Filter based on user role
+  let allowedProjectIds = null;
+  if (req.user.role !== "ADMIN" && req.user.role !== "superAdmin") {
+    const assignments = await ProjectMember.find({ user: req.user._id }).select("project");
+    const assignedProjectIds = assignments.map(a => a.project);
+    const taskPhases = await ProjectPhase.find({ "tasks.assignedTo": req.user._id }).select("project");
+    const taskProjectIds = taskPhases.map(ph => ph.project);
+    const combinedIds = [...new Set([...assignedProjectIds.map(id => id.toString()), ...taskProjectIds.map(id => id.toString())])];
+    
+    const managedProjects = await ProjectModel.find({ manager: req.user._id }).select("_id");
+    const managedProjectIds = managedProjects.map(p => p._id.toString());
+    
+    allowedProjectIds = [...new Set([...combinedIds, ...managedProjectIds])];
+  }
+
+  // 1. Search Projects
+  let projectFilter = { isActive: true, name: searchRegex };
+  if (allowedProjectIds) {
+    projectFilter._id = { $in: allowedProjectIds };
+  }
+
+  const projects = await ProjectModel.find(projectFilter).select("_id name").lean();
+  for (const p of projects) {
+    results.push({
+      type: "project",
+      id: p._id,
+      name: p.name
+    });
+  }
+
+  // 2. Search Phases
+  let phaseFilter = {
+    $or: [
+      { name: searchRegex },
+      { nameAr: searchRegex },
+      { nameEn: searchRegex }
+    ]
+  };
+  if (allowedProjectIds) {
+    phaseFilter.project = { $in: allowedProjectIds };
+  }
+
+  const phases = await ProjectPhase.find(phaseFilter).select("_id project name nameAr nameEn").lean();
+  for (const ph of phases) {
+    results.push({
+      type: "phase",
+      id: ph._id,
+      projectId: ph.project,
+      name: ph.name || ph.nameAr || ph.nameEn
+    });
+  }
+
+  // 3. Search Tasks
+  let taskFilter = {
+    "tasks.name": searchRegex
+  };
+  if (allowedProjectIds) {
+    taskFilter.project = { $in: allowedProjectIds };
+  }
+
+  const phasesWithTasks = await ProjectPhase.find(taskFilter).select("_id project tasks").lean();
+  for (const ph of phasesWithTasks) {
+    if (ph.tasks && ph.tasks.length > 0) {
+      for (const t of ph.tasks) {
+        if (searchRegex.test(t.name)) {
+          results.push({
+            type: "task",
+            id: t._id,
+            projectId: ph.project,
+            phaseId: ph._id,
+            name: t.name
+          });
+        }
+      }
+    }
+  }
+
+  return res.status(200).json({
+    success: true,
+    data: results
+  });
+});
