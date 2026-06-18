@@ -64,6 +64,20 @@ export const create_project = asynchandler(async (req, res, next) => {
   // auto project code
   const projectCode = `PR-${Date.now()}`;
 
+  // If we are creating a project from an existing draft, delete the old draft
+  const draftId = parsedBody.draftId || parsedBody._id || parsedBody.id;
+  if (draftId) {
+    const existingDraft = await ProjectModel.findById(draftId);
+    if (existingDraft && existingDraft.status === 'DRAFT') {
+      await ProjectModel.findByIdAndDelete(draftId);
+      await ProjectPhase.deleteMany({ project: draftId });
+      await ProjectMaterial.deleteMany({ project: draftId });
+      await ProjectEquipment.deleteMany({ project: draftId });
+      await ProjectMember.deleteMany({ project: draftId });
+      await ProjectDocument.deleteMany({ project: draftId });
+    }
+  }
+
   // 1. Create Project
   const project = await ProjectModel.create({
     name,
@@ -665,6 +679,7 @@ export const save_draft = asynchandler(async (req, res, next) => {
   }
 
   // Fields that are not allowed to be changed via draft update
+  req.body = req.body || {};
   const FORBIDDEN = ["status", "isActive", "code", "createdBy"];
   FORBIDDEN.forEach(f => delete req.body[f]);
 

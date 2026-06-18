@@ -697,6 +697,7 @@ router.patch(
   "/:id/draft",
   auth,
   permission("EDIT_PROJECT"),
+  uploadAny(),
   projectService.save_draft
 );
 
