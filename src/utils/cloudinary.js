@@ -1,6 +1,7 @@
 import { v2 as cloudinary } from 'cloudinary';
 import { Readable } from 'stream';
 import dotenv from 'dotenv';
+import path from 'path';
 dotenv.config();
 
 cloudinary.config({
@@ -24,13 +25,22 @@ export const uploadToCloudinary = (buffer, originalname, mimetype, folder = 'zms
             : mimetype.startsWith('video/') ? 'video'
                 : 'raw';
 
+        let options = {
+            folder,
+            resource_type: resourceType,
+        };
+
+        if (originalname) {
+            const ext = path.extname(originalname);
+            const base = path.basename(originalname, ext).replace(/\s+/g, '_');
+            const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+            options.public_id = resourceType === 'raw' 
+                ? `${base}_${uniqueSuffix}${ext}` 
+                : `${base}_${uniqueSuffix}`;
+        }
+
         const uploadStream = cloudinary.uploader.upload_stream(
-            {
-                folder,
-                resource_type: resourceType,
-                use_filename: true,
-                unique_filename: true,
-            },
+            options,
             (error, result) => {
                 if (error) return reject(error);
                 resolve({ url: result.secure_url, publicId: result.public_id });
